@@ -1,0 +1,54 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* assets/css/variables.css */
+:root {
+  /* Fontes do Figma */
+  --font-family-primary: "Inter", sans-serif;
+  --font-family-secondary: "Outfit", sans-serif;
+
+  /* Cores Principais e Fundo */
+  --bg-beige-light: #FAF8F5;
+  --bg-beige-main: #F5F0E8;
+  --bg-beige-dark: #EDE7DB;
+  --bg-card-alt: #FDF8F3;
+
+  /* Azuis (Ações, Destaques e Botões) */
+  --blue-100: #EFF6FF;
+  --blue-200: #DBEAFE;
+  --blue-600: #2563EB;
+  --blue-700: #1D4ED8;
+
+  /* Neutros e Tipografia (Textos e Bordas) */
+  --white: #FFFFFF;
+  --black: #000000;
+  --transparent-black: rgba(0, 0, 0, 0);
+  --text-dark: #1E1B18;
+  --text-muted: #5C5650;
+  --text-subtle: #8C847E;
+  --border-color: #E2DCD0;
+
+  /* Status: Sucesso / Verde */
+  --green-light: #F0FDF4;
+  --green-badge-bg: #DCFCE7;
+  --green-border: #86EFAC;
+  --green-main: #10B981;
+  --green-dark: #15803D;
+
+  /* Status: Alerta / Amarelo e Laranja */
+  --yellow-light: #FEF3C7;
+  --orange-main: #F59E0B;
+  --orange-dark: #D97706;
+
+  /* Status: Erro e Perigo / Vermelho */
+  --red-light: #FDF4F0;
+  --red-badge-bg: #FEE2E2;
+  --red-border: #F87171;
+  --red-main: #EF4444;
+  --red-dark: #DC2626;
+  --red-deep: #991B1B;
+  --rose-dark: #E11D48;
+}
