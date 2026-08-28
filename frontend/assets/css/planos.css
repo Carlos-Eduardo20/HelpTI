@@ -1,0 +1,155 @@
+body {
+  background-color: var(--bg-beige-light);
+  font-family: var(--font-family-primary);
+  color: var(--text-dark);
+  margin: 0;
+  padding: 40px 20px;
+}
+
+.plans-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.plans-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.plans-header h1 {
+  font-family: var(--font-family-secondary);
+  font-size: 36px;
+  color: var(--text-dark);
+  margin: 8px 0;
+}
+
+.plans-header p {
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* Grid de Cards */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  align-items: stretch;
+}
+
+.plan-card {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.plan-card.featured {
+  border: 2px solid var(--blue-600);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.1);
+}
+
+.badge-featured {
+  position: absolute;
+  top: -14px;
+  right: 24px;
+  background-color: var(--blue-600);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.plan-name {
+  font-family: var(--font-family-secondary);
+  font-size: 24px;
+  margin: 0 0 8px 0;
+}
+
+.plan-audience {
+  font-size: 14px;
+  color: var(--text-muted);
+  min-height: 40px;
+}
+
+.plan-price {
+  margin: 20px 0;
+}
+
+.plan-price .currency {
+  font-size: 18px;
+  font-weight: 600;
+  vertical-align: top;
+}
+
+.plan-price .amount {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.plan-price .period {
+  font-size: 14px;
+  color: var(--text-subtle);
+}
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px 0;
+  flex-grow: 1;
+}
+
+.features-list li {
+  padding: 8px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.features-list li::before {
+  content: "✓";
+  color: var(--green-main);
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+/* Botões */
+.btn-plan {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--blue-600);
+  color: var(--white);
+}
+
+.btn-primary:hover {
+  background-color: var(--blue-700);
+}
+
+.btn-secondary {
+  background-color: var(--bg-beige-main);
+  color: var(--text-dark);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-beige-dark);
+}
+
+.plans-footer {
+  text-align: center;
+  margin-top: 40px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
