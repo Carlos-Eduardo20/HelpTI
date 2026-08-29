@@ -5,81 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
     <!-- CSS -->
-    <link rel="stylesheet" href="../assets/css/variables.css">
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
     <link rel="stylesheet" href="../assets/css/planos.css">
     <title>HelpTI</title>
 </head>
 <body>
-    
-    <div class="plans-container">
-    <header class="plans-header">
-      <h1>Escolha o ritmo da sua operação</h1>
-      <p>Planos claros, por atendente, para sua equipe crescer sem perder o controle.</p>
-    </header>
+   <!-- Topbar mantendo a navegação -->
+  <header class="top-navbar">
+    <div class="nav-container">
+      <div class="brand-group">
+        <a href="dashboard.html" class="navbar-brand">
+          <img src="../assets/images/Frame.png" alt="HelpTI Logo" class="brand-logo">
+          <span class="brand-name">HelpTI</span>
+        </a>
+        <nav class="nav-tabs">
+          <a href="dashboard.html" class="tab-item">Dashboard</a>
+        </nav>
+      </div>
+    </div>
+  </header>
 
+  <main class="main-container">
+    <div class="pricing-header">
+      <h1>Planos flexíveis para a sua operação de TI</h1>
+      <p>Gerencie chamados, controle banco de horas de clientes e SLA em uma única plataforma.</p>
+    </div>
+
+    <!-- Cards de Planos Comparativos -->
     <div class="pricing-grid">
       
       <!-- Plano Starter -->
-      <div class="plan-card">
-        <h3 class="plan-name">Starter</h3>
-        <p class="plan-audience">Para freelancers ou equipes de até 3 técnicos.</p>
-        <div class="plan-price">
-          <span class="currency">R$</span>
-          <span class="amount">49,90</span>
-          <span class="period">/mês por atendente</span>
-        </div>
-        <ul class="features-list">
-          <li>Até 3 técnicos</li>
-          <li>Chamados ilimitados</li>
-          <li>Triagem automática básica</li>
-          <li>Suporte por e-mail</li>
+      <div class="pricing-card">
+        <div class="card-badge">Para Equipes Pequenas</div>
+        <h3>Starter TI</h3>
+        <p class="price">R$ 49<span>/mês por técnico</span></p>
+        <p class="plan-desc">Ideal para autônomos e pequenas consultorias em fase inicial.</p>
+        
+        <ul class="plan-features">
+          <li>✓ Até 3 técnicos ativos</li>
+          <li>✓ Gestão básica de chamados & SLA</li>
+          <li>✓ Portal de abertura pelo cliente</li>
+          <li>✓ Registro de horas por chamado</li>
+          <li>✕ Controle de Km / Geoposicionamento</li>
+          <li>✕ Apuração de Horas Excedentes</li>
         </ul>
-        <button class="btn-plan btn-secondary">Assinar Starter</button>
+        <button class="btn-secondary-full">Assinar Starter</button>
       </div>
 
       <!-- Plano Pro (Destaque) -->
-      <div class="plan-card featured">
-        <div class="badge-featured">Mais vendido</div>
-        <h3 class="plan-name">Pro</h3>
-        <p class="plan-audience">Para empresas de TI em crescimento, de 3 a 10 técnicos.</p>
-        <div class="plan-price">
-          <span class="currency">R$</span>
-          <span class="amount">79,90</span>
-          <span class="period">/mês por atendente</span>
-        </div>
-        <ul class="features-list">
-          <li>Atendentes ilimitados</li>
-          <li>Relatórios de métricas e SLA</li>
-          <li>Priorização de chamados</li>
-          <li>Suporte prioritário</li>
+      <div class="pricing-card featured">
+        <div class="card-badge highlight">Mais Popular</div>
+        <h3>Pro Operation</h3>
+        <p class="price">R$ 89<span>/mês por técnico</span></p>
+        <p class="plan-desc">Gestão completa de chamados, banco de horas e SLA em tempo real.</p>
+        
+        <ul class="plan-features">
+          <li>✓ Técnicos ilimitados</li>
+          <li>✓ <strong>Controle de Banco de Horas dos Clientes</strong></li>
+          <li>✓ <strong>Cálculo Automático de Horas Excedentes</strong></li>
+          <li>✓ SLA customizado por prioridade</li>
+          <li>✓ Check-in de campo com Geolocalização</li>
+          <li>✓ Relatórios em PDF/Excel para faturamento</li>
         </ul>
-        <button class="btn-plan btn-primary">Assinar Pro</button>
+        <button class="btn-primary-full">Começar Teste Grátis</button>
       </div>
 
       <!-- Plano Enterprise -->
-      <div class="plan-card">
-        <h3 class="plan-name">Enterprise</h3>
-        <p class="plan-audience">Para operações maiores, com 10 ou mais técnicos.</p>
-        <div class="plan-price">
-          <span class="currency">R$</span>
-          <span class="amount">129,90</span>
-          <span class="period">/mês por atendente</span>
-        </div>
-        <ul class="features-list">
-          <li>Domínio personalizado</li>
-          <li>Integração via API</li>
-          <li>Banco de dados isolado</li>
-          <li>Suporte 24 horas por dia</li>
+      <div class="pricing-card">
+        <div class="card-badge">Grandes Operações</div>
+        <h3>Enterprise</h3>
+        <p class="price">R$ 129,90<span>/mês por técnico</span></p>
+        <p class="plan-desc">Infraestrutura dedicada com integração via API e suporte 24/7.</p>
+        
+        <ul class="plan-features">
+          <li>✓ Tudo do Plano Pro</li>
+          <li>✓ Gestão Multi-empresas (Franquias/Filiais)</li>
+          <li>✓ API aberta para integração com ERPs</li>
+          <li>✓ Gerente de conta dedicado</li>
+          <li>✓ SLA corporativo customizado</li>
         </ul>
-        <button class="btn-plan btn-secondary">Assinar Enterprise</button>
+        <button class="btn-secondary-full">Assinar Enterprise</button>
       </div>
 
     </div>
-
-    <footer class="plans-footer">
-      <p>🛡️ Todos os planos incluem segurança de dados, atualizações contínuas e cancelamento flexível.</p>
-    </footer>
-  </div>
-
+  </main>
 </body>
 </html>
