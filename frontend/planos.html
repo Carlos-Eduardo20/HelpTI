@@ -5,26 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
     <!-- CSS -->
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../assets/css/planos.css">
+    <link rel="stylesheet" href="../frontend/assets/css/planos.css">
     <title>HelpTI</title>
 </head>
 <body>
-   <!-- Topbar mantendo a navegação -->
-  <header class="top-navbar">
-    <div class="nav-container">
-      <div class="brand-group">
-        <a href="dashboard.html" class="navbar-brand">
-          <img src="../assets/images/Frame.png" alt="HelpTI Logo" class="brand-logo">
-          <span class="brand-name">HelpTI</span>
-        </a>
-        <nav class="nav-tabs">
-          <a href="dashboard.html" class="tab-item">Dashboard</a>
-        </nav>
-      </div>
-    </div>
-  </header>
-
   <main class="main-container">
     <div class="pricing-header">
       <h1>Planos flexíveis para a sua operação de TI</h1>
@@ -49,7 +33,7 @@
           <li>✕ Controle de Km / Geoposicionamento</li>
           <li>✕ Apuração de Horas Excedentes</li>
         </ul>
-        <button class="btn-secondary-full">Assinar Starter</button>
+        <button class="btn-secondary-full" onclick="window.location.href='../frontend/pages/login.html'">Assinar Starter</button>
       </div>
 
       <!-- Plano Pro (Destaque) -->
@@ -67,27 +51,20 @@
           <li>✓ Check-in de campo com Geolocalização</li>
           <li>✓ Relatórios em PDF/Excel para faturamento</li>
         </ul>
-        <button class="btn-primary-full">Começar Teste Grátis</button>
+        <button class="btn-primary-full" onclick="window.location.href='../frontend/pages/login.html'">Começar Teste Grátis</button>
       </div>
-
-      <!-- Plano Enterprise -->
-      <div class="pricing-card">
-        <div class="card-badge">Grandes Operações</div>
-        <h3>Enterprise</h3>
-        <p class="price">R$ 129,90<span>/mês por técnico</span></p>
-        <p class="plan-desc">Infraestrutura dedicada com integração via API e suporte 24/7.</p>
-        
-        <ul class="plan-features">
-          <li>✓ Tudo do Plano Pro</li>
-          <li>✓ Gestão Multi-empresas (Franquias/Filiais)</li>
-          <li>✓ API aberta para integração com ERPs</li>
-          <li>✓ Gerente de conta dedicado</li>
-          <li>✓ SLA corporativo customizado</li>
-        </ul>
-        <button class="btn-secondary-full">Assinar Enterprise</button>
-      </div>
-
     </div>
   </main>
+
+  <div class="footer-container">
+    <footer class="footer-helpti">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <polyline points="9 12 11 14 15 10"></polyline>
+      </svg>
+      <span>Todos os planos incluem segurança de dados, atualizações contínuas e cancelamento flexível.</span>
+    </footer>
+  </div>
+
 </body>
 </html>
