@@ -6,65 +6,178 @@
     <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
     <!-- CSS -->
     <link rel="stylesheet" href="../frontend/assets/css/planos.css">
+
+    <!-- Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <title>HelpTI</title>
 </head>
-<body>
-  <main class="main-container">
-    <div class="pricing-header">
-      <h1>Planos flexíveis para a sua operação de TI</h1>
-      <p>Gerencie chamados, controle banco de horas de clientes e SLA em uma única plataforma.</p>
-    </div>
 
-    <!-- Cards de Planos Comparativos -->
-    <div class="pricing-grid">
-      
-      <!-- Plano Starter -->
-      <div class="pricing-card">
-        <div class="card-badge">Para Equipes Pequenas</div>
-        <h3>Starter TI</h3>
-        <p class="price">R$ 49<span>/mês por técnico</span></p>
-        <p class="plan-desc">Ideal para autônomos e pequenas consultorias em fase inicial.</p>
-        
-        <ul class="plan-features">
-          <li>✓ Até 3 técnicos ativos</li>
-          <li>✓ Gestão básica de chamados & SLA</li>
-          <li>✓ Portal de abertura pelo cliente</li>
-          <li>✓ Registro de horas por chamado</li>
-          <li>✕ Controle de Km / Geoposicionamento</li>
-          <li>✕ Apuração de Horas Excedentes</li>
+  <main class="plans-container">
+
+    <!-- Cabeçalho da Página -->
+    <header class="page-header">
+      <span class="eyebrow">Planos HelpTi</span>
+      <h1>Escolha o ritmo da sua operação</h1>
+      <p>Planos claros, por atendente, para sua equipe crescer sem perder o controle.</p>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="plans-hero">
+      <div class="plans-hero__text">
+        <span class="eyebrow">Plataforma de suporte HelpTi</span>
+        <h2>Transforme cada chamado em <span>confiança</span> do seu cliente.</h2>
+        <p>HelpTi organiza, automatiza e humaniza o suporte técnico da sua equipe. Menos caos, mais resolução — e um painel que mostra o valor real do seu trabalho.</p>
+        <ul class="plans-hero__bullets">
+          <li><i data-lucide="check"></i> Triagem automática com priorização por SLA</li>
+          <li><i data-lucide="check"></i> Relatórios de métricas em tempo real</li>
+          <li><i data-lucide="check"></i> E-mail de encerramento com infográfico técnico</li>
         </ul>
-        <button class="btn-secondary-full" onclick="window.location.href='../frontend/pages/login.html'">Assinar Starter</button>
+        <div class="plans-hero__cta">
+          <a class="button button--primary" href="#planos">Ver planos <i data-lucide="arrow-right"></i></a>
+          <a class="button button--secondary" href="#recursos">Conhecer recursos</a>
+        </div>
+      </div>
+      <div class="plans-hero__image">
+        <img src="./assets/images/Dados.avif" alt="Painel HelpTi de gestão de chamados">
+        <div class="plans-hero__badge"><i data-lucide="star"></i> 4,9/5 · +12 mil técnicos</div>
+      </div>
+    </section>
+
+    <!-- Métricas / Stats -->
+    <section class="plans-stats">
+      <div><strong>98%</strong><span>Chamados resolvidos no SLA</span></div>
+      <div><strong>+12 mil</strong><span>Técnicos usando HelpTi</span></div>
+      <div><strong>4,9/5</strong><span>Satisfação dos clientes</span></div>
+      <div><strong>24/7</strong><span>Monitoramento de uptime</span></div>
+    </section>
+
+    <!-- Seção de Tabela de Preços -->
+    <section id="planos" class="plans-section">
+      <header class="plans-section__head">
+        <span class="eyebrow">Planos por atendente</span>
+        <h2>Planos que crescem com a sua equipe</h2>
+        <p>Preços claros, sem surpresas. Cancele quando quiser.</p>
+      </header>
+
+      <div class="pricing-grid">
+        
+        <!-- Plano Starter -->
+        <div class="plan-card">
+          <span class="plan-card__name">Starter</span>
+          <div class="plan-card__price">
+            <small>R$</small><strong>79,90</strong><span>/mês</span>
+          </div>
+          <p class="plan-card__audience">Para freelancers ou equipes de até 3 técnicos.</p>
+          <ul class="plan-card__features">
+            <li><i data-lucide="check"></i> Até 3 técnicos</li>
+            <li><i data-lucide="check"></i> Chamados ilimitados</li>
+            <li><i data-lucide="check"></i> Triagem automática básica</li>
+            <li><i data-lucide="check"></i> Suporte por e-mail</li>
+          </ul>
+          <a href="pages/login.html" class="button button--secondary">Escolher Starter</a>
+        </div>
+
+        <!-- Plano Pro (Destaque) -->
+        <div class="plan-card plan-card--featured">
+          <span class="plan-card__badge">Mais vendido</span>
+          <span class="plan-card__name">Pro</span>
+          <div class="plan-card__price">
+            <small>R$</small><strong>99,90</strong><span>/mês</span>
+          </div>
+          <p class="plan-card__audience">Para empresas de TI em crescimento, de 3 a 10 técnicos.</p>
+          <ul class="plan-card__features">
+            <li><i data-lucide="check"></i> Atendentes ilimitados</li>
+            <li><i data-lucide="check"></i> Relatórios de métricas e SLA</li>
+            <li><i data-lucide="check"></i> Priorização de chamados</li>
+            <li><i data-lucide="check"></i> E-mail de encerramento com infográfico</li>
+            <li><i data-lucide="check"></i> Suporte prioritário</li>
+          </ul>
+          <a href="pages/login.html" class="button button--primary">Assinar Plano Pro</a>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Recursos / Features -->
+    <section id="recursos" class="plans-features">
+      <header class="plans-section__head">
+        <span class="eyebrow">Por que HelpTi</span>
+        <h2>Feito para a operação de TI ganhar tempo</h2>
+      </header>
+
+      <div class="feature-row">
+        <div class="feature-row__media">
+          <img src="./assets/images/Time.avif" alt="Triagem inteligente">
+          <span class="feature-row__icon"><i data-lucide="zap"></i></span>
+        </div>
+        <div class="feature-row__text">
+          <span class="eyebrow">01</span>
+          <h3>Triagem inteligente</h3>
+          <p>Distribuição automática de chamados por prioridade, técnica e disponibilidade — sem esforço manual e sem chamados perdidos.</p>
+        </div>
       </div>
 
-      <!-- Plano Pro (Destaque) -->
-      <div class="pricing-card featured">
-        <div class="card-badge highlight">Mais Popular</div>
-        <h3>Pro Operation</h3>
-        <p class="price">R$ 89<span>/mês por técnico</span></p>
-        <p class="plan-desc">Gestão completa de chamados, banco de horas e SLA em tempo real.</p>
-        
-        <ul class="plan-features">
-          <li>✓ Técnicos ilimitados</li>
-          <li>✓ <strong>Controle de Banco de Horas dos Clientes</strong></li>
-          <li>✓ <strong>Cálculo Automático de Horas Excedentes</strong></li>
-          <li>✓ SLA customizado por prioridade</li>
-          <li>✓ Check-in de campo com Geolocalização</li>
-          <li>✓ Relatórios em PDF/Excel para faturamento</li>
-        </ul>
-        <button class="btn-primary-full" onclick="window.location.href='../frontend/pages/login.html'">Começar Teste Grátis</button>
+      <div class="feature-row feature-row--reverse">
+        <div class="feature-row__media">
+          <img src="./assets/images/Setor.avif" alt="Relatórios">
+          <span class="feature-row__icon"><i data-lucide="bar-chart-3"></i></span>
+        </div>
+        <div class="feature-row__text">
+          <span class="eyebrow">02</span>
+          <h3>Relatórios que vendem seu valor</h3>
+          <p>Métricas de SLA, tempo de resposta e produtividade da equipe em dashboards claros para apresentar ao cliente.</p>
+        </div>
       </div>
-    </div>
+
+      <div class="feature-row">
+        <div class="feature-row__media">
+          <img src="./assets/images/Equipe.avif" alt="Segurança">
+          <span class="feature-row__icon"><i data-lucide="shield-check"></i></span>
+        </div>
+        <div class="feature-row__text">
+          <span class="eyebrow">03</span>
+          <h3>Segurança de dados</h3>
+          <p>Criptografia, backups automáticos e banco isolado para manter a operação da sua empresa sempre protegida.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Depoimento -->
+    <section class="testimonial">
+      <i data-lucide="star" class="star"></i>
+      <blockquote>"Com HelpTi reduzimos o tempo de resposta em 40% e o cliente recebe um relatório profissional no encerramento. Virou nosso diferencial de mercado."</blockquote>
+      <div class="testimonial__author">
+        <span>RC</span>
+        <div>
+          <strong>Rafael Campos</strong>
+          <small>Diretor de TI</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chamada Final -->
+    <section class="final-cta">
+      <div>
+        <span class="eyebrow">Comece hoje</span>
+        <h2>Pronto para humanizar o suporte da sua equipe?</h2>
+        <p>Teste grátis por 14 dias. Sem cartão de crédito.</p>
+      </div>
+      <div class="final-cta__actions">
+        <a class="button button--primary" href="#planos">Assinar agora <i data-lucide="arrow-right"></i></a>
+        <a class="button button--secondary" href="#planos">Falar com vendas</a>
+      </div>
+    </section>
   </main>
 
-  <div class="footer-container">
-    <footer class="footer-helpti">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        <polyline points="9 12 11 14 15 10"></polyline>
-      </svg>
-      <span>Todos os planos incluem segurança de dados, atualizações contínuas e cancelamento flexível.</span>
-    </footer>
-  </div>
+  <footer class="page-footer">
+    <p class="pricing-note">
+      <i data-lucide="shield-check"></i> Todos os planos incluem segurança de dados, atualizações contínuas e cancelamento flexível.
+    </p>
+  </footer>
+  <script>
+    // Inicializa os ícones do Lucide
+    lucide.createIcons();
+  </script>
 
 </body>
 </html>

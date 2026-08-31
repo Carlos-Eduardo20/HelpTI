@@ -1,28 +1,35 @@
 # HelpTI
 
-Sistema web para gerenciamento de suporte técnico e atendimento de TI, voltado para empresas que precisam organizar chamados, clientes, equipe interna e relatórios de SLA.
+Sistema web de gestão operacional para suporte técnico, com foco em acompanhar chamados, clientes, equipe e indicadores do atendimento de TI.
 
 ## Visão geral
 
-O HelpTI foi pensado como uma plataforma de gestão operacional para uma empresa de prestação de serviços de tecnologia. A solução centraliza o acompanhamento de incidentes, a organização de clientes e contratos, a gestão da equipe técnica e a visualização de indicadores de desempenho.
+O HelpTI está em desenvolvimento como uma interface administrativa para empresas de suporte técnico. A estrutura atual do projeto está voltada para a apresentação visual e navegação do sistema, com páginas para login, dashboard, chamados, clientes, equipe e relatórios.
 
-O projeto é composto por:
-
-- Frontend estático em HTML, CSS e JavaScript
-- Estrutura de páginas para navegação do sistema
-- Backend inicial em Python para futuras integrações e persistência de dados
-- Banco de dados em SQL para modelagem da base de suporte
+Atualmente, o projeto está em uma fase de protótipo/front-end, com foco em layout, experiência do usuário e organização das funcionalidades principais. O backend ainda está inicial e não está integrado de forma completa ao fluxo da aplicação.
 
 ---
 
-## Funcionalidades principais
+## Estado atual do projeto
 
-- Cadastro e acompanhamento de chamados de suporte
+### Frontend
+O frontend já conta com a estrutura principal do sistema em HTML, CSS e JavaScript.
+
+- Tela de login com autenticação visual simulada
 - Dashboard com indicadores de operação
-- Gestão de clientes e contratos
-- Organização da equipe técnica
-- Relatórios de SLA e consumo de horas
-- Interface de login para acesso ao sistema
+- Agenda de chamados por dia e técnico
+- Modal para abertura de novos chamados
+- Dropdown de perfil com ações de configuração e logout
+- Navegação entre páginas do painel
+
+### Backend
+A parte de backend está em estágio inicial.
+
+- [backend/schema.sql](backend/schema.sql): estrutura inicial do banco de dados
+- [backend/app.py](backend/app.py): arquivo reservado para a aplicação backend
+- [backend/database.py](backend/database.py): arquivo reservado para conexão e regras de persistência
+
+Nesse momento, os arquivos Python ainda não possuem implementação funcional e o sistema depende principalmente do front-end estático.
 
 ---
 
@@ -36,7 +43,6 @@ HelpTI/
 │   ├── database.py
 │   └── schema.sql
 ├── frontend/
-│   ├── index.html
 │   ├── assets/
 │   │   ├── css/
 │   │   │   ├── dashboard.css
@@ -48,95 +54,75 @@ HelpTI/
 │   │       ├── api.js
 │   │       ├── dashboard.js
 │   │       └── main.js
-│   └── pages/
-│       ├── chamados.html
-│       ├── clientes.html
-│       ├── dashboard.html
-│       ├── equipe.html
-│       └── relatorios.html
-└── .gitignore (se existir no projeto)
+│   ├── pages/
+│   │   ├── chamados.html
+│   │   ├── clientes.html
+│   │   ├── dashboard.html
+│   │   ├── equipe.html
+│   │   ├── login.html
+│   │   └── relatorios.html
+│   └── planos.html
+└── .gitignore
 ```
-
-### Descrição de cada pasta
-
-#### backend/
-Diretório responsável pela parte lógica do sistema e persistência.
-
-- [backend/app.py](backend/app.py): arquivo principal da aplicação backend.
-- [backend/database.py](backend/database.py): responsável pela conexão e operações com banco de dados.
-- [backend/schema.sql](backend/schema.sql): script SQL com a criação da estrutura do banco de dados.
-
-#### frontend/
-Contém todas as telas e recursos visuais da aplicação.
-
-- [frontend/index.html](frontend/index.html): página de login inicial do sistema.
-- [frontend/assets/css](frontend/assets/css): arquivos de estilo do projeto, incluindo layout do dashboard e login.
-- [frontend/assets/js](frontend/assets/js): scripts JavaScript de interação da interface.
-- [frontend/assets/images](frontend/assets/images): imagens e ícones do sistema.
-- [frontend/pages](frontend/pages): páginas internas do painel administrativo.
 
 ---
 
-## Páginas do projeto
+## Páginas existentes
 
-### 1. Login
-Acesso inicial ao sistema.
+### Login
+Página inicial de acesso ao sistema.
 
-- [frontend/index.html](frontend/index.html)
+- [frontend/pages/login.html](frontend/pages/login.html)
 
-### 2. Dashboard
-Painel principal com visão geral da operação, indicadores e fila de atendimento.
+### Dashboard
+Painel principal com visão geral operacional e fila de atendimentos.
 
 - [frontend/pages/dashboard.html](frontend/pages/dashboard.html)
 
-### 3. Chamados
-Área para acompanhar, categorizar e gerenciar solicitações de suporte.
+### Chamados
+Estrutura para gestão e acompanhamento de chamados.
 
 - [frontend/pages/chamados.html](frontend/pages/chamados.html)
 
-### 4. Clientes
-Módulo para cadastro e gestão de clientes e contratos.
+### Clientes
+Área para cadastro e organização de clientes e contratos.
 
 - [frontend/pages/clientes.html](frontend/pages/clientes.html)
 
-### 5. Equipe
-Visualização e controle dos técnicos e integrantes da operação.
+### Equipe
+Visualização da equipe técnica e estrutura departamental.
 
 - [frontend/pages/equipe.html](frontend/pages/equipe.html)
 
-### 6. Relatórios
-Área para acompanhar métricas, SLA e consumo de horas.
+### Relatórios
+Módulo para indicadores e relatórios futuros.
 
 - [frontend/pages/relatorios.html](frontend/pages/relatorios.html)
 
 ---
 
-## Detalhes de arquivos importantes
+## Arquivos principais
 
 ### CSS
-Os estilos estão divididos por módulos para facilitar manutenção:
-
-- [frontend/assets/css/dashboard.css](frontend/assets/css/dashboard.css): visual do painel administrativo
-- [frontend/assets/css/login.css](frontend/assets/css/login.css): visual da tela de login
-- [frontend/assets/css/planos.css](frontend/assets/css/planos.css): estilos específicos para planos/contratos
-- [frontend/assets/css/variables.css](frontend/assets/css/variables.css): variáveis globais de cores, espaçamentos e fontes
+- [frontend/assets/css/dashboard.css](frontend/assets/css/dashboard.css): layout e estilos do dashboard
+- [frontend/assets/css/login.css](frontend/assets/css/login.css): estilos da tela de login
+- [frontend/assets/css/variables.css](frontend/assets/css/variables.css): paleta de cores e variáveis globais
+- [frontend/assets/css/planos.css](frontend/assets/css/planos.css): estilos de planos e contratos
 
 ### JavaScript
-- [frontend/assets/js/api.js](frontend/assets/js/api.js): funções para comunicação com API/backend
-- [frontend/assets/js/dashboard.js](frontend/assets/js/dashboard.js): interações do painel e ações do dashboard
-- [frontend/assets/js/main.js](frontend/assets/js/main.js): lógica principal do frontend
+- [frontend/assets/js/dashboard.js](frontend/assets/js/dashboard.js): interações do dashboard, dropdown e modal de chamados
+- [frontend/assets/js/api.js](frontend/assets/js/api.js): estrutura para integrações com API
+- [frontend/assets/js/main.js](frontend/assets/js/main.js): arquivo reservado para lógica principal do frontend
 
 ---
 
-## Como executar o projeto
+## Como utilizar no momento
 
-### Opção 1: abrir diretamente no navegador
-Como o frontend é estático, basta abrir o arquivo abaixo em um navegador:
+Como o projeto ainda é um protótipo front-end, a forma mais simples de visualizar é abrir a página inicial do sistema diretamente no navegador:
 
-- [frontend/index.html](frontend/index.html)
+- [frontend/pages/login.html](frontend/pages/login.html)
 
-### Opção 2: rodar localmente com servidor HTTP
-Se preferir, você pode iniciar um servidor local na raiz do projeto:
+Ou, se preferir, executar um servidor local:
 
 ```bash
 cd HelpTI
@@ -146,34 +132,34 @@ python -m http.server 8000
 Depois acesse:
 
 ```text
-http://localhost:8000/frontend/index.html
+http://localhost:8000/frontend/pages/login.html
 ```
 
-> O backend ainda está em desenvolvimento, então a parte de autenticação e persistência de dados pode ser expandida conforme a aplicação evolui.
+> O login atual é apenas simulado e redireciona para o dashboard, sem autenticação real.
 
 ---
 
-## Status do projeto
+## Status do desenvolvimento
 
-Este projeto está em fase inicial de desenvolvimento e já conta com a estrutura principal de navegação e layout do sistema. A próxima etapa pode incluir:
+O projeto já possui uma base funcional de interface e navegação, mas ainda está em evolução. As próximas etapas esperadas incluem:
 
-- integração com banco de dados real
+- integração real com banco de dados
 - autenticação de usuários
-- cadastro e edição de chamados
-- consumo de API para dados dinâmicos
-- geração de relatórios em PDF
-- deploy em ambiente web
+- persistência de chamados e clientes
+- API para comunicação entre frontend e backend
+- geração de relatórios e indicadores automáticos
+- refinamento do fluxo administrativo completo
 
 ---
 
 ## Conclusão
 
-O HelpTI é uma base sólida para um sistema de gestão de suporte técnico, com foco em organização operacional, controle de SLA e acompanhamento da equipe. A estrutura do projeto está organizada para facilitar expansão e manutenção conforme novas funcionalidades forem adicionadas.
+O HelpTI hoje representa uma base sólida de interface e estrutura para um sistema de gestão de suporte técnico. O projeto já demonstra a organização visual do painel e os módulos principais, mas ainda está em fase inicial de implementação da parte lógica e de persistência.
 
-Se quiser, também posso criar uma versão melhorada do README com:
+Se quiser, posso também atualizar o README para um formato mais profissional com:
 
-- badges do projeto
-- instruções de instalação mais detalhadas
+- badges
 - roadmap de desenvolvimento
-- tabela de tecnologias utilizadas
-- seção de screenshots e fluxo de uso
+- instruções de instalação detalhadas
+- stack tecnológica
+- seção de funcionalidades por módulo

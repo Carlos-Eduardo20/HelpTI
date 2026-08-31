@@ -1,217 +1,403 @@
-/* Importa as variáveis de cores e fontes do projeto */
-@import url('variables.css');
+@import url(variables.css);
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* Layout Principal e Fontes */
 body {
+  font-family: var(--font-family-primary);
+  background-color: var(--bg-beige-light);
+  color: var(--text-dark);
+  margin: 0;
   min-height: 100vh;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-main, #F8F6F0);
-  color: var(--text-primary, #111827);
-}
-
-body {
   display: flex;
   flex-direction: column;
 }
 
-.main-container {
+.plans-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 40px 24px 24px;
-  display: flex;
-  flex-direction: column;
+  padding: 40px 20px 0;
+  flex: 1;
+}
+
+/* Tipografia Base */
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-family-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--blue-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.page-header h1 {
+  font-family: var(--font-family-secondary);
+  font-size: 2.5rem;
+  margin: 0 0 12px;
+}
+
+.page-header p {
+  color: var(--text-muted);
+  font-size: 1.125rem;
+}
+
+/* Botões */
+.button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
-}
-
-/* Cabeçalho da Página de Planos */
-.pricing-header {
-  text-align: center;
-  max-width: 640px;
-  margin: 0 auto 40px auto;
-}
-
-.pricing-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary, #111827);
-}
-
-.pricing-header p {
-  color: var(--text-secondary, #6B7280);
-  font-size: 15px;
-  margin-top: 8px;
-  line-height: 1.5;
-}
-
-/* Grid das Placas de Preço */
-.pricing-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(280px, 1fr));
-  gap: 24px;
-  align-items: stretch;
-  max-width: 760px;
-  width: 100%;
-  margin: 0 auto;
-  justify-items: center;
-}
-
-/* Card Individual do Plano */
-.pricing-card {
-  width: 100%;
-  max-width: 360px;
-  background-color: var(--white, #FFFFFF);
-  border: 1px solid var(--border-color, #E5E7EB);
-  border-radius: var(--radius-lg, 12px);
-  padding: 32px 24px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  text-align: left;
-}
-
-/* Plano em Destaque (Pro Operation) */
-.pricing-card.featured {
-  border: 2px solid var(--primary-color, #2563EB);
-  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.12);
-}
-
-.card-badge {
-  font-size: 12px;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 8px;
   font-weight: 600;
-  color: var(--text-secondary, #6B7280);
-  margin-bottom: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.card-badge.highlight {
-  color: var(--primary-color, #2563EB);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.button--primary {
+  background-color: var(--blue-600);
+  color: var(--white);
+  border: none;
 }
 
-.pricing-card h3 {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary, #111827);
-  margin-bottom: 8px;
+.button--primary:hover {
+  background-color: var(--blue-700);
 }
 
-.price {
-  font-size: 36px;
-  font-weight: 800;
-  color: var(--text-primary, #111827);
-  line-height: 1;
-  margin: 12px 0 4px 0;
+.button--secondary {
+  background-color: var(--white);
+  color: var(--text-dark);
+  border: 1px solid var(--border-color);
 }
 
-.price span {
-  font-size: 14px;
-  color: var(--text-secondary, #6B7280);
-  font-weight: 400;
+.button--secondary:hover {
+  background-color: var(--bg-beige-main);
 }
 
-.plan-desc {
-  font-size: 13px;
-  color: var(--text-secondary, #6B7280);
-  margin-bottom: 24px;
-  line-height: 1.4;
+/* Hero Section */
+.plans-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  margin-bottom: 64px;
 }
 
-/* Lista de Recursos */
-.plan-features {
+.plans-hero__text h2 {
+  font-family: var(--font-family-secondary);
+  font-size: 2.25rem;
+  line-height: 1.2;
+}
+
+.plans-hero__text h2 span {
+  color: var(--blue-600);
+}
+
+.plans-hero__bullets {
   list-style: none;
-  margin-bottom: 32px;
-  flex: 1;
+  padding: 0;
+  margin: 24px 0;
 }
 
-.plan-features li {
-  font-size: 14px;
-  color: #374151;
-  margin-bottom: 12px;
+.plans-hero__bullets li {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
+  color: var(--text-muted);
 }
 
-.plan-features li strong {
-  color: var(--text-primary, #111827);
+.plans-hero__bullets i {
+  color: var(--green-main);
 }
 
-/* Botões dos Planos */
-.btn-primary-full {
+.plans-hero__cta {
+  display: flex;
+  gap: 16px;
+}
+
+.plans-hero__image {
+  position: relative;
+}
+
+.plans-hero__image img {
   width: 100%;
-  background-color: var(--primary-color, #2563EB);
-  color: var(--white, #FFFFFF);
-  padding: 12px;
-  border: none;
-  border-radius: var(--radius-sm, 6px);
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.plans-hero__badge {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: var(--white);
+  padding: 8px 16px;
+  border-radius: 20px;
   font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-primary-full:hover {
-  background-color: var(--primary-hover, #1D4ED8);
-}
-
-.btn-secondary-full {
-  width: 100%;
-  background-color: #F3F4F6;
-  color: #374151;
-  padding: 12px;
-  border: 1px solid var(--border-color, #D1D5DB);
-  border-radius: var(--radius-sm, 6px);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-secondary-full:hover {
-  background-color: #E5E7EB;
-}
-
-.footer-container {
-  width: 100%;
-  padding: 0 24px 28px;
-}
-
-.footer-helpti {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 14px 20px;
-  color: var(--text-secondary, #6B7280);
+  font-size: 0.875rem;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.plans-hero__badge i,
+.plans-hero__badge svg {
+  color: var(--orange-main);
+  stroke: var(--orange-main);
+  fill: none;
+}
+
+/* Stats */
+.plans-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  background-color: var(--bg-beige-main);
+  padding: 32px;
+  border-radius: 12px;
   text-align: center;
-  font-size: 13px;
+  margin-bottom: 64px;
+}
+
+.plans-stats strong {
+  display: block;
+  font-family: var(--font-family-secondary);
+  font-size: 2rem;
+  color: var(--blue-600);
+}
+
+.plans-stats span {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Cards dos Planos */
+.plans-section__head {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 340px));
+  gap: 24px;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+}
+
+.plan-card {
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+}
+
+.plan-card--featured {
+  border-color: var(--blue-600);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+}
+
+.plan-card__badge {
+  position: absolute;
+  top: -12px;
+  right: 24px;
+  background: var(--blue-600);
+  color: var(--white);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.plan-card__name {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.plan-card__price {
+  margin: 16px 0;
+  display: flex;
+  align-items: baseline;
+}
+
+.plan-card__price strong {
+  font-size: 2.5rem;
+  font-family: var(--font-family-secondary);
+}
+
+.plan-card__audience {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  min-height: 40px;
+}
+
+.plan-card__features {
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+  flex-grow: 1;
+}
+
+.plan-card__features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.plan-card__features i {
+  color: var(--green-main);
+}
+
+.page-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 24px 20px 32px;
+  margin-top: auto;
+  text-align: center;
+}
+
+.pricing-note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-subtle);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  flex-wrap: wrap;
   line-height: 1.5;
 }
 
-.footer-helpti svg {
-  flex-shrink: 0;
-  color: var(--primary-color, #2563EB);
+.pricing-note i,
+.pricing-note svg {
+  color: var(--blue-600);
+  stroke: var(--blue-600);
+  fill: none;
 }
 
-/* Responsividade para telas menores */
-@media (max-width: 900px) {
-  .pricing-grid {
+/* Features */
+.plans-features {
+  margin: 80px 0;
+}
+
+.feature-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  margin-bottom: 64px;
+}
+
+.feature-row--reverse {
+  direction: rtl;
+}
+
+.feature-row--reverse .feature-row__text {
+  direction: ltr;
+}
+
+.feature-row__media {
+  position: relative;
+}
+
+.feature-row__media img {
+  width: 100%;
+  border-radius: 12px;
+}
+
+.feature-row__icon {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: var(--white);
+  padding: 12px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  color: var(--blue-600);
+}
+
+/* Depoimento */
+.testimonial {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-color);
+  padding: 48px;
+  border-radius: 16px;
+  text-align: center;
+  margin-bottom: 80px;
+}
+
+.testimonial .star {
+  color: var(--orange-main);
+  margin-bottom: 16px;
+}
+
+.testimonial blockquote {
+  font-size: 1.25rem;
+  font-style: italic;
+  margin: 0 0 24px;
+}
+
+.testimonial__author {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.testimonial__author span {
+  background: var(--blue-200);
+  color: var(--blue-700);
+  font-weight: 700;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CTA Final */
+.final-cta {
+  background: var(--bg-beige-dark);
+  padding: 48px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .plans-hero,
+  .pricing-grid,
+  .feature-row,
+  .final-cta,
+  .plans-stats {
     grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
-  .footer-helpti {
-    flex-direction: column;
+  .feature-row--reverse {
+    direction: ltr;
   }
 }

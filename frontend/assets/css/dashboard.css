@@ -436,14 +436,90 @@ body {
 .agenda-controls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
-.agenda-date-picker {
-  padding: 8px 12px;
+.agenda-date-picker,
+.select-filter {
+  height: 38px;
+  padding: 0 12px;
   border: 1px solid var(--border-color, #E5E7EB);
   border-radius: var(--radius-sm, 6px);
+  background-color: var(--card-bg, #FFFFFF);
+  color: var(--text-primary, #111827);
   font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.agenda-date-picker {
+  min-width: 150px;
+}
+
+.select-filter {
+  min-width: 180px;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #6B7280 50%), linear-gradient(135deg, #6B7280 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+.agenda-date-picker:focus,
+.select-filter:focus {
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.btn-group-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px;
+  border-radius: var(--radius-sm, 6px);
+  background-color: #F3F4F6;
+  border: 1px solid var(--border-color, #E5E7EB);
+}
+
+.btn-secondary-sm {
+  background-color: transparent;
+  color: var(--text-secondary, #6B7280);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 36px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-secondary-sm svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+.btn-secondary-sm:hover {
+  background-color: #FFFFFF;
+  color: var(--text-primary, #111827);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.btn-secondary-sm:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 /* Grade da Agenda */
