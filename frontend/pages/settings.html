@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <title>HelpTI</title>
+</head>
+<body>
+
+    <!-- Conteúdo Principal -->
+  <main class="main-container">
+    
+    <!-- Cabeçalho da Página -->
+    <div class="page-title-bar settings-title">
+      <div>
+        <span class="section-tag">CENTRAL DE SUPORTE</span>
+        <h1>Configurações</h1>
+        <p>Gerencie as preferências básicas do seu workspace.</p>
+      </div>
+    </div>
+
+    <!-- Card de Dados da Empresa -->
+    <section class="content-card settings-card">
+      <h2>Dados da empresa</h2>
+      
+      <form class="settings-form" onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label for="workspaceName">Nome do workspace</label>
+          <input type="text" id="workspaceName" value="HelpTi Suporte" placeholder="Nome do workspace">
+        </div>
+
+        <div class="form-group">
+          <label for="supportEmail">E-mail de suporte</label>
+          <input type="email" id="supportEmail" value="suporte@helpti.com.br" placeholder="E-mail de suporte">
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn-cancel" onclick="cancelarConfigurações()">Cancelar</button>
+            <button type="submit" class="btn-primary btn-full" onclick="salvarConfiguracoes(event)">Salvar alterações</button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <script src="../assets/js/dashboard.js"></script>
+
+</body>
+</html>

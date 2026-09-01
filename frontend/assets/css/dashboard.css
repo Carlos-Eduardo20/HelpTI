@@ -227,6 +227,18 @@ body {
   margin-top: 4px;
 }
 
+/* Centralizar apenas o cabeçalho de settings */
+.page-title-bar.settings-title {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.page-title-bar.settings-title > div {
+  width: 100%;
+}
+
 /* Cards de Métricas */
 .stats-grid {
   display: grid;
@@ -239,25 +251,95 @@ body {
   background-color: var(--card-bg, #FFFFFF);
   border: 1px solid var(--border-color, #E5E7EB);
   border-radius: var(--radius-md, 8px);
-  padding: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--transparent-black, rgba(0, 0, 0, 0));
+  flex-shrink: 0;
+}
+
+.stat-icon-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stat-card svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* 1. Chamados Abertos (Azul) */
+.stat-icon.icon-blue {
+  background-color: #EFF6FF;
+  border-color: #BFDBFE;
+  color: #2563EB;
+}
+
+/* 2. Em Andamento (Laranja / Amarelo) */
+.stat-icon.icon-amber {
+  background-color: #FFFBEB;
+  border-color: #FDE68A;
+  color: #D97706;
+}
+
+/* 3. Resolvidos Hoje (Verde) */
+.stat-icon.icon-green {
+  background-color: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #059669;
+}
+
+/* 4. Aguardando / SLA em Risco (Vermelho / Rosa) */
+.stat-icon.icon-rose {
+  background-color: #FEF2F2;
+  border-color: #FECACA;
+  color: #DC2626;
+}
+
+.stat-card > div:first-of-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.stat-card > div:first-of-type svg {
+  margin-bottom: 0;
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary, #6B7280);
   font-weight: 500;
+  line-height: 1;
+  margin: 0;
 }
 
 .stat-value {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--text-primary, #111827);
-  margin: 8px 0 4px 0;
+  margin: 4px 0 4px 0;
+  text-align: center;
 }
 
 .stat-subtext {
   font-size: 12px;
-  color: #9CA3AF;
+  color: var(--green-dark);
+  text-align: center;
 }
 
 /* Tabela de Atendimentos Recentes */
@@ -793,4 +875,71 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 0.875rem;
+}
+
+/* Configurações da Página de Configurações */
+.section-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--primary-color, #2563EB);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.settings-card {
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--border-color, #E5E7EB);
+  border-radius: var(--radius-md, 8px);
+  padding: 24px;
+}
+
+.settings-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  margin-bottom: 20px;
+}
+
+.settings-form .form-group {
+  margin-bottom: 18px;
+}
+
+.settings-form label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.settings-form input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color, #E5E7EB);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 14px;
+  color: var(--text-primary, #111827);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.settings-form input:focus {
+  border-color: var(--primary-color, #2563EB);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-full {
+  width: auto;
+  justify-content: center;
 }

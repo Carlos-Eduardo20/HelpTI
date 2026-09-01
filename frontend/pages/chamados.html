@@ -51,7 +51,7 @@
             </div>
 
             <div class="profile-dropdown" id="profileDropdown">
-                <a href="configuracoes.html" class="dropdown-item">
+                <a href="settings.html" class="dropdown-item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
                     Configurações
                 </a>
@@ -87,14 +87,6 @@
                     <option value="Aguardando Terceiros">Aguardando Terceiros</option>
                     <option value="Resolvido">Resolvido</option>
                 </select>
-
-                <select style="padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; background: white;">
-                    <option value="">Todas as Prioridades</option>
-                    <option value="Baixa">Baixa</option>
-                    <option value="Média">Média</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Crítica">Crítica</option>
-                </select>
             </div>
         </section>
 
@@ -112,7 +104,6 @@
                         <th>Assunto</th>
                         <th>Técnico Responsável</th>
                         <th>SLA Restante</th>
-                        <th>Prioridade</th>
                         <th>Status</th>
                         <th>Ação</th>
                         </tr>
@@ -124,7 +115,6 @@
                             <td>Servidor local inoperante</td>
                             <td>Carlos Eduardo</td>
                             <td><span style="color: #DC2626; font-weight: 600;">00:45 min</span></td>
-                            <td><span style="background: var(--status-danger-bg); color: var(--status-danger-text); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Crítica</span></td>
                             <td><span style="background: var(--status-warning-bg); color: var(--status-warning-text); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Em Andamento</span></td>
                             <td><button class="btn-cancel" onclick="alert('Abrindo detalhes do chamado #1001')">Atender</button></td>
                         </tr>
@@ -134,7 +124,6 @@
                             <td>Falha de impressão no caixa</td>
                             <td>Não atribuído</td>
                             <td>03:20 hs</td>
-                            <td><span style="background: var(--status-warning-bg); color: var(--status-warning-text); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Média</span></td>
                             <td><span style="background: var(--status-info-bg); color: var(--status-info-text); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">Aberto</span></td>
                             <td><button class="btn-cancel" onclick="alert('Abrindo detalhes do chamado #1002')">Atender</button></td>
                         </tr>
@@ -161,16 +150,6 @@
                 <div class="form-group">
                     <label>Assunto do Incidente</label>
                     <input type="text" placeholder="Ex: Impressora não conecta" required>
-                </div>
-
-                <div class="form-group">
-                    <label>Prioridade</label>
-                    <select required>
-                        <option value="Baixa">Baixa</option>
-                        <option value="Média">Média</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Crítica">Crítica</option>
-                    </select>
                 </div>
 
                 <div class="form-group">
