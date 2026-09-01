@@ -60,11 +60,37 @@
   <main class="main-container">
     <div class="page-title-bar">
       <div>
-        <h1>Empresas & Clientes</h1>
+        <h1>Clientes/Empresas</h1>
         <p>Gerencie contratos de horas e empresas atendidas.</p>
       </div>
-      <button class="btn-primary" onclick="alert('Cadastrar cliente')">+ Novo Cliente</button>
+      <button class="btn-primary" onclick="openModal('modal-cliente')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Novo Cliente</button>
     </div>
+
+      <!-- Filtros de Busca -->
+      <section class="content-card" style="margin-bottom: 20px; padding: 16px 20px;">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+              <input type="text" placeholder="Buscar por ID, cliente ou assunto..." style="flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
+            
+              <select style="padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; background: white;">
+                  <option value="">Todos os Status</option>
+                  <option value="Aberto">Aberto</option>
+                  <option value="Em Andamento">Em Andamento</option>
+                  <option value="Aguardando Terceiros">Aguardando Terceiros</option>
+                  <option value="Resolvido">Resolvido</option>
+              </select>
+
+              <select style="padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; background: white;">
+                  <option value="">Todas as Prioridades</option>
+                  <option value="Baixa">Baixa</option>
+                  <option value="Média">Média</option>
+                  <option value="Alta">Alta</option>
+                  <option value="Crítica">Crítica</option>
+              </select>
+          </div>
+      </section>
+
 
     <section class="content-card">
       <div class="card-header">
@@ -95,7 +121,39 @@
     </section>
   </main>
 
-  <script src="../assets/js/dashboard.js"></script>
+  <div id="modal-cliente" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Cadastrar Novo Cliente</h2>
+        <button class="modal-close" onclick="closeModal('modal-cliente')">&times;</button>
+      </div>
+      <form id="form-novo-cliente" onsubmit="salvarCliente(event)">
+        <div class="form-group">
+          <label>Nome da Empresa</label>
+          <input type="text" required placeholder="Ex: NovaTech Ltda">
+        </div>
+        <div class="form-group">
+          <label>CNPJ</label>
+          <input type="text" required placeholder="00.000.000/0001-00">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome do Contato</label>
+            <input type="text" required placeholder="Ex: Paulo Mendes">
+          </div>
+          <div class="form-group">
+            <label>E-mail</label>
+            <input type="email" required placeholder="paulo@novatech.com">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="button button--secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
+          <button type="submit" class="button button--primary">Salvar Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script src="../assets/js/main.js"></script>
 
 </body>
 </html>
