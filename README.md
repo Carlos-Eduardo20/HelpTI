@@ -5,7 +5,6 @@ Sistema web de gestão operacional para suporte técnico, com foco em acompanhar
 ## Visão geral
 
 O HelpTI está em desenvolvimento como uma interface administrativa para empresas de suporte técnico. A estrutura atual do projeto está voltada para a apresentação visual e navegação do sistema, com páginas para login, dashboard, chamados, clientes, equipe e relatórios.
-
 Atualmente, o projeto está em uma fase de protótipo/front-end, com foco em layout, experiência do usuário e organização das funcionalidades principais. O backend ainda está inicial e não está integrado de forma completa ao fluxo da aplicação.
 
 ---
@@ -125,14 +124,14 @@ Como o projeto ainda é um protótipo front-end, a forma mais simples de visuali
 Ou, se preferir, executar um servidor local:
 
 ```bash
-cd HelpTI
-python -m http.server 8000
+cd backend
+python app.py
 ```
 
 Depois acesse:
 
 ```text
-http://localhost:8000/frontend/pages/login.html
+http://localhost:8000/frontend/pages/planos.html
 ```
 
 > O login atual é apenas simulado e redireciona para o dashboard, sem autenticação real.
@@ -155,11 +154,3 @@ O projeto já possui uma base funcional de interface e navegação, mas ainda es
 ## Conclusão
 
 O HelpTI hoje representa uma base sólida de interface e estrutura para um sistema de gestão de suporte técnico. O projeto já demonstra a organização visual do painel e os módulos principais, mas ainda está em fase inicial de implementação da parte lógica e de persistência.
-
-Se quiser, posso também atualizar o README para um formato mais profissional com:
-
-- badges
-- roadmap de desenvolvimento
-- instruções de instalação detalhadas
-- stack tecnológica
-- seção de funcionalidades por módulo
