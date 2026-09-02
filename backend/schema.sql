@@ -24,12 +24,17 @@ CREATE TABLE tipo_chamado (
 );
 
 -- Tabela de Grupos de Solucionadores
-CREATE TABLE grupo_solucionadores (
-    id_grupo_solucionadores INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE funcionarios (
+    id_funcionario INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     descricao VARCHAR(500),
     nivel INT,
     data_inicio DATE,
-    data_fim DATE
+    data_fim DATE,
+    nome VARCHAR(200),
+    email VARCHAR(255),
+    cargo VARCHAR(100),
+    valor_hora DECIMAL(10, 2),
+    status VARCHAR(50) DEFAULT 'ATIVO'
 );
 
 -- Tabela de Chamados
@@ -38,6 +43,11 @@ CREATE TABLE chamado (
     id_tipo_chamado INT NOT NULL,
     id_grupo_solucionadores INT,
     status VARCHAR(50) DEFAULT 'ABERTO',
+    cliente VARCHAR(200) NOT NULL,
+    assunto VARCHAR(255) NOT NULL,
+    descricao TEXT,
+    data_agendada DATE,
+    hora_agendada TIME,
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
 );
@@ -62,6 +72,15 @@ CREATE TABLE documentacao (
     data_atualizacao DATE,
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
 );
+
+CREATE TABLE configuracao (
+    id_configuracao INT NOT NULL PRIMARY KEY,
+    workspace_name VARCHAR(200) NOT NULL,
+    support_email VARCHAR(255) NOT NULL
+);
+
+INSERT IGNORE INTO configuracao (id_configuracao, workspace_name, support_email)
+VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br');
 
 -- ============ DADOS INICIAIS (OPCIONAL) ============
 

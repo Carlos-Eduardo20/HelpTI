@@ -7,20 +7,10 @@ Esta aplicação HelpTI possui integração entre frontend (HTML/CSS/JS) e backe
 ### Componentes
 
 #### Frontend (Angular/Vanilla JS)
-- **Location**: `/frontend`
-- **API Client**: `assets/js/api.js` - Funções para comunicar com backend
-- **Main JS**: `assets/js/dashboard.js` - Lógica da aplicação
-- **Pages**: Páginas HTML estáticas
 
 #### Backend (Flask)
-- **Location**: `/backend`
-- **Main App**: `app.py` - Servidor Flask com rotas API
-- **Database**: PostgreSQL com schema em `schema.sql`
 
 #### Database
-- **Type**: PostgreSQL
-- **Schema**: Definido em `schema.sql`
-- **Tables**: usuario, chamado, tipo_chamado, grupo_solucionadores, escalonamento, documentacao
 
 ## Endpoints da API
 
@@ -41,6 +31,7 @@ POST   /api/clientes              - Cria um novo cliente
 ### Equipe
 ```
 GET    /api/equipe                - Lista a equipe
+POST   /api/equipe                - Cadastra um membro da equipe
 ```
 
 ### Relatórios
@@ -136,27 +127,18 @@ Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `RESOLVIDO`
 ## Erros Comuns
 
 ### "Cannot GET /api/chamados"
-- Backend não está rodando
-- URL da API está incorreta em `api.js`
 
 ### "CORS error"
-- Flask CORS não está habilitado
-- Verifique se `CORS(app)` está em `app.py`
 
 ### "Connection refused"
-- PostgreSQL não está rodando
-- Verifique credenciais do banco
 
 ### "Module not found"
-- Dependências não estão instaladas
-- Execute `pip install -r requirements.txt`
+
+## Teste rápido
+
+Com o backend em execução, abra `http://127.0.0.1:5000/api/health`. A resposta esperada é `{"status":"API rodando corretamente"}`.
+
+Em outro terminal, na raiz do projeto, execute `python -m http.server 8000` e abra `http://localhost:8000/frontend/pages/login.html`. Digite um e-mail, entre no dashboard, crie um chamado, cliente e membro da equipe. Os registros devem permanecer após atualizar a página, e o chamado deve aparecer na agenda.
 
 ## Próximas Melhorias
 
-- [ ] Adicionar autenticação e autorização
-- [ ] Implementar websockets para atualizações em tempo real
-- [ ] Adicionar validação de entrada no frontend
-- [ ] Implementar cache no frontend
-- [ ] Adicionar testes unitários
-- [ ] Implementar logging
-- [ ] Dockerizar a aplicação

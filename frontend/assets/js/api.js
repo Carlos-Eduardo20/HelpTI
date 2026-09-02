@@ -1,147 +1,72 @@
-const API_URL = 'http://127.0.0.1:5000/api';
+export const API_URL = 'http://127.0.0.1:5000/api';
+
+async function request(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, { headers: { 'Content-Type': 'application/json' }, ...options });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.erro || `Erro HTTP ${response.status}`);
+  return data;
+}
 
 // ============ CHAMADOS ============
 
 // Busca a lista de chamados do backend
 export async function buscarChamados() {
-  try {
-    const response = await fetch(`${API_URL}/chamados`);
-    if (!response.ok) throw new Error('Erro ao buscar chamados');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return [];
-  }
+  return request('/chamados');
 }
 
 // Busca um chamado específico pelo ID
 export async function buscarChamadoPorId(id) {
-  try {
-    const response = await fetch(`${API_URL}/chamados/${id}`);
-    if (!response.ok) throw new Error('Erro ao buscar chamado');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request(`/chamados/${id}`);
 }
 
 // Envia um novo chamado para o backend
 export async function criarChamado(dadosChamado) {
-  try {
-    const response = await fetch(`${API_URL}/chamados`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosChamado)
-    });
-    if (!response.ok) throw new Error('Erro ao criar chamado');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request('/chamados', { method: 'POST', body: JSON.stringify(dadosChamado) });
 }
 
 // Atualiza um chamado existente
 export async function atualizarChamado(id, dadosChamado) {
-  try {
-    const response = await fetch(`${API_URL}/chamados/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosChamado)
-    });
-    if (!response.ok) throw new Error('Erro ao atualizar chamado');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request(`/chamados/${id}`, { method: 'PUT', body: JSON.stringify(dadosChamado) });
 }
 
 // ============ CLIENTES ============
 
 // Busca a lista de clientes
 export async function buscarClientes() {
-  try {
-    const response = await fetch(`${API_URL}/clientes`);
-    if (!response.ok) throw new Error('Erro ao buscar clientes');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return [];
-  }
+  return request('/clientes');
 }
 
 // Cria um novo cliente
 export async function criarCliente(dadosCliente) {
-  try {
-    const response = await fetch(`${API_URL}/clientes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosCliente)
-    });
-    if (!response.ok) throw new Error('Erro ao criar cliente');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request('/clientes', { method: 'POST', body: JSON.stringify(dadosCliente) });
 }
 
 // ============ EQUIPE ============
 
 // Busca a lista de técnicos/equipe
 export async function buscarEquipe() {
-  try {
-    const response = await fetch(`${API_URL}/equipe`);
-    if (!response.ok) throw new Error('Erro ao buscar equipe');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return [];
-  }
+  return request('/equipe');
+}
+
+export async function criarMembro(dados) {
+  return request('/equipe', { method: 'POST', body: JSON.stringify(dados) });
 }
 
 // ============ RELATÓRIOS ============
 
 // Busca dados para relatórios
 export async function buscarRelatorios() {
-  try {
-    const response = await fetch(`${API_URL}/relatorios`);
-    if (!response.ok) throw new Error('Erro ao buscar relatórios');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request('/relatorios');
 }
 
 // ============ CONFIGURAÇÕES ============
 
 // Busca configurações do workspace
 export async function buscarConfiguracoes() {
-  try {
-    const response = await fetch(`${API_URL}/configuracoes`);
-    if (!response.ok) throw new Error('Erro ao buscar configurações');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request('/configuracoes');
 }
 
 // Atualiza configurações do workspace
 export async function salvarConfiguracoes(dados) {
-  try {
-    const response = await fetch(`${API_URL}/configuracoes`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dados)
-    });
-    if (!response.ok) throw new Error('Erro ao salvar configurações');
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na API:', error);
-    return null;
-  }
+  return request('/configuracoes', { method: 'PUT', body: JSON.stringify(dados) });
 }

@@ -131,11 +131,9 @@
         
         <!-- Filtros e Navegação de Data -->
         <div class="agenda-controls">
-          <input type="date" class="agenda-date-picker" id="agendaData" value="2026-08-30" onchange="filtrarAgenda()">
+          <input type="date" class="agenda-date-picker" id="agendaData" onchange="filtrarAgenda()">
           <select class="select-filter" id="filtroTecnicoAgenda">
             <option value="todos">Todos os Técnicos</option>
-            <option value="carlos">Carlos Eduardo</option>
-            <option value="ana">Ana Paula</option>
           </select>
           <div class="btn-group-sm">
             <button class="btn-secondary-sm" onclick="mudarDia(-1)">
@@ -157,59 +155,7 @@
           <div class="day-col-header">Terça (01/09)</div>
         </div>
 
-        <div class="agenda-body">
-          <!-- Bloco de Horário: 08:00 -->
-          <div class="agenda-row">
-            <div class="time-slot">08:00</div>
-            <div class="day-slot">
-              <div class="ticket-card-agenda priority-high">
-                <span class="ticket-time">08:30 - 09:30</span>
-                <strong>#TI-3829 - Vortex Negócios</strong>
-                <p>Troca de Fonte de Alimentação</p>
-                <span class="badge badge-purple">Técnico: Carlos</span>
-              </div>
-            </div>
-            <div class="day-slot"></div>
-            <div class="day-slot"></div>
-          </div>
-
-          <!-- Bloco de Horário: 10:00 -->
-          <div class="agenda-row">
-            <div class="time-slot">10:00</div>
-            <div class="day-slot"></div>
-            <div class="day-slot">
-              <div class="ticket-card-agenda priority-medium">
-                <span class="ticket-time">10:00 - 11:30</span>
-                <strong>#TI-3825 - Soluções Alpha</strong>
-                <p>Configuração de Backup em Nuvem</p>
-                <span class="badge badge-blue">Técnico: Ana Paula</span>
-              </div>
-            </div>
-            <div class="day-slot"></div>
-          </div>
-
-          <!-- Bloco de Horário: 14:00 -->
-          <div class="agenda-row">
-            <div class="time-slot">14:00</div>
-            <div class="day-slot">
-              <div class="ticket-card-agenda priority-urgent">
-                <span class="ticket-time">14:00 - 15:00</span>
-                <strong>#TI-3821 - Farmácia Central</strong>
-                <p>Servidor local inacessível (SLA Crítico)</p>
-                <span class="badge badge-purple">Técnico: Carlos</span>
-              </div>
-            </div>
-            <div class="day-slot"></div>
-            <div class="day-slot">
-              <div class="ticket-card-agenda priority-low">
-                <span class="ticket-time">14:30 - 16:00</span>
-                <strong>#TI-3818 - Hotel Global</strong>
-                <p>Manutenção preventiva no Switch</p>
-                <span class="badge badge-blue">Técnico: Ana Paula</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="agenda-body" id="agendaDinamica"></div>
       </div>
     </section>
 
@@ -239,6 +185,10 @@
           <label>Descrição:</label>
           <textarea rows="4" placeholder="Descreva o problema relatado..."></textarea>
         </div>
+        <div class="form-row">
+          <div class="form-group"><label>Data agendada</label><input type="date"></div>
+          <div class="form-group"><label>Horário</label><input type="time"></div>
+        </div>
 
         <div class="modal-actions">
           <button type="button" class="btn-cancel" onclick="fecharModalChamado()">Cancelar</button>
@@ -248,6 +198,7 @@
     </div>
   </div>
 
+  <script src="../assets/js/main.js"></script>
   <script type="module" src="../assets/js/dashboard.js"></script>
 
 </body>

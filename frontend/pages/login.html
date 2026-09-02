@@ -76,6 +76,8 @@
   <script>
     function realizarLogin(event) {
       event.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      localStorage.setItem('perfilNome', email.split('@')[0] || 'Usuário');
       window.location.href = "dashboard.html";
     }
   </script>

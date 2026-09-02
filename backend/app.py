@@ -4,6 +4,9 @@ import mysql.connector
 from mysql.connector import Error
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -15,26 +18,69 @@ def get_db_connection():
             host=os.getenv('DB_HOST', 'localhost'),
             user=os.getenv('DB_USER', 'root'),
             password=os.getenv('DB_PASSWORD', ''),
-            database=os.getenv('DB_NAME', 'helpti')
+            database=os.getenv('DB_NAME', 'helpti'),
+            port=int(os.getenv('DB_PORT', '3306'))
         )
         return conn
     except Error as e:
         print(f"Erro ao conectar: {e}")
         return None
 
+def ensure_data_columns():
+    """Mantém bancos antigos compatíveis com os campos usados pela aplicação."""
+    conn = get_db_connection()
+    if not conn:
+        return
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS configuracao (
+        id_configuracao INT NOT NULL PRIMARY KEY,
+        workspace_name VARCHAR(200) NOT NULL,
+        support_email VARCHAR(255) NOT NULL
+    )""")
+    cursor.execute("""INSERT IGNORE INTO configuracao
+        (id_configuracao, workspace_name, support_email)
+        VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br')""")
+    statements = (
+        "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
+        "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
+        "ALTER TABLE chamado ADD COLUMN descricao TEXT",
+        "ALTER TABLE chamado ADD COLUMN data_agendada DATE",
+        "ALTER TABLE chamado ADD COLUMN hora_agendada TIME",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN nome VARCHAR(200)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN email VARCHAR(255)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN cargo VARCHAR(100)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN valor_hora DECIMAL(10, 2)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'"
+    )
+    for statement in statements:
+        try:
+            cursor.execute(statement)
+        except Error as error:
+            if error.errno not in (1060, 1146):
+                print(f"Aviso na compatibilidade do banco: {error}")
+    conn.commit()
+    cursor.close()
+    conn.close()
+
 # Helper para converter resultado em dicionário
 def dict_fetchall(cursor):
     """Converte resultados do cursor em lista de dicionários"""
     columns = [description[0] for description in cursor.description]
-    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    return [normalize_record(dict(zip(columns, row))) for row in cursor.fetchall()]
 
 def dict_fetchone(cursor):
     """Converte um resultado do cursor em dicionário"""
     columns = [description[0] for description in cursor.description]
     row = cursor.fetchone()
     if row:
-        return dict(zip(columns, row))
+        return normalize_record(dict(zip(columns, row)))
     return None
+
+def normalize_record(record):
+    for key, value in record.items():
+        if hasattr(value, 'isoformat'):
+            record[key] = value.isoformat()
+    return record
 
 # ============ ROTAS DE CHAMADOS ============
 
@@ -86,9 +132,13 @@ def create_chamado():
         
         cliente = dados.get('cliente')
         assunto = dados.get('assunto')
-        prioridade = dados.get('prioridade', 'MEDIA')
         descricao = dados.get('descricao', '')
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
+        data_agendada = dados.get('data_agendada') or None
+        hora_agendada = dados.get('hora_agendada') or None
+
+        if not cliente or not assunto:
+            return jsonify({'erro': 'Cliente e assunto são obrigatórios'}), 400
 
         conn = get_db_connection()
         if not conn:
@@ -97,10 +147,11 @@ def create_chamado():
         cursor = conn.cursor()
         
         query = """
-            INSERT INTO chamado (id_tipo_chamado, status)
-            VALUES (%s, 'ABERTO');
+            INSERT INTO chamado
+                (id_tipo_chamado, status, cliente, assunto, descricao, data_agendada, hora_agendada)
+            VALUES (%s, 'ABERTO', %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (id_tipo_chamado,))
+        cursor.execute(query, (id_tipo_chamado, cliente, assunto, descricao, data_agendada, hora_agendada))
         conn.commit()
         
         novo_id = cursor.lastrowid
@@ -121,6 +172,8 @@ def update_chamado(id):
     try:
         dados = request.get_json()
         status = dados.get('status')
+        if status not in ('ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'):
+            return jsonify({'erro': 'Status inválido'}), 400
 
         conn = get_db_connection()
         if not conn:
@@ -209,12 +262,43 @@ def get_equipe():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM grupo_solucionadores;')
+        cursor.execute('SELECT * FROM grupo_solucionadores ORDER BY id_grupo_solucionadores DESC;')
         equipe = dict_fetchall(cursor)
         
         cursor.close()
         conn.close()
         return jsonify(equipe), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/equipe', methods=['POST'])
+def create_equipe():
+    try:
+        dados = request.get_json() or {}
+        nome = dados.get('nome')
+        email = dados.get('email')
+        cargo = dados.get('cargo', 'tecnico')
+        valor_hora = dados.get('valor_hora') or None
+        if not nome or not email:
+            return jsonify({'erro': 'Nome e e-mail são obrigatórios'}), 400
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO grupo_solucionadores
+            (descricao, nivel, nome, email, cargo, valor_hora, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'ATIVO')""",
+            (nome, 1, nome, email, cargo, valor_hora)
+        )
+        conn.commit()
+        novo_id = cursor.lastrowid
+        cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (novo_id,))
+        novo_membro = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        return jsonify(novo_membro), 201
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -244,8 +328,7 @@ def get_relatorios():
             FROM chamado 
             WHERE status = 'RESOLVIDO';
         """)
-        cursor.fetchone()
-        total_resolvidos = cursor.fetchone()[0] if cursor.fetchone() else 0
+        total_resolvidos = cursor.fetchone()[0]
         
         cursor.close()
         conn.close()
@@ -263,25 +346,44 @@ def get_relatorios():
 @app.route('/api/configuracoes', methods=['GET'])
 def get_configuracoes():
     try:
-        # Por enquanto, retorna valores padrão
-        # Você pode adicionar uma tabela de configurações no banco
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute('SELECT workspace_name, support_email FROM configuracao WHERE id_configuracao = 1')
+        registro = cursor.fetchone()
+        cursor.close()
+        conn.close()
         configuracoes = {
-            'workspaceName': 'HelpTI Suporte',
-            'supportEmail': 'suporte@helpti.com.br'
+            'workspaceName': registro['workspace_name'] if registro else 'HelpTI Suporte',
+            'supportEmail': registro['support_email'] if registro else 'suporte@helpti.com.br'
         }
         return jsonify(configuracoes), 200
-    except Exception as e:
+    except Error as e:
         return jsonify({'erro': str(e)}), 500
 
 # Rota para salvar configurações
 @app.route('/api/configuracoes', methods=['PUT'])
 def update_configuracoes():
     try:
-        dados = request.get_json()
-        # Aqui você pode salvar as configurações no banco de dados
-        # Por enquanto, apenas retorna os dados recebidos
-        return jsonify(dados), 200
-    except Exception as e:
+        dados = request.get_json() or {}
+        workspace_name = dados.get('workspaceName')
+        support_email = dados.get('supportEmail')
+        if not workspace_name or not support_email:
+            return jsonify({'erro': 'Nome do workspace e e-mail são obrigatórios'}), 400
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute("""INSERT INTO configuracao
+            (id_configuracao, workspace_name, support_email) VALUES (1, %s, %s)
+            ON DUPLICATE KEY UPDATE workspace_name = VALUES(workspace_name), support_email = VALUES(support_email)""",
+            (workspace_name, support_email))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'workspaceName': workspace_name, 'supportEmail': support_email}), 200
+    except Error as e:
         return jsonify({'erro': str(e)}), 500
 
 # ============ ROTA DE HEALTH CHECK ============
@@ -291,4 +393,5 @@ def health_check():
     return jsonify({'status': 'API rodando corretamente'}), 200
 
 if __name__ == '__main__':
+    ensure_data_columns()
     app.run(debug=True, port=5000)

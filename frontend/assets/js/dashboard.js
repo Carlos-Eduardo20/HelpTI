@@ -1,152 +1,92 @@
-// Abre e fecha o dropdown do perfil no canto superior direito
-function toggleProfileMenu(event) {
-  event.stopPropagation();
-  const dropdown = document.getElementById('profileDropdown');
-  if (dropdown) {
-    dropdown.classList.toggle('active');
-  }
+import { buscarChamados, buscarChamadoPorId, criarChamado, atualizarChamado } from './api.js';
+
+let chamadosEmMemoria = [];
+
+function atualizarPerfil() {
+  const nome = localStorage.getItem('perfilNome') || 'Usuário';
+  document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
+  document.querySelectorAll('.user-avatar img').forEach((image) => image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`);
 }
 
-// Fecha o dropdown se o usuário clicar fora dele na tela
-document.addEventListener('click', function () {
-  const dropdown = document.getElementById('profileDropdown');
-  if (dropdown && dropdown.classList.contains('active')) {
-    dropdown.classList.remove('active');
-  }
-});
-
-// ============ FUNÇÕES DE CHAMADOS ============
-
-// Abre o modal de novo chamado
-function abrirModalChamado() {
-  document.getElementById('modalChamado').classList.add('active');
+function definirDataAtual() {
+  const campo = document.querySelector('#agendaData');
+  if (campo && !campo.value) campo.value = new Date().toISOString().slice(0, 10);
 }
 
-// Fecha o modal de chamado
-function fecharModalChamado() {
-  document.getElementById('modalChamado').classList.remove('active');
+function abrirModalChamado() { document.getElementById('modalChamado')?.classList.add('active'); }
+function fecharModalChamado() { document.getElementById('modalChamado')?.classList.remove('active'); }
+
+function linhaChamado(chamado) {
+  const status = chamado.status || 'ABERTO';
+  return `<tr><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.assunto || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><select class="status-select" data-id="${chamado.id_chamado}">${['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'].map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></td><td><button class="btn-cancel" data-detalhes="${chamado.id_chamado}">Ver chamado</button> <button class="btn-cancel" data-atender="${chamado.id_chamado}">Atualizar</button></td></tr>`;
 }
 
-// Salva um novo chamado
+async function carregarChamados() {
+  const chamados = await buscarChamados();
+  chamadosEmMemoria = chamados;
+  const tabela = document.querySelector('#tabelaChamados');
+  if (tabela) tabela.innerHTML = chamados.map(linhaChamado).join('') || '<tr><td colspan="7">Nenhum chamado cadastrado.</td></tr>';
+  const contagens = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'].map((status) => chamados.filter((item) => item.status === status).length);
+  document.querySelectorAll('.stat-value').forEach((element, index) => { if (contagens[index] !== undefined) element.textContent = contagens[index]; });
+  renderizarAgenda(chamados);
+}
+
+function renderizarAgenda(chamados) {
+  const agenda = document.querySelector('#agendaDinamica');
+  if (!agenda) return;
+  const dataSelecionada = document.querySelector('#agendaData')?.value;
+  const filtrados = chamados.filter((item) => !dataSelecionada || !item.data_agendada || item.data_agendada === dataSelecionada);
+  agenda.innerHTML = filtrados.map((item) => `<div class="ticket-card-agenda priority-medium"><span class="ticket-time">${item.hora_agendada || 'Sem horário'}</span><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge badge-blue">${item.status}</span></div>`).join('') || '<p>Nenhum chamado para esta data.</p>';
+}
+
+function filtrarAgenda() { renderizarAgenda(chamadosEmMemoria); }
+function mudarDia(dias) {
+  const campo = document.querySelector('#agendaData');
+  if (!campo) return;
+  const data = new Date(`${campo.value}T12:00:00`);
+  data.setDate(data.getDate() + dias);
+  campo.value = data.toISOString().slice(0, 10);
+  filtrarAgenda();
+}
+
 async function salvarChamado(event) {
   event.preventDefault();
-  
-  const cliente = document.querySelector('input[placeholder="Nome do cliente"]').value;
-  const assunto = document.querySelector('input[placeholder="Ex: Impressora não conecta"]').value;
-  const prioridade = document.querySelector('select').value;
-  const descricao = document.querySelector('textarea').value;
+  const form = event.target;
+  const inputs = [...form.querySelectorAll('input, textarea, select')];
+  try {
+    await criarChamado({ cliente: inputs[0].value.trim(), assunto: inputs[1].value.trim(), descricao: inputs[2].value.trim(), data_agendada: inputs[3]?.value || null, hora_agendada: inputs[4]?.value || null });
+    fecharModalChamado(); form.reset(); await carregarChamados(); alert('Chamado criado com sucesso.');
+  } catch (error) { alert(`Não foi possível criar o chamado: ${error.message}`); }
+}
 
-  if (!cliente || !assunto) {
-    alert('Por favor, preencha todos os campos obrigatórios');
+window.abrirModalChamado = abrirModalChamado;
+window.fecharModalChamado = fecharModalChamado;
+window.salvarChamado = salvarChamado;
+window.filtrarAgenda = filtrarAgenda;
+window.mudarDia = mudarDia;
+
+document.addEventListener('click', async (event) => {
+  const detailsButton = event.target.closest('[data-detalhes]');
+  if (detailsButton) {
+    try {
+      const chamado = await buscarChamadoPorId(detailsButton.dataset.detalhes);
+      alert(`Chamado #${chamado.id_chamado}\nCliente: ${chamado.cliente}\nAssunto: ${chamado.assunto}\nDescrição: ${chamado.descricao || '-'}\nStatus: ${chamado.status}`);
+    } catch (error) { alert(error.message); }
     return;
   }
+  const button = event.target.closest('[data-atender]');
+  if (!button) return;
+  const select = document.querySelector(`.status-select[data-id="${button.dataset.atender}"]`);
+  try { await atualizarChamado(button.dataset.atender, { status: select.value }); await carregarChamados(); } catch (error) { alert(error.message); }
+});
 
-  try {
-    const { criarChamado } = await import('./api.js');
-    const resultado = await criarChamado({
-      cliente,
-      assunto,
-      prioridade,
-      descricao
-    });
-
-    if (resultado) {
-      alert('Chamado criado com sucesso!');
-      fecharModalChamado();
-      atualizarDashboard(); // Recarregar dados
-    } else {
-      alert('Erro ao criar chamado');
-    }
-  } catch (error) {
-    console.error('Erro:', error);
-    alert('Erro ao criar chamado');
-  }
-}
-
-// Fecha o modal se clicar fora dele
-window.onclick = function(event) {
-  const modal = document.getElementById('modalChamado');
-  if (event.target === modal) {
-    fecharModalChamado();
-  }
-};
-
-// ============ FUNÇÕES DE CONFIGURAÇÕES ============
-
-// Função para cancelar
-function cancelarConfigurações() {
-  window.location.href = 'dashboard.html';
-}
-
-// Função para salvar configurações
-async function salvarConfiguracoes(event) {
-  event.preventDefault();
-
-  const novoNome = document.getElementById('workspaceName')?.value;
-  const novoEmail = document.getElementById('supportEmail')?.value;
-
-  if (!novoNome || !novoEmail) {
-    alert('Por favor, preencha todos os campos');
-    return;
-  }
-
-  try {
-    const { salvarConfiguracoes: salvarConfiguracoesAPI } = await import('./api.js');
-    const resultado = await salvarConfiguracoesAPI({
-      workspaceName: novoNome,
-      supportEmail: novoEmail
-    });
-
-    if (resultado) {
-      alert('Configurações salvas com sucesso!');
-      localStorage.setItem('workspaceName', novoNome);
-      localStorage.setItem('supportEmail', novoEmail);
-    } else {
-      alert('Erro ao salvar configurações');
-    }
-  } catch (error) {
-    // Se a API não estiver disponível, salva localmente
-    localStorage.setItem('workspaceName', novoNome);
-    localStorage.setItem('supportEmail', novoEmail);
-    alert('Configurações salvas localmente');
-  }
-
-  window.location.href = 'dashboard.html';
-}
-
-// ============ ATUALIZAÇÃO DO DASHBOARD ============
-
-// Importar função de API
-import { buscarChamados } from './api.js';
-
-// Função para atualizar dados do dashboard
-async function atualizarDashboard() {
-  try {
-    const chamados = await buscarChamados();
-    
-    if (!chamados || chamados.length === 0) {
-      console.log('Nenhum chamado encontrado');
-      return;
-    }
-
-    // Contar chamados por status
-    const totalAbertos = chamados.filter(c => c.status === 'ABERTO').length;
-    const totalAndamento = chamados.filter(c => c.status === 'ANDAMENTO').length;
-    const totalAguardando = chamados.filter(c => c.status === 'AGUARDANDO').length;
-    const totalResolvidos = chamados.filter(c => c.status === 'RESOLVIDO').length;
-
-    // Atualizar os cards na tela
-    const statCards = document.querySelectorAll('.stat-value');
-    if (statCards[0]) statCards[0].textContent = totalAbertos;
-    if (statCards[1]) statCards[1].textContent = totalAndamento;
-    if (statCards[2]) statCards[2].textContent = totalAguardando;
-    if (statCards[3]) statCards[3].textContent = totalResolvidos;
-
-    console.log('Dashboard atualizado com sucesso');
-  } catch (error) {
-    console.error('Erro ao atualizar dashboard:', error);
-  }
-}
-
-// Carrega os dados assim que a página abre
-document.addEventListener('DOMContentLoaded', atualizarDashboard);
+document.addEventListener('DOMContentLoaded', () => {
+  atualizarPerfil();
+  definirDataAtual();
+  carregarChamados().catch((error) => {
+    const tabela = document.querySelector('#tabelaChamados');
+    const agenda = document.querySelector('#agendaDinamica');
+    if (tabela) tabela.innerHTML = `<tr><td colspan="7">Não foi possível carregar: ${error.message}</td></tr>`;
+    if (agenda) agenda.innerHTML = `<p>Não foi possível carregar a agenda: ${error.message}</p>`;
+  });
+});
