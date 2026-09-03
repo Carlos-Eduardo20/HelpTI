@@ -2,11 +2,11 @@
 
 ## Estrutura da Integração
 
-Esta aplicação HelpTI possui integração entre frontend (HTML/CSS/JS) e backend (Python/Flask) com banco de dados PostgreSQL.
+Esta aplicação HelpTI possui integração entre frontend (HTML/CSS/JS) e backend (Python/Flask) com banco de dados MySQL.
 
 ### Componentes
 
-#### Frontend (Angular/Vanilla JS)
+#### Frontend (HTML/CSS/JavaScript)
 
 #### Backend (Flask)
 
@@ -67,8 +67,8 @@ pip install -r requirements.txt
 3. Configure as variáveis de ambiente (crie um `.env`):
 ```
 DB_HOST=localhost
-DB_NAME=helpti
-DB_USER=postgres
+DB_NAME=HelpTI
+DB_USER=root
 DB_PASSWORD=sua_senha
 ```
 
@@ -93,6 +93,7 @@ import {
   buscarClientes,
   criarCliente,
   buscarEquipe,
+  criarMembro,
   buscarRelatorios,
   buscarConfiguracoes,
   salvarConfiguracoes
@@ -100,16 +101,21 @@ import {
 
 // Uso:
 const chamados = await buscarChamados();
-await criarChamado({ cliente: 'Tech Corp', assunto: 'Bug', prioridade: 'ALTA' });
+await criarChamado({
+  cliente: 'Tech Corp',
+  assunto: 'Impressora não conecta',
+  descricao: 'Falha ao conectar na rede',
+  data_agendada: null,
+  hora_agendada: null
+});
 ```
 
 ## Fluxo de Funcionamento
 
-1. **Dashboard carrega** → Chamada automática de `atualizarDashboard()`
-2. **atualizarDashboard()** → Importa e chama `buscarChamados()` da API
-3. **buscarChamados()** → Faz requisição GET para `/api/chamados`
-4. **Backend recebe** → Conecta ao banco e retorna dados em JSON
-5. **Frontend processa** → Atualiza os cards com os valores
+1. **Dashboard carrega** → `dashboard.js` chama `buscarChamados()`
+2. **buscarChamados()** → Faz requisição GET para `/api/chamados`
+3. **Backend recebe** → Conecta ao banco e retorna dados em JSON
+4. **Frontend processa** → Atualiza a tabela e a agenda
 
 ## Estrutura de Dados - Chamado
 
@@ -118,13 +124,23 @@ await criarChamado({ cliente: 'Tech Corp', assunto: 'Bug', prioridade: 'ALTA' })
   "id_chamado": 1,
   "id_tipo_chamado": 1,
   "id_grupo_solucionadores": null,
-  "status": "ABERTO"
+  "status": "ABERTO",
+  "cliente": "Tech Corp",
+  "assunto": "Impressora não conecta",
+  "descricao": "Falha ao conectar na rede",
+  "data_agendada": null,
+  "hora_agendada": null
 }
 ```
 
 Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `RESOLVIDO`
 
 ## Erros Comuns
+
+### "Não foi possível conectar à API" ou "Failed to fetch"
+- Confirme que o Flask está rodando com `python app.py` dentro de `backend`.
+- Confirme `http://127.0.0.1:5000/api/health` no navegador.
+- Abra o frontend por `http://localhost:8000`, não por `file:///`.
 
 ### "Cannot GET /api/chamados"
 
@@ -134,11 +150,29 @@ Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `RESOLVIDO`
 
 ### "Module not found"
 
+### Erro de tabela ou coluna no MySQL
+- Execute `backend/schema.sql` no MySQL Workbench.
+- Confira o banco ativo com `SELECT DATABASE();`.
+
 ## Teste rápido
 
 Com o backend em execução, abra `http://127.0.0.1:5000/api/health`. A resposta esperada é `{"status":"API rodando corretamente"}`.
 
 Em outro terminal, na raiz do projeto, execute `python -m http.server 8000` e abra `http://localhost:8000/frontend/pages/login.html`. Digite um e-mail, entre no dashboard, crie um chamado, cliente e membro da equipe. Os registros devem permanecer após atualizar a página, e o chamado deve aparecer na agenda.
 
+## Como ajudar no projeto
+
+Escolha uma tarefa, faça uma branch com um nome claro e mantenha as alterações focadas. Antes de abrir um pull request:
+
+1. Inicie o MySQL e confirme as tabelas com `SHOW TABLES`.
+2. Inicie a API com `python app.py` dentro de `backend`.
+3. Inicie o frontend com `python -m http.server 8000` na raiz.
+4. Teste o fluxo relacionado à alteração e descreva os passos no pull request.
+
 ## Próximas Melhorias
+
+- autenticação real e permissões por perfil
+- edição e exclusão de clientes, equipe e chamados
+- filtros e relatórios com dados reais
+- testes automatizados para os endpoints
 

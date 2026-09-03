@@ -6,6 +6,7 @@ Sistema web de gestão operacional para suporte técnico, com foco em acompanhar
 
 O HelpTI está em desenvolvimento como uma interface administrativa para empresas de suporte técnico. A estrutura atual do projeto está voltada para a apresentação visual e navegação do sistema, com páginas para login, dashboard, chamados, clientes, equipe e relatórios.
 Atualmente, o projeto está em uma fase de protótipo/front-end, com foco em layout, experiência do usuário e organização das funcionalidades principais. O backend ainda está inicial e não está integrado de forma completa ao fluxo da aplicação.
+O HelpTI está em desenvolvimento como uma aplicação administrativa para empresas de suporte técnico. O frontend em HTML, CSS e JavaScript se comunica com uma API Flask, que persiste os dados em MySQL.
 
 ---
 
@@ -22,13 +23,14 @@ O frontend já conta com a estrutura principal do sistema em HTML, CSS e JavaScr
 - Navegação entre páginas do painel
 
 ### Backend
-A parte de backend está em estágio inicial.
+O backend já possui rotas funcionais para os principais cadastros.
 
-- [backend/schema.sql](backend/schema.sql): estrutura inicial do banco de dados
-- [backend/app.py](backend/app.py): arquivo reservado para a aplicação backend
-- [backend/database.py](backend/database.py): arquivo reservado para conexão e regras de persistência
+- [backend/app.py](backend/app.py): API Flask e rotas de chamados, clientes, equipe, relatórios e configurações
+- [backend/schema.sql](backend/schema.sql): criação do banco e das tabelas MySQL
+- [backend/database.py](backend/database.py): utilitários de conexão com o banco
+- [backend/requirements.txt](backend/requirements.txt): dependências Python
 
-Nesse momento, os arquivos Python ainda não possuem implementação funcional e o sistema depende principalmente do front-end estático.
+Os registros de chamados, clientes e equipe são salvos no MySQL e permanecem após atualizar o navegador.
 
 ---
 
@@ -109,23 +111,29 @@ Módulo para indicadores e relatórios futuros.
 - [frontend/assets/css/planos.css](frontend/assets/css/planos.css): estilos de planos e contratos
 
 ### JavaScript
-- [frontend/assets/js/dashboard.js](frontend/assets/js/dashboard.js): interações do dashboard, dropdown e modal de chamados
-- [frontend/assets/js/api.js](frontend/assets/js/api.js): estrutura para integrações com API
-- [frontend/assets/js/main.js](frontend/assets/js/main.js): arquivo reservado para lógica principal do frontend
+- [frontend/assets/js/dashboard.js](frontend/assets/js/dashboard.js): agenda, criação e atualização de chamados
+- [frontend/assets/js/api.js](frontend/assets/js/api.js): funções de comunicação com a API
+- [frontend/assets/js/main.js](frontend/assets/js/main.js): modais, cadastros e telas de detalhe
 
 ---
 
-## Como utilizar no momento
+## Como executar
 
-Como o projeto ainda é um protótipo front-end, a forma mais simples de visualizar é abrir a página inicial do sistema diretamente no navegador:
+1. Configure o banco seguindo [SETUP_MYSQL.md](SETUP_MYSQL.md).
+2. Em um terminal, inicie a API:
 
-- [frontend/pages/login.html](frontend/pages/login.html)
+```powershell
+cd backend
+pip install -r requirements.txt
+python app.py
+```
 
-Ou, se preferir, executar um servidor local:
+3. Em outro terminal, na raiz do projeto, sirva o frontend:
 
 ```bash
 cd backend
 python app.py
+python -m http.server 8000
 ```
 
 Depois acesse:
@@ -134,13 +142,15 @@ Depois acesse:
 http://localhost:8000/frontend/pages/planos.html
 ```
 
-> O login atual é apenas simulado e redireciona para o dashboard, sem autenticação real.
+Abra [http://localhost:8000/frontend/pages/login.html](http://localhost:8000/frontend/pages/login.html).
+
+O login atual é apenas simulado. A API deve responder em `http://127.0.0.1:5000/api/health`.
 
 ---
 
 ## Status do desenvolvimento
 
-O projeto já possui uma base funcional de interface e navegação, mas ainda está em evolução. As próximas etapas esperadas incluem:
+O projeto possui uma base funcional de interface, API e persistência. Próximas etapas sugeridas:
 
 - integração real com banco de dados
 - autenticação de usuários
@@ -154,3 +164,15 @@ O projeto já possui uma base funcional de interface e navegação, mas ainda es
 ## Conclusão
 
 O HelpTI hoje representa uma base sólida de interface e estrutura para um sistema de gestão de suporte técnico. O projeto já demonstra a organização visual do painel e os módulos principais, mas ainda está em fase inicial de implementação da parte lógica e de persistência.
+- autenticação real e controle de permissões
+- validação e edição de clientes e membros da equipe
+- associação de chamados a clientes e técnicos por ID
+- filtros, relatórios e indicadores mais completos
+- testes automatizados da API e do frontend
+
+## Como contribuir
+
+Antes de alterar o código, leia [INTEGRACAO.md](INTEGRACAO.md) e [SETUP_MYSQL.md](SETUP_MYSQL.md). Faça mudanças pequenas, teste a API e o fluxo da tela correspondente e descreva no pull request o que foi alterado e como testar.
+
+---
+

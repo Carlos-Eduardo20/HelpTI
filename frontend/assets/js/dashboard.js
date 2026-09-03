@@ -1,4 +1,4 @@
-import { buscarChamados, buscarChamadoPorId, criarChamado, atualizarChamado } from './api.js';
+import { buscarChamados, criarChamado, atualizarChamado } from './api.js';
 
 let chamadosEmMemoria = [];
 
@@ -68,10 +68,7 @@ window.mudarDia = mudarDia;
 document.addEventListener('click', async (event) => {
   const detailsButton = event.target.closest('[data-detalhes]');
   if (detailsButton) {
-    try {
-      const chamado = await buscarChamadoPorId(detailsButton.dataset.detalhes);
-      alert(`Chamado #${chamado.id_chamado}\nCliente: ${chamado.cliente}\nAssunto: ${chamado.assunto}\nDescrição: ${chamado.descricao || '-'}\nStatus: ${chamado.status}`);
-    } catch (error) { alert(error.message); }
+    window.location.href = `chamados-detalhe.html?id=${detailsButton.dataset.detalhes}`;
     return;
   }
   const button = event.target.closest('[data-atender]');

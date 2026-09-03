@@ -1,7 +1,12 @@
 export const API_URL = 'http://127.0.0.1:5000/api';
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, { headers: { 'Content-Type': 'application/json' }, ...options });
+  let response;
+  try {
+    response = await fetch(`${API_URL}${path}`, { headers: { 'Content-Type': 'application/json' }, ...options });
+  } catch (error) {
+    throw new Error('Não foi possível conectar à API. Inicie o backend com "python app.py" na pasta backend e tente novamente.');
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.erro || `Erro HTTP ${response.status}`);
   return data;

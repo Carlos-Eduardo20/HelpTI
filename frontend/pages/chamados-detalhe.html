@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <title>HelpTI</title>
+</head>
+<body>
+
+    <main class="main-container">
+    <div class="page-title-bar">
+      <div>
+        <span class="section-tag">CHAMADOS</span>
+        <h1 id="chamado-id">Chamado #--</h1>
+        <p id="chamado-assunto">Carregando assunto...</p>
+      </div>
+      <a href="chamados.html" class="btn-cancel">Voltar para Chamados</a>
+    </div>
+
+    <section class="content-card">
+      <h2>Informações do Atendimento</h2>
+      <div class="info-group">
+        <p><strong>Cliente:</strong> <span id="chamado-cliente">-</span></p>
+        <p><strong>Prioridade:</strong> <span id="chamado-prioridade">-</span></p>
+        <p><strong>Status:</strong> <span id="chamado-status">-</span></p>
+        <p><strong>Descrição:</strong></p>
+        <p id="chamado-descricao" class="description-box">-</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="../assets/js/main.js"></script>
+
+</body>
+</html>

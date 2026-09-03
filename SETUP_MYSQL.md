@@ -34,7 +34,7 @@ Copy-Item .env.example .env
 Edite o arquivo `.env`:
 ```
 DB_HOST=localhost
-DB_NAME=helpti
+DB_NAME=HelpTI
 DB_USER=root
 DB_PASSWORD=sua_senha_do_mysql
 DB_PORT=3306
@@ -44,7 +44,9 @@ DB_PORT=3306
 
 **Opção A: Usando MySQL Command Line**
 
+Execute o arquivo [backend/schema.sql](backend/schema.sql). Ele cria o banco `HelpTI`, incluindo as tabelas `chamado`, `tipo_chamado`, `usuario` e `grupo_solucionadores`.
 ```bash
+cd backend
 mysql -u root -p < schema.sql
 ```
 
@@ -55,13 +57,13 @@ Vai pedir sua senha do MySQL e criar o banco automaticamente.
 1. Abra MySQL Workbench
 2. Conecte com suas credenciais
 3. Clique em `File` → `Open SQL Script`
-4. Selecione `schema.sql`
+4. Selecione `backend/schema.sql`
 5. Clique em ⚡ (Execute) ou `Ctrl+Shift+Enter`
 
 **Opção C: Usando PowerShell (Windows)**
 
 ```powershell
-Get-Content schema.sql | mysql -u root -p
+Get-Content backend/schema.sql | mysql -u root -p
 ```
 
 ### 4. Verificar a Conexão
@@ -113,7 +115,7 @@ SHOW DATABASES;
 
 **Usar banco HelpTI:**
 ```sql
-USE helpti;
+USE HelpTI;
 SHOW TABLES;
 ```
 
@@ -128,9 +130,26 @@ SHOW TABLES;
 - Verifique a senha em `.env`
 - Resete a senha do MySQL se necessário
 
-### Erro: "Unknown database 'helpti'"
+### Erro: "Unknown database 'HelpTI'"
 - Execute `schema.sql` novamente
 - Verifique se o banco foi criado: `SHOW DATABASES;`
+
+### Limpar os dados de teste
+
+Para apagar chamados, clientes e equipe sem remover as tabelas, execute no Workbench:
+
+```sql
+USE HelpTI;
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE chamado;
+TRUNCATE TABLE usuario;
+TRUNCATE TABLE grupo_solucionadores;
+TRUNCATE TABLE escalonamento;
+TRUNCATE TABLE documentacao;
+SET FOREIGN_KEY_CHECKS = 1;
+```
+
+Os tipos de chamado e as configurações são mantidos.
 
 ### Erro: "AttributeError: 'mysql.connector.cursor.MySQLCursor' object has no attribute 'description'"
 - Certifique-se de executar uma query antes de usar `description`
@@ -145,10 +164,11 @@ Pressione CTRL+C
 
 ## Próximas Ações
 
-1. ✅ Servidor rodando
-2. ✅ Banco de dados criado
-3. ➡️ Teste a API com o frontend
-4. ➡️ Adicione dados aos modelos conforme necessário
+1. Instale as dependências Python.
+2. Execute o `backend/schema.sql` no MySQL Workbench.
+3. Inicie o backend com `python app.py` dentro de `backend`.
+4. Sirva o frontend com `python -m http.server 8000` na raiz.
+5. Teste a API e cadastre dados pela interface.
 
 ## Documentação Completa
 

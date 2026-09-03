@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
+    <!-- CSS -->
+    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <title>HelpTI</title>
+</head>
+<body>
+    <main class="main-container">
+    <div class="page-title-bar">
+      <div>
+        <span class="section-tag">CLIENTES</span>
+        <h1 id="cli-nome">Carregando...</h1>
+        <p>Ficha Cadastral e Infraestrutura</p>
+      </div>
+      <a href="clientes.html" class="btn-cancel">Voltar para Clientes</a>
+    </div>
+
+    <div class="details-grid">
+      <!-- Card Ficha Cadastral -->
+      <section class="content-card">
+        <h2>Ficha Cadastral</h2>
+        <div class="info-group">
+          <p><strong>E-mail:</strong> <span id="cli-email">-</span></p>
+          <p><strong>Status:</strong> <span id="cli-status" class="status ativo">Ativo</span></p>
+          <p><strong>Data de Cadastro:</strong> <span id="cli-data">-</span></p>
+        </div>
+      </section>
+
+      <!-- Card Chamados do Cliente -->
+      <section class="content-card">
+        <h2>Chamados Recentes (SLA)</h2>
+        <table class="data-table" id="tabela-chamados-cliente">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Assunto</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Preenchido dinamicamente -->
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="../assets/js/main.js"></script>
+</body>
+</html>
