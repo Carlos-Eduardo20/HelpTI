@@ -3,7 +3,7 @@ from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -78,7 +78,12 @@ def dict_fetchone(cursor):
 
 def normalize_record(record):
     for key, value in record.items():
-        if hasattr(value, 'isoformat'):
+        if isinstance(value, timedelta):
+            total_seconds = int(value.total_seconds())
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            record[key] = f'{hours:02d}:{minutes:02d}:{seconds:02d}'
+        elif hasattr(value, 'isoformat'):
             record[key] = value.isoformat()
     return record
 

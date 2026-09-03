@@ -7,7 +7,7 @@ CREATE DATABASE IF NOT EXISTS HelpTI;
 USE HelpTI;
 
 -- Tabela de Usuários (Clientes)
-CREATE TABLE usuario (
+CREATE TABLE IF NOT EXISTS usuario (
     id_usuario INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(200),
     contato VARCHAR(50),
@@ -16,7 +16,7 @@ CREATE TABLE usuario (
 );
 
 -- Tabela de Tipos de Chamados
-CREATE TABLE tipo_chamado (
+CREATE TABLE IF NOT EXISTS tipo_chamado (
     id_tipo_chamado INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(200) NOT NULL,
     classificacao VARCHAR(100),
@@ -24,8 +24,8 @@ CREATE TABLE tipo_chamado (
 );
 
 -- Tabela de Grupos de Solucionadores
-CREATE TABLE funcionarios (
-    id_funcionario INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS grupo_solucionadores (
+    id_grupo_solucionadores INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     descricao VARCHAR(500),
     nivel INT,
     data_inicio DATE,
@@ -38,7 +38,7 @@ CREATE TABLE funcionarios (
 );
 
 -- Tabela de Chamados
-CREATE TABLE chamado (
+CREATE TABLE IF NOT EXISTS chamado (
     id_chamado INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id_tipo_chamado INT NOT NULL,
     id_grupo_solucionadores INT,
@@ -53,7 +53,7 @@ CREATE TABLE chamado (
 );
 
 -- Tabela de Escalonamento
-CREATE TABLE escalonamento (
+CREATE TABLE IF NOT EXISTS escalonamento (
     id_escalonamento INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id_chamado INT NOT NULL,
     motivo VARCHAR(500),
@@ -63,7 +63,7 @@ CREATE TABLE escalonamento (
 );
 
 -- Tabela de Documentação
-CREATE TABLE documentacao (
+CREATE TABLE IF NOT EXISTS documentacao (
     id_documentacao INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id_grupo_solucionadores INT,
     titulo VARCHAR(255),
@@ -73,7 +73,7 @@ CREATE TABLE documentacao (
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
 );
 
-CREATE TABLE configuracao (
+CREATE TABLE IF NOT EXISTS configuracao (
     id_configuracao INT NOT NULL PRIMARY KEY,
     workspace_name VARCHAR(200) NOT NULL,
     support_email VARCHAR(255) NOT NULL
@@ -85,14 +85,14 @@ VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br');
 -- ============ DADOS INICIAIS (OPCIONAL) ============
 
 -- Inserir tipos de chamados
-INSERT INTO tipo_chamado (nome, classificacao, descricao) VALUES
+INSERT IGNORE INTO tipo_chamado (nome, classificacao, descricao) VALUES
 ('Suporte Geral', 'Suporte', 'Chamados gerais de suporte'),
 ('Hardware', 'Técnico', 'Problemas com hardware'),
 ('Software', 'Técnico', 'Problemas com software'),
 ('Rede', 'Infraestrutura', 'Problemas de rede');
 
 -- Inserir grupos de solucionadores
-INSERT INTO grupo_solucionadores (descricao, nivel) VALUES
+INSERT IGNORE INTO grupo_solucionadores (descricao, nivel) VALUES
 ('Grupo Nível 1', 1),
 ('Grupo Nível 2', 2),
 ('Grupo Nível 3', 3);
