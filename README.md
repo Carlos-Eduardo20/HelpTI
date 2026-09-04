@@ -119,32 +119,50 @@ Módulo para indicadores e relatórios futuros.
 
 ## Como executar
 
-1. Configure o banco seguindo [SETUP_MYSQL.md](SETUP_MYSQL.md).
-2. Em um terminal, inicie a API:
+O projeto roda com um único processo. O Flask serve as páginas do frontend, disponibiliza a API e abre o navegador automaticamente.
+
+### Primeira configuração
+
+1. Instale Python 3.8 ou superior e MySQL Server.
+2. Clone ou copie o projeto para o computador.
+3. Abra o projeto no VS Code e abra um terminal na raiz da pasta `HelpTI`.
+4. Crie e ative um ambiente virtual:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+5. Instale as dependências:
+
+```powershell
+python -m pip install -r backend\requirements.txt
+```
+
+6. Crie o banco e o arquivo `backend\.env` conforme [SETUP_MYSQL.md](SETUP_MYSQL.md).
+
+### Iniciar o projeto
+
+Com o MySQL em execução e o ambiente virtual ativado:
 
 ```powershell
 cd backend
-pip install -r requirements.txt
 python app.py
 ```
 
-3. Em outro terminal, na raiz do projeto, sirva o frontend:
+O comando acima inicia a API e o frontend juntos. O navegador abrirá em `http://127.0.0.1:5000/`.
 
-```bash
-cd backend
-python app.py
-python -m http.server 8000
-```
+Endereços úteis:
 
-Depois acesse:
+- Aplicação: `http://127.0.0.1:5000/`
+- Login direto: `http://127.0.0.1:5000/frontend/pages/login.html`
+- Teste da API: `http://127.0.0.1:5000/api/health`
 
-```text
-http://localhost:8000/frontend/pages/planos.html
-```
+Não é necessário executar `python -m http.server` nem abrir a porta 8000.
 
-Abra [http://localhost:8000/frontend/pages/login.html](http://localhost:8000/frontend/pages/login.html).
+### Encerrar
 
-O login atual é apenas simulado. A API deve responder em `http://127.0.0.1:5000/api/health`.
+No terminal em que o Flask está rodando, pressione `Ctrl+C`.
 
 ---
 

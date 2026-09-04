@@ -8,9 +8,15 @@ Esta aplicação HelpTI possui integração entre frontend (HTML/CSS/JS) e backe
 
 #### Frontend (HTML/CSS/JavaScript)
 
+As páginas ficam na pasta `frontend`. O Flask as entrega pelas rotas `/frontend/...`, portanto elas não devem ser abertas por `file:///` nem por um servidor separado na porta 8000.
+
 #### Backend (Flask)
 
+O arquivo `backend/app.py` inicia a API e também serve o frontend. A rota `/` redireciona para a tela de login. O endereço base do sistema é `http://127.0.0.1:5000/`.
+
 #### Database
+
+O MySQL armazena chamados, clientes, equipe e configurações. Cada integrante deve usar seu próprio arquivo `backend/.env` com as credenciais do MySQL instalado em sua máquina.
 
 ## Endpoints da API
 
@@ -81,7 +87,7 @@ O servidor rodará em `http://127.0.0.1:5000`
 
 ### Frontend
 
-O frontend se conecta automaticamente à API em `http://127.0.0.1:5000/api`.
+O frontend se conecta automaticamente à API em `http://127.0.0.1:5000/api`. Como frontend e backend são servidos pelo mesmo Flask, não é necessário iniciar outro servidor HTTP.
 
 As funções disponíveis em `api.js`:
 
@@ -140,7 +146,7 @@ Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `RESOLVIDO`
 ### "Não foi possível conectar à API" ou "Failed to fetch"
 - Confirme que o Flask está rodando com `python app.py` dentro de `backend`.
 - Confirme `http://127.0.0.1:5000/api/health` no navegador.
-- Abra o frontend por `http://localhost:8000`, não por `file:///`.
+- Abra o frontend por `http://127.0.0.1:5000/`, não por `file:///` ou `http://localhost:8000`.
 
 ### "Cannot GET /api/chamados"
 
@@ -156,18 +162,17 @@ Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `RESOLVIDO`
 
 ## Teste rápido
 
-Com o backend em execução, abra `http://127.0.0.1:5000/api/health`. A resposta esperada é `{"status":"API rodando corretamente"}`.
+Com o sistema em execução, abra `http://127.0.0.1:5000/api/health`. A resposta esperada é `{"status":"API rodando corretamente"}`.
 
-Em outro terminal, na raiz do projeto, execute `python -m http.server 8000` e abra `http://localhost:8000/frontend/pages/login.html`. Digite um e-mail, entre no dashboard, crie um chamado, cliente e membro da equipe. Os registros devem permanecer após atualizar a página, e o chamado deve aparecer na agenda.
+Depois, abra `http://127.0.0.1:5000/`. Digite um e-mail, entre no dashboard, crie um chamado, cliente e membro da equipe. Os registros devem permanecer após atualizar a página, e o chamado deve aparecer na agenda.
 
 ## Como ajudar no projeto
 
 Escolha uma tarefa, faça uma branch com um nome claro e mantenha as alterações focadas. Antes de abrir um pull request:
 
 1. Inicie o MySQL e confirme as tabelas com `SHOW TABLES`.
-2. Inicie a API com `python app.py` dentro de `backend`.
-3. Inicie o frontend com `python -m http.server 8000` na raiz.
-4. Teste o fluxo relacionado à alteração e descreva os passos no pull request.
+2. Inicie o sistema com `python app.py` dentro de `backend`.
+3. Teste o fluxo relacionado à alteração e descreva os passos no pull request.
 
 ## Próximas Melhorias
 

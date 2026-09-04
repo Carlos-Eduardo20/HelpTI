@@ -1,15 +1,25 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import webbrowser
+from threading import Timer
 
 load_dotenv()
 
-app = Flask(__name__)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, 'frontend')
+
+app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path='/frontend')
 CORS(app)
+
+
+@app.route('/')
+def index():
+    return redirect('/frontend/pages/login.html')
 
 # Conexão com o banco de dados MySQL
 def get_db_connection():
@@ -399,4 +409,8 @@ def health_check():
 
 if __name__ == '__main__':
     ensure_data_columns()
-    app.run(debug=True, port=5000)
+    debug = os.getenv('FLASK_DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
+    frontend_url = 'http://127.0.0.1:5000/'
+    if not debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        Timer(1, lambda: webbrowser.open(frontend_url)).start()
+    app.run(debug=debug, port=5000)

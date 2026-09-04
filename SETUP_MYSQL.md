@@ -23,15 +23,8 @@ Isso vai instalar:
 
 ### 2. Configurar Variáveis de Ambiente
 
-```bash
-# Copiar o template .env
-cp .env.example .env
+Crie o arquivo `backend/.env` manualmente. Ele não deve ser enviado ao GitHub, pois contém a senha do banco:
 
-# Ou no Windows PowerShell:
-Copy-Item .env.example .env
-```
-
-Edite o arquivo `.env`:
 ```
 DB_HOST=localhost
 DB_NAME=HelpTI
@@ -68,14 +61,19 @@ Get-Content backend/schema.sql | mysql -u root -p
 
 ### 4. Verificar a Conexão
 
+Na pasta `backend`, execute:
+
 ```bash
 python app.py
 ```
 
-Se ver isso, está funcionando:
+Se aparecer uma mensagem semelhante a esta, a API iniciou:
+
 ```
  * Running on http://127.0.0.1:5000
 ```
+
+O navegador também será aberto automaticamente na tela de login. Frontend e backend usam esse mesmo processo.
 
 ### 5. Usar a API
 
@@ -166,9 +164,9 @@ Pressione CTRL+C
 
 1. Instale as dependências Python.
 2. Execute o `backend/schema.sql` no MySQL Workbench.
-3. Inicie o backend com `python app.py` dentro de `backend`.
-4. Sirva o frontend com `python -m http.server 8000` na raiz.
-5. Teste a API e cadastre dados pela interface.
+3. Crie o arquivo `backend/.env` com as credenciais do MySQL local.
+4. Inicie o sistema completo com `python app.py` dentro de `backend`.
+5. Use a aplicação em `http://127.0.0.1:5000/`.
 
 ## Documentação Completa
 
