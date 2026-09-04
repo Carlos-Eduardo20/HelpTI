@@ -388,6 +388,108 @@ body {
   border-bottom: 1px solid var(--border-color, #E5E7EB);
 }
 
+.status-picker {
+  position: relative;
+  width: 142px;
+}
+
+.status-trigger {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color, #E2DCD0);
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: var(--text-dark, #1E1B18);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-trigger:hover,
+.status-picker.is-open .status-trigger {
+  border-color: #A8B7C7;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.status-trigger-label {
+  flex: 1;
+}
+
+.status-chevron {
+  color: #7B8794;
+  font-size: 17px;
+  line-height: 10px;
+  transform: translateY(-2px);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: #94A3B8;
+}
+
+.status-aberto .status-dot { background: #3B82F6; }
+.status-andamento .status-dot { background: #F59E0B; }
+.status-aguardando .status-dot { background: #F97316; }
+.status-resolvido .status-dot { background: #10B981; }
+
+.status-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 100%;
+  padding: 4px 0;
+  background: #FFFFFF;
+  border: 1px solid #D9E0E7;
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(30, 41, 59, 0.12);
+  z-index: 20;
+}
+
+.status-picker.is-open .status-menu {
+  display: block;
+}
+
+.status-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  color: #4B5563;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.status-option:hover,
+.status-option.is-selected {
+  background: #EFF8FA;
+  color: #2399A8;
+  font-weight: 600;
+}
+
+.status-select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .empty-row {
   text-align: center;
   color: #9CA3AF;
