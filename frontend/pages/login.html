@@ -74,11 +74,31 @@
   </div>
 
   <script>
-    function realizarLogin(event) {
+    async function realizarLogin(event) {
       event.preventDefault();
       const email = document.getElementById('email').value.trim();
-      localStorage.setItem('perfilNome', email.split('@')[0] || 'Usuário');
-      window.location.href = "dashboard.html";
+      const senha = document.getElementById('password').value;
+      const botao = event.target.querySelector('button[type="submit"]');
+
+      botao.disabled = true;
+      botao.textContent = 'Verificando...';
+      try {
+        const response = await fetch('http://127.0.0.1:5000/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, senha })
+        });
+        const dados = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(dados.erro || 'Não foi possível entrar.');
+
+        localStorage.setItem('perfilNome', dados.nome);
+        localStorage.setItem('grupoId', dados.id);
+        window.location.href = 'dashboard.html';
+      } catch (error) {
+        alert(error.message);
+        botao.disabled = false;
+        botao.textContent = 'Entrar';
+      }
     }
   </script>
 

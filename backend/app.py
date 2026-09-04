@@ -5,6 +5,7 @@ from mysql.connector import Error
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash
 import webbrowser
 from threading import Timer
 
@@ -72,6 +73,41 @@ def ensure_data_columns():
     cursor.close()
     conn.close()
 
+@app.route('/api/login', methods=['POST'])
+def login():
+    dados = request.get_json(silent=True) or {}
+    email = (dados.get('email') or '').strip().lower()
+    senha = dados.get('senha') or ''
+
+    if not email or not senha:
+        return jsonify({'erro': 'E-mail e senha são obrigatórios'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id_grupo_solucionadores, nome, email, senha FROM grupo_solucionadores WHERE LOWER(email) = %s AND status = 'ATIVO' LIMIT 1",
+            (email,)
+        )
+        usuario = cursor.fetchone()
+
+        if not usuario or usuario['senha'] != senha:
+            return jsonify({'erro': 'E-mail ou senha inválidos'}), 401
+
+        return jsonify({
+            'id': usuario['id_grupo_solucionadores'],
+            'nome': usuario['nome'] or email.split('@')[0],
+            'email': usuario['email']
+        }), 200
+    except Error as error:
+        return jsonify({'erro': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 # Helper para converter resultado em dicionário
 def dict_fetchall(cursor):
     """Converte resultados do cursor em lista de dicionários"""
@@ -87,6 +123,8 @@ def dict_fetchone(cursor):
     return None
 
 def normalize_record(record):
+    record.pop('senha', None)
+    record.pop('senha_hash', None)
     for key, value in record.items():
         if isinstance(value, timedelta):
             total_seconds = int(value.total_seconds())
@@ -247,11 +285,13 @@ def create_cliente():
         
         cursor = conn.cursor()
         
+        senha = dados.get('senha') or ''
         query = """
-            INSERT INTO usuario (nome, email, telefone, contato)
-            VALUES (%s, %s, %s, %s);
+            INSERT INTO usuario (nome, email, telefone, contato, senha_hash)
+            VALUES (%s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (nome, email, telefone, contato))
+        senha_hash = generate_password_hash(senha) if senha else None
+        cursor.execute(query, (nome, email, telefone, contato, senha_hash))
         conn.commit()
         
         novo_id = cursor.lastrowid
@@ -294,6 +334,7 @@ def create_equipe():
         email = dados.get('email')
         cargo = dados.get('cargo', 'tecnico')
         valor_hora = dados.get('valor_hora') or None
+        senha = dados.get('senha') or ''
         if not nome or not email:
             return jsonify({'erro': 'Nome e e-mail são obrigatórios'}), 400
 
@@ -303,9 +344,10 @@ def create_equipe():
         cursor = conn.cursor()
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, valor_hora, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'ATIVO')""",
-            (nome, 1, nome, email, cargo, valor_hora)
+            (descricao, nivel, nome, email, cargo, valor_hora, senha, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO')""",
+            (nome, 1, nome, email, cargo, valor_hora,
+             senha)
         )
         conn.commit()
         novo_id = cursor.lastrowid

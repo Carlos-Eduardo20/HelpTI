@@ -1,3 +1,7 @@
+if (!localStorage.getItem('grupoId')) {
+  window.location.replace('login.html');
+}
+
 function openModal(id) {
   document.getElementById(id)?.classList.add('active');
 }
@@ -56,7 +60,7 @@ async function salvarMembro(event) {
   const values = [...form.querySelectorAll('input, select')].map((input) => input.value.trim());
   try {
     const { criarMembro } = await import('./api.js');
-    await criarMembro({ nome: values[0], email: values[1], cargo: values[2], valor_hora: values[3] });
+    await criarMembro({ nome: values[0], email: values[1], cargo: values[2], valor_hora: values[3], senha: values[4] });
     closeModal('modal-equipe'); form.reset(); await carregarEquipe(); alert('Membro cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
 }
@@ -78,6 +82,14 @@ async function salvarConfiguracoes(event) {
 
 function cancelarConfigurações() {
   window.location.href = 'dashboard.html';
+}
+
+function encerrarSessao(event) {
+  event.preventDefault();
+  localStorage.removeItem('usuarioId');
+  localStorage.removeItem('grupoId');
+  localStorage.removeItem('perfilNome');
+  window.location.href = 'login.html';
 }
 
 async function carregarConfiguracoes() {
@@ -103,6 +115,7 @@ window.salvarConfiguracoes = salvarConfiguracoes;
 window.cancelarConfigurações = cancelarConfigurações;
 
 document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('active'));
+document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
 document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarConfiguracoes(); });
 
 document.addEventListener('DOMContentLoaded', async () => {

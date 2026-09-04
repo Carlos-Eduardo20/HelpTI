@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     nome VARCHAR(200),
     contato VARCHAR(50),
     email VARCHAR(255),
-    telefone VARCHAR(50)
+    telefone VARCHAR(50),
+    senha_hash VARCHAR(255)
 );
 
 -- Tabela de Tipos de Chamados
