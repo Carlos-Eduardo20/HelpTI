@@ -53,6 +53,23 @@ Vai pedir sua senha do MySQL e criar o banco automaticamente.
 4. Selecione `backend/schema.sql`
 5. Clique em ⚡ (Execute) ou `Ctrl+Shift+Enter`
 
+Se o banco já existia antes da coluna de senha ser adicionada, execute também este comando no Workbench:
+
+```sql
+USE HelpTI;
+
+ALTER TABLE grupo_solucionadores
+ADD COLUMN senha VARCHAR(255);
+```
+
+Se aparecer o erro de que a coluna já existe, não execute o comando novamente. Confirme a estrutura com:
+
+```sql
+DESCRIBE grupo_solucionadores;
+```
+
+A coluna `senha` deve aparecer no resultado.
+
 **Opção C: Usando PowerShell (Windows)**
 
 ```powershell

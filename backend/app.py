@@ -61,7 +61,8 @@ def ensure_data_columns():
         "ALTER TABLE grupo_solucionadores ADD COLUMN email VARCHAR(255)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN cargo VARCHAR(100)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN valor_hora DECIMAL(10, 2)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'"
+        "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)"
     )
     for statement in statements:
         try:

@@ -141,6 +141,8 @@ python -m pip install -r backend\requirements.txt
 
 6. Crie o banco e o arquivo `backend\.env` conforme [SETUP_MYSQL.md](SETUP_MYSQL.md).
 
+Se o banco já existia, execute no MySQL Workbench `ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255);` antes do primeiro login.
+
 ### Iniciar o projeto
 
 Com o MySQL em execução e o ambiente virtual ativado:
