@@ -35,20 +35,8 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     email VARCHAR(255),
     cargo VARCHAR(100),
     valor_hora DECIMAL(10, 2),
-    status VARCHAR(50) DEFAULT 'ATIVO',
-    senha VARCHAR(255),
-    id_setor INT
+    status VARCHAR(50) DEFAULT 'ATIVO'
 );
-
--- Tabela de Setores
-CREATE TABLE IF NOT EXISTS setor (
-    id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(150) NOT NULL UNIQUE,
-    descricao VARCHAR(500)
-);
-
-ALTER TABLE grupo_solucionadores
-    ADD CONSTRAINT fk_grupo_setor FOREIGN KEY (id_setor) REFERENCES setor(id_setor);
 
 -- Tabela de Chamados
 CREATE TABLE IF NOT EXISTS chamado (

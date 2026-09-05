@@ -8,11 +8,6 @@ function atualizarPerfil() {
   document.querySelectorAll('.user-avatar img').forEach((image) => image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`);
 }
 
-function definirDataAtual() {
-  const campo = document.querySelector('#agendaData');
-  if (campo && !campo.value) campo.value = new Date().toISOString().slice(0, 10);
-}
-
 function abrirModalChamado() { document.getElementById('modalChamado')?.classList.add('active'); }
 function fecharModalChamado() { document.getElementById('modalChamado')?.classList.remove('active'); }
 
@@ -52,17 +47,44 @@ async function carregarChamados() {
 
 function renderizarAgenda(chamados) {
   const agenda = document.querySelector('#agendaDinamica');
-  if (!agenda) return;
-  const dataSelecionada = document.querySelector('#agendaData')?.value;
-  const filtrados = chamados.filter((item) => !dataSelecionada || !item.data_agendada || item.data_agendada === dataSelecionada);
-  agenda.innerHTML = filtrados.map((item) => `<div class="ticket-card-agenda priority-medium"><span class="ticket-time">${item.hora_agendada || 'Sem horário'}</span><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge badge-blue">${item.status}</span></div>`).join('') || '<p>Nenhum chamado para esta data.</p>';
+  const cabecalho = document.querySelector('#agendaCabecalho');
+  if (!agenda || !cabecalho) return;
+  const todasDatas = document.querySelector('#agendaTodasDatas')?.checked;
+  const dataSelecionada = todasDatas ? '' : document.querySelector('#agendaData')?.value;
+  const chamadosComData = chamados.filter((item) => item.data_agendada);
+  const datas = [...new Set(chamadosComData.map((item) => item.data_agendada))]
+    .filter((data) => !dataSelecionada || data === dataSelecionada)
+    .sort();
+
+  cabecalho.style.gridTemplateColumns = `repeat(${Math.max(datas.length, 1)}, minmax(220px, 1fr))`;
+  agenda.style.gridTemplateColumns = `repeat(${Math.max(datas.length, 1)}, minmax(220px, 1fr))`;
+
+  if (!datas.length) {
+    cabecalho.innerHTML = '';
+    agenda.innerHTML = '<p class="agenda-empty">Nenhum chamado para esta data.</p>';
+    return;
+  }
+
+  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header${data === dataSelecionada ? ' active' : ''}">${formatarDataAgenda(data)}</div>`).join('');
+  agenda.innerHTML = datas.map((data) => `<div class="agenda-column">${chamadosComData
+    .filter((item) => item.data_agendada === data)
+    .map((item) => `<a class="ticket-card-agenda priority-medium" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge badge-blue">${item.status}</span></a>`)
+    .join('')}</div>`).join('');
+}
+
+function formatarDataAgenda(data) {
+  return new Date(`${data}T12:00:00`).toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+  });
 }
 
 function filtrarAgenda() { renderizarAgenda(chamadosEmMemoria); }
 function mudarDia(dias) {
   const campo = document.querySelector('#agendaData');
   if (!campo) return;
-  const data = new Date(`${campo.value}T12:00:00`);
+  const data = new Date(`${campo.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
   data.setDate(data.getDate() + dias);
   campo.value = data.toISOString().slice(0, 10);
   filtrarAgenda();
@@ -73,7 +95,7 @@ async function salvarChamado(event) {
   const form = event.target;
   const inputs = [...form.querySelectorAll('input, textarea, select')];
   try {
-    await criarChamado({ cliente: inputs[0].value.trim(), assunto: inputs[1].value.trim(), descricao: inputs[2].value.trim(), data_agendada: inputs[3]?.value || null, hora_agendada: inputs[4]?.value || null });
+    await criarChamado({ cliente: inputs[0].value.trim(), assunto: inputs[1].value.trim(), descricao: inputs[2].value.trim(), data_agendada: inputs[3]?.value || null });
     fecharModalChamado(); form.reset(); await carregarChamados(); alert('Chamado criado com sucesso.');
   } catch (error) { alert(`Não foi possível criar o chamado: ${error.message}`); }
 }
@@ -141,7 +163,6 @@ window.addEventListener('scroll', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
-  definirDataAtual();
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');
     const agenda = document.querySelector('#agendaDinamica');

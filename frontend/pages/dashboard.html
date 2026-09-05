@@ -126,12 +126,16 @@
       <div class="card-header-agenda">
         <div>
           <h2>Fila de Atendimentos</h2>
-          <p class="subtitle">Chamados agendados por data e horário de suporte</p>
+          <p class="subtitle">Chamados agendados por data de suporte</p>
         </div>
         
         <!-- Filtros e Navegação de Data -->
         <div class="agenda-controls">
           <input type="date" class="agenda-date-picker" id="agendaData" onchange="filtrarAgenda()">
+          <label class="agenda-all-dates">
+            <input type="checkbox" id="agendaTodasDatas" onchange="filtrarAgenda()">
+            <span>Todas as datas</span>
+          </label>
           <select class="select-filter" id="filtroTecnicoAgenda">
             <option value="todos">Todos os Técnicos</option>
           </select>
@@ -146,15 +150,9 @@
         </div>
       </div>
 
-      <!-- Grade da Agenda (Timeline do Dia) -->
+      <!-- Colunas da agenda agrupadas por data -->
       <div class="agenda-container">
-        <div class="agenda-header-days">
-          <div class="time-col-header">Horário</div>
-          <div class="day-col-header active">Hoje (30/08 - Dom)</div>
-          <div class="day-col-header">Amanhã (31/08 - Seg)</div>
-          <div class="day-col-header">Terça (01/09)</div>
-        </div>
-
+        <div class="agenda-header-days" id="agendaCabecalho"></div>
         <div class="agenda-body" id="agendaDinamica"></div>
       </div>
     </section>
@@ -187,7 +185,6 @@
         </div>
         <div class="form-row">
           <div class="form-group"><label>Data agendada</label><input type="date"></div>
-          <div class="form-group"><label>Horário</label><input type="time"></div>
         </div>
 
         <div class="modal-actions">
