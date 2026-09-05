@@ -51,6 +51,11 @@ def ensure_data_columns():
     cursor.execute("""INSERT IGNORE INTO configuracao
         (id_configuracao, workspace_name, support_email)
         VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br')""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS setor (
+        id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(150) NOT NULL UNIQUE,
+        descricao VARCHAR(500)
+    )""")
     statements = (
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
         "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
@@ -62,7 +67,8 @@ def ensure_data_columns():
         "ALTER TABLE grupo_solucionadores ADD COLUMN cargo VARCHAR(100)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN valor_hora DECIMAL(10, 2)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)"
+        "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN id_setor INT"
     )
     for statement in statements:
         try:
@@ -71,6 +77,12 @@ def ensure_data_columns():
             if error.errno not in (1060, 1146):
                 print(f"Aviso na compatibilidade do banco: {error}")
     conn.commit()
+    try:
+        cursor.execute("ALTER TABLE grupo_solucionadores ADD CONSTRAINT fk_grupo_setor FOREIGN KEY (id_setor) REFERENCES setor(id_setor)")
+        conn.commit()
+    except Error as error:
+        if error.errno not in (1060, 1826, 1828):
+            print(f"Aviso ao vincular setores: {error}")
     cursor.close()
     conn.close()
 
@@ -318,7 +330,10 @@ def get_equipe():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM grupo_solucionadores ORDER BY id_grupo_solucionadores DESC;')
+        cursor.execute('''SELECT g.*, s.nome AS setor_nome
+                  FROM grupo_solucionadores g
+                  LEFT JOIN setor s ON s.id_setor = g.id_setor
+                  ORDER BY g.id_grupo_solucionadores DESC;''')
         equipe = dict_fetchall(cursor)
         
         cursor.close()
@@ -336,6 +351,7 @@ def create_equipe():
         cargo = dados.get('cargo', 'tecnico')
         valor_hora = dados.get('valor_hora') or None
         senha = dados.get('senha') or ''
+        id_setor = dados.get('id_setor') or None
         if not nome or not email:
             return jsonify({'erro': 'Nome e e-mail são obrigatórios'}), 400
 
@@ -345,10 +361,10 @@ def create_equipe():
         cursor = conn.cursor()
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, valor_hora, senha, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO')""",
+            (descricao, nivel, nome, email, cargo, valor_hora, senha, status, id_setor)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s)""",
             (nome, 1, nome, email, cargo, valor_hora,
-             senha)
+             senha, id_setor)
         )
         conn.commit()
         novo_id = cursor.lastrowid
@@ -358,6 +374,51 @@ def create_equipe():
         conn.close()
         return jsonify(novo_membro), 201
     except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/setores', methods=['GET'])
+def get_setores():
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('''SELECT s.id_setor, s.nome, s.descricao,
+                                 COUNT(g.id_grupo_solucionadores) AS total_membros
+                          FROM setor s
+                          LEFT JOIN grupo_solucionadores g ON g.id_setor = s.id_setor
+                          GROUP BY s.id_setor, s.nome, s.descricao
+                          ORDER BY s.nome''')
+        setores = dict_fetchall(cursor)
+        cursor.close()
+        conn.close()
+        return jsonify(setores), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/setores', methods=['POST'])
+def create_setor():
+    try:
+        dados = request.get_json() or {}
+        nome = (dados.get('nome') or '').strip()
+        descricao = (dados.get('descricao') or '').strip() or None
+        if not nome:
+            return jsonify({'erro': 'O nome do setor é obrigatório'}), 400
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO setor (nome, descricao) VALUES (%s, %s)', (nome, descricao))
+        conn.commit()
+        novo_id = cursor.lastrowid
+        cursor.execute('SELECT id_setor, nome, descricao, 0 AS total_membros FROM setor WHERE id_setor = %s', (novo_id,))
+        novo_setor = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        return jsonify(novo_setor), 201
+    except Error as e:
+        if e.errno == 1062:
+            return jsonify({'erro': 'Já existe um setor com esse nome'}), 409
         return jsonify({'erro': str(e)}), 500
 
 # ============ ROTAS DE RELATÓRIOS ============

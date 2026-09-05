@@ -50,8 +50,42 @@ async function carregarEquipe() {
   try {
     const { buscarEquipe } = await import('./api.js');
     const equipe = await buscarEquipe();
-    tabela.innerHTML = equipe.map((membro) => `<tr onclick="window.location.href='equipe-detalhe.html?id=${membro.id_grupo_solucionadores}'" style="cursor: pointer;"><td><strong>${membro.nome || membro.descricao || '-'}</strong></td><td>${membro.cargo || '-'}</td><td>0 chamados ativos</td><td><span class="status-badge status-info">${membro.status || 'ATIVO'}</span></td></tr>`).join('') || '<tr><td colspan="4">Nenhum membro cadastrado.</td></tr>';
+    tabela.innerHTML = equipe.map((membro) => `<tr onclick="window.location.href='equipe-detalhe.html?id=${membro.id_grupo_solucionadores}'" style="cursor: pointer;"><td><strong>${membro.nome || membro.descricao || '-'}</strong></td><td>${membro.cargo || '-'}</td><td>${membro.setor_nome || 'Sem setor'}</td><td><span class="status-badge status-info">${membro.status || 'ATIVO'}</span></td></tr>`).join('') || '<tr><td colspan="4">Nenhum membro cadastrado.</td></tr>';
   } catch (error) { tabela.innerHTML = `<tr><td colspan="4">${error.message}</td></tr>`; }
+}
+
+let setoresEmMemoria = [];
+let equipeEmMemoria = [];
+
+async function carregarSetores() {
+  const tabela = document.querySelector('#tabelaSetores');
+  if (!tabela) return;
+  try {
+    const { buscarSetores, buscarEquipe } = await import('./api.js');
+    [setoresEmMemoria, equipeEmMemoria] = await Promise.all([buscarSetores(), buscarEquipe()]);
+    const seletor = document.querySelector('#setor-membro');
+    if (seletor) seletor.innerHTML = '<option value="">Selecione um setor</option>' + setoresEmMemoria.map((setor) => `<option value="${setor.id_setor}">${setor.nome}</option>`).join('');
+    tabela.innerHTML = setoresEmMemoria.map((setor) => `<tr class="sector-row" data-setor="${setor.id_setor}"><td><strong>${setor.nome}</strong></td><td>${setor.descricao || '-'}</td><td><span class="status-badge status-info">${setor.total_membros} participante(s)</span></td></tr>`).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
+  } catch (error) { tabela.innerHTML = `<tr><td colspan="3">${error.message}</td></tr>`; }
+}
+
+function mostrarParticipantes(idSetor) {
+  const setor = setoresEmMemoria.find((item) => item.id_setor == idSetor);
+  const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == idSetor);
+  document.querySelector('#participantes-titulo').textContent = setor ? `Participantes: ${setor.nome}` : 'Participantes';
+  document.querySelector('#lista-participantes').innerHTML = participantes.map((membro) => `<div class="participant-item"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></div>`).join('') || '<p class="empty-row">Nenhum participante neste setor.</p>';
+  openModal('modal-participantes');
+}
+
+async function salvarSetor(event) {
+  event.preventDefault();
+  const form = event.target;
+  const inputs = form.querySelectorAll('input, textarea');
+  try {
+    const { criarSetor } = await import('./api.js');
+    await criarSetor({ nome: inputs[0].value.trim(), descricao: inputs[1].value.trim() });
+    closeModal('modal-setor'); form.reset(); await carregarSetores(); alert('Setor criado com sucesso.');
+  } catch (error) { alert(`Não foi possível criar o setor: ${error.message}`); }
 }
 
 async function salvarMembro(event) {
@@ -60,8 +94,8 @@ async function salvarMembro(event) {
   const values = [...form.querySelectorAll('input, select')].map((input) => input.value.trim());
   try {
     const { criarMembro } = await import('./api.js');
-    await criarMembro({ nome: values[0], email: values[1], cargo: values[2], valor_hora: values[3], senha: values[4] });
-    closeModal('modal-equipe'); form.reset(); await carregarEquipe(); alert('Membro cadastrado com sucesso.');
+    await criarMembro({ nome: values[0], email: values[1], cargo: values[2], valor_hora: values[3], id_setor: values[4], senha: values[5] });
+    closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); alert('Membro cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
 }
 
@@ -111,12 +145,18 @@ window.closeModal = closeModal;
 window.toggleProfileMenu = toggleProfileMenu;
 window.salvarCliente = salvarCliente;
 window.salvarMembro = salvarMembro;
+window.salvarSetor = salvarSetor;
 window.salvarConfiguracoes = salvarConfiguracoes;
 window.cancelarConfigurações = cancelarConfigurações;
 
 document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('active'));
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
-document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarConfiguracoes(); });
+document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); carregarConfiguracoes(); });
+
+document.addEventListener('click', (event) => {
+  const setor = event.target.closest('[data-setor]');
+  if (setor) mostrarParticipantes(setor.dataset.setor);
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
   const path = window.location.pathname;

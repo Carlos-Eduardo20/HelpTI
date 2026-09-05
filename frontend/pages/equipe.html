@@ -71,19 +71,27 @@
     <section class="content-card">
       <div class="card-header">
         <h2>Setores</h2>
-        <!-- Filtros de Busca -->
-        <input type="text" placeholder="Buscar setores" style="width: 250px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
+        <button class="button button--secondary" type="button" onclick="openModal('modal-setor')">+ Novo Setor</button>
       </div>
       <div class="table-wrapper">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Função</th>
-              <th>Chamados Alocados</th>
-              <th>Status</th>
+              <th>Setor</th>
+              <th>Descrição</th>
+              <th>Participantes</th>
             </tr>
           </thead>
+          <tbody id="tabelaSetores"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="content-card team-list-card">
+      <div class="card-header"><h2>Membros da equipe</h2></div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Nome</th><th>Função</th><th>Setor</th><th>Status</th></tr></thead>
           <tbody id="tabelaEquipe"></tbody>
         </table>
       </div>
@@ -122,6 +130,12 @@
           </div>
         </div>
         <div class="form-group">
+          <label>Setor</label>
+          <select id="setor-membro" required>
+            <option value="">Selecione um setor</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Senha de acesso</label>
           <input type="password" required minlength="6" placeholder="Mínimo de 6 caracteres">
         </div>
@@ -130,6 +144,39 @@
           <button type="submit" class="button button--primary">Cadastrar Técnico</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="modal-setor" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Novo Setor</h2>
+        <button class="modal-close" onclick="closeModal('modal-setor')">&times;</button>
+      </div>
+      <form id="form-novo-setor" onsubmit="salvarSetor(event)">
+        <div class="form-group">
+          <label>Nome do setor</label>
+          <input type="text" required placeholder="Ex: Suporte Nível 1">
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea rows="3" placeholder="Descreva a responsabilidade do setor"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="button button--secondary" onclick="closeModal('modal-setor')">Cancelar</button>
+          <button type="submit" class="button button--primary">Criar Setor</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-participantes" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="participantes-titulo">Participantes</h2>
+        <button class="modal-close" onclick="closeModal('modal-participantes')">&times;</button>
+      </div>
+      <div id="lista-participantes" class="participants-list"></div>
     </div>
   </div>
 

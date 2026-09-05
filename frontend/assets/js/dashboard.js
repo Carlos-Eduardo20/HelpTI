@@ -16,6 +16,24 @@ function definirDataAtual() {
 function abrirModalChamado() { document.getElementById('modalChamado')?.classList.add('active'); }
 function fecharModalChamado() { document.getElementById('modalChamado')?.classList.remove('active'); }
 
+function posicionarMenuStatus(picker) {
+  const trigger = picker.querySelector('.status-trigger');
+  const menu = picker.querySelector('.status-menu');
+  if (!trigger || !menu) return;
+
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuHeight = menu.getBoundingClientRect().height;
+  const margem = 8;
+  const espacoAbaixo = window.innerHeight - triggerRect.bottom - margem;
+  const abrirAcima = espacoAbaixo < menuHeight && triggerRect.top >= menuHeight + margem;
+
+  menu.style.left = `${triggerRect.left}px`;
+  menu.style.width = `${triggerRect.width}px`;
+  menu.style.top = abrirAcima
+    ? `${triggerRect.top - menuHeight - 5}px`
+    : `${triggerRect.bottom + 5}px`;
+}
+
 function linhaChamado(chamado) {
   const status = chamado.status || 'ABERTO';
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'];
@@ -72,6 +90,7 @@ document.addEventListener('click', async (event) => {
     const picker = statusTrigger.closest('[data-status-picker]');
     const isOpen = picker.classList.toggle('is-open');
     statusTrigger.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) posicionarMenuStatus(picker);
     return;
   }
 
@@ -96,6 +115,8 @@ document.addEventListener('click', async (event) => {
 
   document.querySelectorAll('[data-status-picker].is-open').forEach((picker) => {
     picker.classList.remove('is-open');
+    const menu = picker.querySelector('.status-menu');
+    if (menu) menu.removeAttribute('style');
     picker.querySelector('.status-trigger')?.setAttribute('aria-expanded', 'false');
   });
 
@@ -109,6 +130,14 @@ document.addEventListener('click', async (event) => {
   const select = document.querySelector(`.status-select[data-id="${button.dataset.atender}"]`);
   try { await atualizarChamado(button.dataset.atender, { status: select.value }); await carregarChamados(); } catch (error) { alert(error.message); }
 });
+
+window.addEventListener('resize', () => {
+  document.querySelectorAll('[data-status-picker].is-open').forEach(posicionarMenuStatus);
+});
+
+window.addEventListener('scroll', () => {
+  document.querySelectorAll('[data-status-picker].is-open').forEach(posicionarMenuStatus);
+}, true);
 
 document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
