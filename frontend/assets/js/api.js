@@ -68,8 +68,8 @@ export async function criarSetor(dados) {
 // ============ RELATÓRIOS ============
 
 // Busca dados para relatórios
-export async function buscarRelatorios() {
-  return request('/relatorios');
+export async function buscarRelatorios(periodo = 'todos') {
+  return request(`/relatorios?periodo=${encodeURIComponent(periodo)}`);
 }
 
 // ============ CONFIGURAÇÕES ============

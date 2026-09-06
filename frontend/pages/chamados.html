@@ -125,21 +125,26 @@
             <form id="formNovoChamado" onsubmit="salvarChamado(event)">
                 <div class="form-group">
                     <label>Cliente / Empresa</label>
-                    <input type="text" placeholder="Nome do cliente" required>
+                    <input name="cliente" type="text" placeholder="Nome do cliente" required>
+                </div>
+
+                <div class="form-group">
+                    <label>E-mail para notificações</label>
+                    <input name="email_cliente" type="email" placeholder="cliente@empresa.com" required>
                 </div>
 
                 <div class="form-group">
                     <label>Assunto do Incidente</label>
-                    <input type="text" placeholder="Ex: Impressora não conecta" required>
+                    <input name="assunto" type="text" placeholder="Ex: Impressora não conecta" required>
                 </div>
 
                 <div class="form-group">
                     <label>Descrição:</label>
-                    <textarea rows="4" placeholder="Descreva o problema relatado..."></textarea>
+                    <textarea name="descricao" rows="4" placeholder="Descreva o problema relatado..."></textarea>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Data agendada</label><input type="date"></div>
-                    <div class="form-group"><label>Horário</label><input type="time"></div>
+                    <div class="form-group"><label>Data agendada</label><input name="data_agendada" type="date"></div>
+                    <div class="form-group"><label>Horário</label><input name="hora_agendada" type="time"></div>
                 </div>
 
                 <div class="modal-actions">

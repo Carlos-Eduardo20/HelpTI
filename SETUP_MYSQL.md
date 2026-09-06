@@ -31,7 +31,22 @@ DB_NAME=HelpTI
 DB_USER=root
 DB_PASSWORD=sua_senha_do_mysql
 DB_PORT=3306
+
+# Configuração de e-mail para avisos de chamados resolvidos
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu-email@gmail.com
+SMTP_PASSWORD=senha-de-app-do-email
+SMTP_FROM=seu-email@gmail.com
 ```
+
+O `SMTP_PASSWORD` deve ser uma senha de aplicativo do provedor de e-mail, e não a senha normal da conta. Para outro provedor, use o host e a porta SMTP correspondentes.
+
+### Contas temporárias do projeto
+
+É possível criar contas como `ana@helpTI.com` e `carlos@helpTI.com` para uso durante o projeto e removê-las depois. Isso só funciona se a equipe controlar o domínio `helpTI.com` e contratar/configurar um serviço de e-mail para esse domínio. O endereço do remetente deve ser uma conta ou alias autorizado pelo provedor SMTP.
+
+Cada integrante deve copiar `backend/.env.example` para `backend/.env` e preencher suas próprias credenciais. Não compartilhe senhas SMTP no Git. O endereço digitado no chamado continua sendo o destinatário e pode ser diferente do remetente.
 
 ### 3. Criar o Banco de Dados
 
@@ -69,6 +84,15 @@ DESCRIBE grupo_solucionadores;
 ```
 
 A coluna `senha` deve aparecer no resultado.
+
+Para bancos criados antes do campo de e-mail dos chamados, execute:
+
+```sql
+USE HelpTI;
+ALTER TABLE chamado ADD COLUMN email_cliente VARCHAR(255) NULL;
+```
+
+Chamados antigos sem e-mail não poderão ser marcados como resolvidos até que o endereço seja preenchido.
 
 **Opção C: Usando PowerShell (Windows)**
 

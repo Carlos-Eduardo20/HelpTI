@@ -65,7 +65,11 @@ async function carregarSetores() {
     [setoresEmMemoria, equipeEmMemoria] = await Promise.all([buscarSetores(), buscarEquipe()]);
     const seletor = document.querySelector('#setor-membro');
     if (seletor) seletor.innerHTML = '<option value="">Selecione um setor</option>' + setoresEmMemoria.map((setor) => `<option value="${setor.id_setor}">${setor.nome}</option>`).join('');
-    tabela.innerHTML = setoresEmMemoria.map((setor) => `<tr class="sector-row" data-setor="${setor.id_setor}"><td><strong>${setor.nome}</strong></td><td>${setor.descricao || '-'}</td><td><span class="status-badge status-info">${setor.total_membros} participante(s)</span></td></tr>`).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
+    tabela.innerHTML = setoresEmMemoria.map((setor) => {
+      const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
+      const lista = participantes.map((membro) => `<li><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
+      return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.descricao || 'Sem descrição'}</small></span><span class="status-badge status-info">${participantes.length} participante(s)</span></summary><ul class="sector-members">${lista}</ul></details></td></tr>`;
+    }).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
   } catch (error) { tabela.innerHTML = `<tr><td colspan="3">${error.message}</td></tr>`; }
 }
 
@@ -152,11 +156,6 @@ window.cancelarConfigurações = cancelarConfigurações;
 document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('active'));
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
 document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); carregarConfiguracoes(); });
-
-document.addEventListener('click', (event) => {
-  const setor = event.target.closest('[data-setor]');
-  if (setor) mostrarParticipantes(setor.dataset.setor);
-});
 
 document.addEventListener('DOMContentLoaded', async () => {
   const path = window.location.pathname;

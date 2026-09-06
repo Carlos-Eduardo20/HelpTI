@@ -3,6 +3,9 @@ from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
 import os
+import re
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash
@@ -60,6 +63,7 @@ def ensure_data_columns():
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
         "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
         "ALTER TABLE chamado ADD COLUMN descricao TEXT",
+        "ALTER TABLE chamado ADD COLUMN email_cliente VARCHAR(255)",
         "ALTER TABLE chamado ADD COLUMN data_agendada DATE",
         "ALTER TABLE chamado ADD COLUMN hora_agendada TIME",
         "ALTER TABLE grupo_solucionadores ADD COLUMN nome VARCHAR(200)",
@@ -85,6 +89,42 @@ def ensure_data_columns():
             print(f"Aviso ao vincular setores: {error}")
     cursor.close()
     conn.close()
+
+def email_valido(email):
+    return bool(re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email or ''))
+
+def enviar_email_resolucao(chamado):
+    smtp_host = os.getenv('SMTP_HOST')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    smtp_from = os.getenv('SMTP_FROM', smtp_user)
+    smtp_port = int(os.getenv('SMTP_PORT', '587'))
+    smtp_tls = os.getenv('SMTP_TLS', 'true').lower() == 'true'
+    smtp_auth = os.getenv('SMTP_AUTH', 'true').lower() == 'true'
+
+    if not smtp_host or not smtp_from or (smtp_auth and not all((smtp_user, smtp_password))):
+        raise RuntimeError('SMTP não configurado. Preencha as variáveis SMTP no backend/.env')
+
+    mensagem = EmailMessage()
+    mensagem['Subject'] = f'Chamado #{chamado["id_chamado"]} resolvido - HelpTI'
+    mensagem['From'] = smtp_from
+    mensagem['To'] = chamado['email_cliente']
+    mensagem.set_content(
+        f'Olá, {chamado.get("cliente") or "cliente"}!\n\n'
+        f'O chamado #{chamado["id_chamado"]} foi marcado como resolvido.\n'
+        f'Assunto: {chamado.get("assunto") or "-"}\n\n'
+        f'Descrição: {chamado.get("descricao") or "-"}\n'
+        f'Data agendada: {chamado.get("data_agendada") or "-"}\n\n'
+        'Se o problema continuar, entre em contato com o suporte.\n\n'
+        'Equipe HelpTI'
+    )
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as servidor:
+        if smtp_tls:
+            servidor.starttls()
+        if smtp_auth:
+            servidor.login(smtp_user, smtp_password)
+        servidor.send_message(mensagem)
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -199,12 +239,13 @@ def create_chamado():
         cliente = dados.get('cliente')
         assunto = dados.get('assunto')
         descricao = dados.get('descricao', '')
+        email_cliente = (dados.get('email_cliente') or '').strip().lower()
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
         data_agendada = dados.get('data_agendada') or None
         hora_agendada = dados.get('hora_agendada') or None
 
-        if not cliente or not assunto:
-            return jsonify({'erro': 'Cliente e assunto são obrigatórios'}), 400
+        if not cliente or not assunto or not email_valido(email_cliente):
+            return jsonify({'erro': 'Cliente, assunto e um e-mail válido são obrigatórios'}), 400
 
         conn = get_db_connection()
         if not conn:
@@ -214,10 +255,10 @@ def create_chamado():
         
         query = """
             INSERT INTO chamado
-                (id_tipo_chamado, status, cliente, assunto, descricao, data_agendada, hora_agendada)
-            VALUES (%s, 'ABERTO', %s, %s, %s, %s, %s);
+                (id_tipo_chamado, status, cliente, email_cliente, assunto, descricao, data_agendada, hora_agendada)
+            VALUES (%s, 'ABERTO', %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (id_tipo_chamado, cliente, assunto, descricao, data_agendada, hora_agendada))
+        cursor.execute(query, (id_tipo_chamado, cliente, email_cliente, assunto, descricao, data_agendada, hora_agendada))
         conn.commit()
         
         novo_id = cursor.lastrowid
@@ -246,6 +287,24 @@ def update_chamado(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (id,))
+        chamado_atual = dict_fetchone(cursor)
+        if not chamado_atual:
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Chamado não encontrado'}), 404
+        if status == 'RESOLVIDO' and chamado_atual['status'] != 'RESOLVIDO':
+            if not email_valido(chamado_atual.get('email_cliente')):
+                cursor.close()
+                conn.close()
+                return jsonify({'erro': 'Este chamado não possui um e-mail válido para notificação'}), 400
+            try:
+                enviar_email_resolucao(chamado_atual)
+            except (OSError, smtplib.SMTPException, RuntimeError) as error:
+                cursor.close()
+                conn.close()
+                return jsonify({'erro': f'Não foi possível enviar o e-mail de resolução: {error}'}), 502
         
         query = "UPDATE chamado SET status = %s WHERE id_chamado = %s;"
         cursor.execute(query, (status, id))
@@ -432,29 +491,39 @@ def get_relatorios():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
+        periodo = request.args.get('periodo', 'todos')
+        filtro_periodo = ''
+        if periodo == 'dia':
+            filtro_periodo = ' WHERE data_agendada = CURDATE()'
+        elif periodo == 'mes':
+            filtro_periodo = ' WHERE YEAR(data_agendada) = YEAR(CURDATE()) AND MONTH(data_agendada) = MONTH(CURDATE())'
         
         # Total de chamados por status
         cursor.execute("""
             SELECT status, COUNT(*) as total 
             FROM chamado 
-            GROUP BY status;
-        """)
+        """ + filtro_periodo + " GROUP BY status;")
         chamados_status = dict_fetchall(cursor)
         
         # Taxa de SLA
         cursor.execute("""
             SELECT COUNT(*) as total_resolvidos 
             FROM chamado 
-            WHERE status = 'RESOLVIDO';
-        """)
+            """ + (' WHERE status = \'RESOLVIDO\'' if not filtro_periodo else filtro_periodo + " AND status = 'RESOLVIDO'") + ";")
         total_resolvidos = cursor.fetchone()[0]
+
+        total_chamados = sum(int(item['total']) for item in chamados_status)
+        pendentes = total_chamados - total_resolvidos
         
         cursor.close()
         conn.close()
         
         return jsonify({
             'chamados_por_status': chamados_status,
-            'total_resolvidos': total_resolvidos
+            'total_chamados': total_chamados,
+            'total_resolvidos': total_resolvidos,
+            'total_pendentes': pendentes,
+            'periodo': periodo
         }), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500

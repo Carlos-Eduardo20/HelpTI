@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     id_grupo_solucionadores INT,
     status VARCHAR(50) DEFAULT 'ABERTO',
     cliente VARCHAR(200) NOT NULL,
+    email_cliente VARCHAR(255) NOT NULL,
     assunto VARCHAR(255) NOT NULL,
     descricao TEXT,
     data_agendada DATE,
