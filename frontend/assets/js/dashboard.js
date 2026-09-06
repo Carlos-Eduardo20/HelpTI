@@ -100,8 +100,7 @@ async function salvarChamado(event) {
       email_cliente: campos.email_cliente.value.trim(),
       assunto: campos.assunto.value.trim(),
       descricao: campos.descricao.value.trim(),
-      data_agendada: campos.data_agendada.value || null,
-      hora_agendada: campos.hora_agendada.value || null
+      data_agendada: campos.data_agendada.value || null
     });
     fecharModalChamado(); form.reset(); await carregarChamados(); alert('Chamado criado com sucesso.');
   } catch (error) { alert(`Não foi possível criar o chamado: ${error.message}`); }
