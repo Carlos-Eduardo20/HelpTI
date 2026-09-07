@@ -32,14 +32,25 @@ function posicionarMenuStatus(picker) {
 function linhaChamado(chamado) {
   const status = chamado.status || 'ABERTO';
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'];
-  return `<tr><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.assunto || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron">⌄</span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td><td><button class="btn-cancel" data-detalhes="${chamado.id_chamado}">Ver chamado</button> <button class="btn-cancel" data-atender="${chamado.id_chamado}">Atualizar</button></td></tr>`;
+  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.assunto || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron">⌄</span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
+}
+
+function aplicarFiltrosChamados() {
+  const busca = document.querySelector('#buscaChamados')?.value.trim().toLowerCase() || '';
+  const status = document.querySelector('#filtroStatusChamados')?.value || '';
+  const chamadosFiltrados = chamadosEmMemoria.filter((chamado) => {
+    const correspondeBusca = [chamado.id_chamado, chamado.cliente, chamado.assunto]
+      .some((valor) => String(valor || '').toLowerCase().includes(busca));
+    return correspondeBusca && (!status || chamado.status === status);
+  });
+  const tabela = document.querySelector('#tabelaChamados');
+  if (tabela) tabela.innerHTML = chamadosFiltrados.map(linhaChamado).join('') || '<tr><td colspan="6">Nenhum chamado encontrado.</td></tr>';
 }
 
 async function carregarChamados() {
   const chamados = await buscarChamados();
   chamadosEmMemoria = chamados;
-  const tabela = document.querySelector('#tabelaChamados');
-  if (tabela) tabela.innerHTML = chamados.map(linhaChamado).join('') || '<tr><td colspan="7">Nenhum chamado cadastrado.</td></tr>';
+  aplicarFiltrosChamados();
   const contagens = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'].map((status) => chamados.filter((item) => item.status === status).length);
   document.querySelectorAll('.stat-value').forEach((element, index) => { if (contagens[index] !== undefined) element.textContent = contagens[index]; });
   renderizarAgenda(chamados);
@@ -128,6 +139,8 @@ document.addEventListener('click', async (event) => {
     const select = picker.querySelector('.status-select');
     const value = statusOption.dataset.statusValue;
     const trigger = picker.querySelector('.status-trigger');
+    const id = select.dataset.id;
+    const statusAnterior = select.value;
     select.value = value;
     trigger.className = `status-trigger status-${value.toLowerCase()}`;
     trigger.querySelector('.status-trigger-label').textContent = value;
@@ -138,6 +151,14 @@ document.addEventListener('click', async (event) => {
     });
     picker.classList.remove('is-open');
     trigger.setAttribute('aria-expanded', 'false');
+    try {
+      await atualizarChamado(id, { status: value });
+      await carregarChamados();
+    } catch (error) {
+      select.value = statusAnterior;
+      await carregarChamados();
+      alert(`Não foi possível atualizar o status: ${error.message}`);
+    }
     return;
   }
 
@@ -148,15 +169,8 @@ document.addEventListener('click', async (event) => {
     picker.querySelector('.status-trigger')?.setAttribute('aria-expanded', 'false');
   });
 
-  const detailsButton = event.target.closest('[data-detalhes]');
-  if (detailsButton) {
-    window.location.href = `chamados-detalhe.html?id=${detailsButton.dataset.detalhes}`;
-    return;
-  }
-  const button = event.target.closest('[data-atender]');
-  if (!button) return;
-  const select = document.querySelector(`.status-select[data-id="${button.dataset.atender}"]`);
-  try { await atualizarChamado(button.dataset.atender, { status: select.value }); await carregarChamados(); } catch (error) { alert(error.message); }
+  const row = event.target.closest('.chamado-row');
+  if (row) window.location.href = `chamados-detalhe.html?id=${row.dataset.detalhes}`;
 });
 
 window.addEventListener('resize', () => {
@@ -169,10 +183,12 @@ window.addEventListener('scroll', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
+  document.querySelector('#buscaChamados')?.addEventListener('input', aplicarFiltrosChamados);
+  document.querySelector('#filtroStatusChamados')?.addEventListener('change', aplicarFiltrosChamados);
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');
     const agenda = document.querySelector('#agendaDinamica');
-    if (tabela) tabela.innerHTML = `<tr><td colspan="7">Não foi possível carregar: ${error.message}</td></tr>`;
+    if (tabela) tabela.innerHTML = `<tr><td colspan="6">Não foi possível carregar: ${error.message}</td></tr>`;
     if (agenda) agenda.innerHTML = `<p>Não foi possível carregar a agenda: ${error.message}</p>`;
   });
 });

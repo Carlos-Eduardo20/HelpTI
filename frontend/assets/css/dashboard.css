@@ -388,6 +388,14 @@ body {
   border-bottom: 1px solid var(--border-color, #E5E7EB);
 }
 
+.chamado-row {
+  cursor: pointer;
+}
+
+.chamado-row:hover {
+  background: #F8FAFC;
+}
+
 .status-picker {
   position: relative;
   width: 142px;

@@ -35,17 +35,17 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     email VARCHAR(255),
     cargo VARCHAR(100),
     valor_hora DECIMAL(10, 2),
-    status VARCHAR(50) DEFAULT 'ATIVO'
+    status VARCHAR(50) DEFAULT 'ATIVO',
+    senha VARCHAR(255) NOT NULL
 );
 
 -- Tabela de Chamados
 CREATE TABLE IF NOT EXISTS chamado (
-    id_chamado INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    id_chamado MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id_tipo_chamado INT NOT NULL,
     id_grupo_solucionadores INT,
     status VARCHAR(50) DEFAULT 'ABERTO',
     cliente VARCHAR(200) NOT NULL,
-    email_cliente VARCHAR(255) NOT NULL,
     assunto VARCHAR(255) NOT NULL,
     descricao TEXT,
     data_agendada DATE,
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS chamado (
 -- Tabela de Escalonamento
 CREATE TABLE IF NOT EXISTS escalonamento (
     id_escalonamento INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id_chamado INT NOT NULL,
+    id_chamado MEDIUMINT UNSIGNED NOT NULL,
     motivo VARCHAR(500),
     nivel INT,
     data_escalonamento DATE,
