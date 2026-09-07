@@ -9,47 +9,247 @@
     <title>HelpTI</title>
 </head>
 <body>
-    <main class="main-container">
+  <!-- Barra de Navegação Superior (Header com Abas) -->
+    <header class="top-navbar">
+        <div class="nav-container">
+        <div class="brand-group">
+            <a href="dashboard.html" class="navbar-brand">
+            <img src="../assets/images/Frame.png" alt="HelpTI Logo" class="brand-logo">
+            <span class="brand-name">HelpTI</span>
+            </a>
+
+            <nav class="nav-tabs">
+                <a href="dashboard.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard-icon lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                    Dashboard
+                </a>
+                <a href="chamados.html" class="tab-item active">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ticket-icon lucide-ticket"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+                    Chamados
+                </a>
+                <a href="clientes.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users-icon lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
+                    Clientes
+                </a>
+                <a href="equipe.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-cog-icon lucide-user-cog"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
+                    Equipe
+                </a>
+                <a href="relatorios.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-column-icon lucide-chart-column"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                    Relatórios
+                </a>
+            </nav>
+        </div>
+
+        <div class="user-profile-wrapper" onclick="toggleProfileMenu(event)">
+            <div class="user-profile">
+                <span class="user-role">Funcionário</span>
+                <div class="user-avatar">
+                    <img src="https://ui-avatars.com/api/?name=Usuario+HelpTI&background=E5E7EB&color=374151" alt="Avatar">
+                </div>
+            </div>
+
+            <div class="profile-dropdown" id="profileDropdown">
+                <a href="settings.html" class="dropdown-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+                    Configurações
+                </a>
+                <a href="login.html" class="dropdown-item danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
+                    Sair da Conta
+                </a>
+            </div>
+        </div>
+        </div>
+    </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-container">
+    
+    <!-- Cabeçalho -->
     <div class="page-title-bar">
       <div>
-        <span class="section-tag">CLIENTES</span>
-        <h1 id="cli-nome">Carregando...</h1>
-        <p>Ficha Cadastral e Infraestrutura</p>
+        <div class="breadcrumb-trail">
+          <a href="clientes.html">Clientes</a> &rsaquo; <span id="cli-breadcrumb"></span>
+        </div>
+        <h1>Ficha Cadastral do Cliente</h1>
       </div>
-      <a href="clientes.html" class="btn-primary">Voltar para Clientes</a>
     </div>
 
-    <div class="details-grid">
-      <!-- Card Ficha Cadastral -->
-      <section class="content-card">
-        <h2>Ficha Cadastral</h2>
-        <div class="info-group">
-          <p><strong>E-mail:</strong> <span id="cli-email">-</span></p>
-          <p><strong>Telefone:</strong> <span id="cli-telefone">-</span></p>
-          <p><strong>Plano:</strong> <span id="cli-plano">-</span></p>
-          <p><strong>Ações:</strong> <span id="cli-acoes">-</span></p>
-          <p><strong>Status:</strong> <span id="cli-status" class="status ativo">Ativo</span></p>
-          <p><strong>Data de Cadastro:</strong> <span id="cli-data">-</span></p>
+    <!-- Grid Superior (Ficha Cadastral + Equipamentos & Topologia) -->
+    <div class="client-detail-grid">
+      
+      <!-- Ficha Cadastral -->
+      <section class="content-card info-card">
+        <div class="client-header-profile">
+          <div class="client-avatar-badge">VN</div>
+          <div>
+            <h2 id="cli-nome">
+              <script>
+              document.getElementById('cli-breadcrumb').textContent = document.getElementById('cli-nome').textContent;
+              </script>
+            </h2>
+            <script>
+              document.getElementById('cli-breadcrumb').textContent = document.getElementById('cli-nome').textContent;
+            </script>
+            <span class="badge badge-green">Cliente Ativo</span>
+          </div>
+        </div>
+
+        <div class="client-info-list">
+          <div class="info-item">
+            <span class="info-label">CNPJ</span>
+            <span class="info-value" id="cli-cnpj">12.345.678/0001-90</span>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">TELEFONE EMPRESARIAL</span>
+            <span class="info-value" id="cli-telefone">(11) 3456-7890</span>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">E-MAIL</span>
+            <span class="info-value" id="cli-email">contato@vortexnegocios.com.br</span>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">ENDEREÇO</span>
+            <span class="info-value" id="cli-endereco">Av. Paulista, 1000, Cj 1201 - Bela Vista, São Paulo/SP</span>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">ÚLTIMO PAGAMENTO DA FATURA</span>
+            <span class="info-value" id="cli-fatura">15/08/2026 - R$ 4.850,00 (Pago)</span>
+          </div>
+
+          <div class="info-item">
+            <span class="info-label">CONTRATO &amp; OPERADORA DE LINK</span>
+            <span class="info-value" id="cli-contrato">Link Dedicado Vivo 200MB SLA 99.5%</span>
+          </div>
         </div>
       </section>
 
-      <!-- Card Chamados do Cliente -->
-      <section class="content-card">
-        <h2>Chamados Recentes (SLA)</h2>
-        <table class="data-table" id="tabela-chamados-cliente">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Assunto</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Preenchido dinamicamente -->
-          </tbody>
-        </table>
-      </section>
+      <!-- Infraestrutura e Topologia -->
+      <div class="infra-column">
+        
+        <!-- Mapa de Equipamentos -->
+        <section class="content-card">
+          <div class="card-header-flex">
+            <h2>Mapa de Equipamentos Ativos</h2>
+            <span class="subtitle-badge">Total: 34 ativos cadastrados</span>
+          </div>
+
+          <div class="assets-grid">
+            <div class="asset-item">
+              <span class="asset-name">Servidores AD/Files</span>
+              <strong class="asset-count">2 un</strong>
+            </div>
+            <div class="asset-item">
+              <span class="asset-name">Firewall Fortinet</span>
+              <strong class="asset-count">1 un</strong>
+            </div>
+            <div class="asset-item">
+              <span class="asset-name">Switches Core</span>
+              <strong class="asset-count">2 un</strong>
+            </div>
+            <div class="asset-item">
+              <span class="asset-name">Access Points</span>
+              <strong class="asset-count">6 un</strong>
+            </div>
+            <div class="asset-item">
+              <span class="asset-name">Workstations</span>
+              <strong class="asset-count">20 un</strong>
+            </div>
+            <div class="asset-item">
+              <span class="asset-name">Printers IP</span>
+              <strong class="asset-count">3 un</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- Topologia de Rede -->
+        <section class="content-card">
+          <h2>Topologia de Rede Simplificada</h2>
+          <div class="topology-flow">
+            <div class="topology-step">
+              <span class="topo-label">INTERNET</span>
+              <span class="topo-status status-online">ONLINE</span>
+            </div>
+            <span class="topo-arrow">&rarr;</span>
+            <div class="topology-step">
+              <span class="topo-label">FIREWALL</span>
+              <span class="topo-status status-protected">PROTEGIDO</span>
+            </div>
+            <span class="topo-arrow">&rarr;</span>
+            <div class="topology-step">
+              <span class="topo-label">SWITCH CORE</span>
+              <span class="topo-status">10 Gbps</span>
+            </div>
+            <span class="topo-arrow">&rarr;</span>
+            <div class="topology-step">
+              <span class="topo-label">SWITCHES ACESSO</span>
+              <span class="topo-status">2 Ativos</span>
+            </div>
+            <span class="topo-arrow">&rarr;</span>
+            <div class="topology-step">
+              <span class="topo-label">ENDPOINTS</span>
+              <span class="topo-status">20 Devices</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
     </div>
+
+    <!-- Tabela de Chamados Recentes -->
+    <section class="content-card table-section">
+      <h2>Chamados Recentes (SLA)</h2>
+      
+      <table class="data-table" id="tabela-chamados-cliente">
+        <thead>
+          <tr>
+            <th>CÓDIGO</th>
+            <th>ASSUNTO</th>
+            <th>STATUS</th>
+            <th>SLA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>#TI-3829</strong></td>
+            <td>Sem conexão...</td>
+            <td><span class="badge badge-yellow">Aguardando</span></td>
+            <td><span class="badge badge-green">No Prazo</span></td>
+          </tr>
+          <tr>
+            <td><strong>#TI-3820</strong></td>
+            <td>Problema no L...</td>
+            <td><span class="badge badge-blue">Resolvido</span></td>
+            <td><span class="badge badge-yellow">Alerta</span></td>
+          </tr>
+          <tr>
+            <td><strong>#TI-3811</strong></td>
+            <td>Impressora f...</td>
+            <td><span class="badge badge-blue">Resolvido</span></td>
+            <td><span class="badge badge-red">SLA Estourado</span></td>
+          </tr>
+          <tr>
+            <td><strong>#TI-3790</strong></td>
+            <td>Liberação de...</td>
+            <td><span class="badge badge-blue">Resolvido</span></td>
+            <td><span class="badge badge-green">No Prazo</span></td>
+          </tr>
+          <tr>
+            <td><strong>#TI-3788</strong></td>
+            <td>Configuração...</td>
+            <td><span class="badge badge-blue">Resolvido</span></td>
+            <td><span class="badge badge-green">No Prazo</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
   </main>
 
   <script type="module" src="../assets/js/main.js"></script>
