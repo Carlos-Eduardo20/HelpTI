@@ -23,23 +23,42 @@ function mostrarPerfil() {
   });
 }
 
+let clientesEmMemoria = [];
+
+function renderizarClientes(clientes) {
+  const tabela = document.querySelector('#tabelaClientes');
+  if (!tabela) return;
+  tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}<br>${cliente.contato || ''}</td><td>${cliente.plano || '-'}</td><td><span class="status-badge status-success">${cliente.status || 'Ativo'}</span></td><td>${cliente.acoes || '-'}</td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
+}
+
+function filtrarClientes() {
+  const termo = document.querySelector('#buscaClientes')?.value.trim().toLowerCase() || '';
+  const campo = document.querySelector('#filtroClientes')?.value || '';
+  const camposBusca = campo === 'plano' ? ['plano'] : campo === 'acoes' ? ['acoes'] : campo === 'status' ? ['status'] : ['nome', 'email', 'contato', 'telefone', 'cnpj', 'plano', 'acoes'];
+  const clientesFiltrados = clientesEmMemoria.filter((cliente) => camposBusca
+    .some((campoCliente) => String(campoCliente === 'status' ? (cliente.status || 'Ativo') : cliente[campoCliente] || '').toLowerCase().includes(termo)));
+  renderizarClientes(clientesFiltrados);
+}
+
 async function carregarClientes() {
   const tabela = document.querySelector('#tabelaClientes');
   if (!tabela) return;
   try {
     const { buscarClientes } = await import('./api.js');
-    const clientes = await buscarClientes();
-    tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.email || '-'}<br>${cliente.contato || ''}</td><td>-</td><td><span class="status-badge status-success">Ativo</span></td><td>-</td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente cadastrado.</td></tr>';
+    clientesEmMemoria = await buscarClientes();
+    renderizarClientes(clientesEmMemoria);
   } catch (error) { tabela.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; }
 }
 
 async function salvarCliente(event) {
   event.preventDefault();
   const form = event.target;
-  const values = [...form.querySelectorAll('input')].map((input) => input.value.trim());
+  const dados = Object.fromEntries([...form.elements]
+    .filter((element) => element.name)
+    .map((element) => [element.name, element.value.trim()]));
   try {
     const { criarCliente } = await import('./api.js');
-    await criarCliente({ nome: values[0], telefone: values[1], contato: values[2], email: values[3] });
+    await criarCliente(dados);
     closeModal('modal-cliente'); form.reset(); await carregarClientes(); alert('Cliente cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
 }
@@ -156,6 +175,10 @@ window.cancelarConfigurações = cancelarConfigurações;
 document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('active'));
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
 document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); carregarConfiguracoes(); });
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
+  document.querySelector('#filtroClientes')?.addEventListener('change', filtrarClientes);
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
   const path = window.location.pathname;
@@ -166,8 +189,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { buscarChamadoPorId } = await import('./api.js');
     const chamado = await buscarChamadoPorId(idSelecionado);
     if (chamado) {
-      document.getElementById('chamado-id').textContent = `Chamado #${chamado.id_chamado}`;
-      document.getElementById('chamado-assunto').textContent = chamado.assunto;
+      document.getElementById('chamado-id').textContent = `Chamado #${chamado.id_chamado} - ${chamado.assunto}`;
+      document.getElementById('chamado-assunto').textContent = 'Detalhes da solicitação de atendimento';
       document.getElementById('chamado-cliente').textContent = chamado.cliente;
       document.getElementById('chamado-prioridade').textContent = chamado.prioridade;
       document.getElementById('chamado-status').textContent = chamado.status;
@@ -176,13 +199,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (path.includes('cliente-detalhe.html') && idSelecionado) {
-    const { buscarClientes } = await import('./api.js');
-    const clientes = await buscarClientes();
+    const { buscarClientes, buscarChamados } = await import('./api.js');
+    const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
     const cliente = clientes.find((item) => item.id_usuario == idSelecionado);
     if (cliente) {
       document.getElementById('cli-nome').textContent = cliente.nome;
       document.getElementById('cli-email').textContent = cliente.email;
+      document.getElementById('cli-telefone').textContent = cliente.telefone || '-';
+      document.getElementById('cli-plano').textContent = cliente.plano || '-';
+      document.getElementById('cli-acoes').textContent = cliente.acoes || '-';
       document.getElementById('cli-data').textContent = cliente.criado_em ? new Date(cliente.criado_em).toLocaleDateString('pt-BR') : '-';
+      const tabelaChamados = document.querySelector('#tabela-chamados-cliente tbody');
+      const chamadosCliente = chamados.filter((chamado) => chamado.cliente === cliente.nome);
+      tabelaChamados.innerHTML = chamadosCliente.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${chamado.id_chamado}'" style="cursor: pointer;"><td>#${chamado.id_chamado}</td><td>${chamado.assunto || '-'}</td><td>${chamado.status || '-'}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
   }
 

@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS usuario (
     contato VARCHAR(50),
     email VARCHAR(255),
     telefone VARCHAR(50),
+    cnpj VARCHAR(30),
+    plano VARCHAR(100),
+    acoes VARCHAR(500),
     senha_hash VARCHAR(255)
 );
 
@@ -52,7 +55,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     hora_agendada TIME,
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
-);
+) AUTO_INCREMENT = 100000;
 
 -- Tabela de Escalonamento
 CREATE TABLE IF NOT EXISTS escalonamento (

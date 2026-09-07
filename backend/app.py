@@ -4,6 +4,7 @@ import mysql.connector
 from mysql.connector import Error
 import os
 import re
+import secrets
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
@@ -60,6 +61,10 @@ def ensure_data_columns():
         descricao VARCHAR(500)
     )""")
     statements = (
+        "ALTER TABLE usuario ADD COLUMN cnpj VARCHAR(30)",
+        "ALTER TABLE usuario ADD COLUMN plano VARCHAR(100)",
+        "ALTER TABLE usuario ADD COLUMN acoes VARCHAR(500)",
+        "ALTER TABLE chamado AUTO_INCREMENT = 100000",
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
         "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
         "ALTER TABLE chamado ADD COLUMN descricao TEXT",
@@ -253,15 +258,25 @@ def create_chamado():
         
         cursor = conn.cursor()
         
+        novo_id = None
+        for _ in range(10):
+            candidato = secrets.randbelow(900000) + 100000
+            cursor.execute('SELECT 1 FROM chamado WHERE id_chamado = %s;', (candidato,))
+            if not cursor.fetchone():
+                novo_id = candidato
+                break
+        if novo_id is None:
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Não foi possível gerar um ID disponível'}), 503
+
         query = """
             INSERT INTO chamado
-                (id_tipo_chamado, status, cliente, email_cliente, assunto, descricao, data_agendada, hora_agendada)
-            VALUES (%s, 'ABERTO', %s, %s, %s, %s, %s, %s);
+                (id_chamado, id_tipo_chamado, status, cliente, email_cliente, assunto, descricao, data_agendada, hora_agendada)
+            VALUES (%s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (id_tipo_chamado, cliente, email_cliente, assunto, descricao, data_agendada, hora_agendada))
+        cursor.execute(query, (novo_id, id_tipo_chamado, cliente, email_cliente, assunto, descricao, data_agendada, hora_agendada))
         conn.commit()
-        
-        novo_id = cursor.lastrowid
         
         cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (novo_id,))
         novo_chamado = dict_fetchone(cursor)
@@ -350,6 +365,9 @@ def create_cliente():
         email = dados.get('email')
         telefone = dados.get('telefone')
         contato = dados.get('contato')
+        cnpj = dados.get('cnpj')
+        plano = dados.get('plano')
+        acoes = dados.get('acoes')
 
         conn = get_db_connection()
         if not conn:
@@ -359,11 +377,11 @@ def create_cliente():
         
         senha = dados.get('senha') or ''
         query = """
-            INSERT INTO usuario (nome, email, telefone, contato, senha_hash)
-            VALUES (%s, %s, %s, %s, %s);
+            INSERT INTO usuario (nome, email, telefone, contato, cnpj, plano, acoes, senha_hash)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
         """
         senha_hash = generate_password_hash(senha) if senha else None
-        cursor.execute(query, (nome, email, telefone, contato, senha_hash))
+        cursor.execute(query, (nome, email, telefone, contato, cnpj, plano, acoes, senha_hash))
         conn.commit()
         
         novo_id = cursor.lastrowid

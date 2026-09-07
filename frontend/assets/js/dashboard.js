@@ -1,6 +1,8 @@
-import { buscarChamados, criarChamado, atualizarChamado } from './api.js';
+import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, criarCliente } from './api.js';
 
 let chamadosEmMemoria = [];
+let agendaPagina = 0;
+let agendaModoAnterior = false;
 
 function atualizarPerfil() {
   const nome = localStorage.getItem('perfilNome') || 'Usuário';
@@ -60,12 +62,24 @@ function renderizarAgenda(chamados) {
   const agenda = document.querySelector('#agendaDinamica');
   const cabecalho = document.querySelector('#agendaCabecalho');
   if (!agenda || !cabecalho) return;
-  const todasDatas = document.querySelector('#agendaTodasDatas')?.checked;
-  const dataSelecionada = todasDatas ? '' : document.querySelector('#agendaData')?.value;
+  const todasDatas = document.querySelector('#agendaTodasDatas')?.checked || false;
+  if (todasDatas !== agendaModoAnterior) agendaPagina = 0;
+  agendaModoAnterior = todasDatas;
   const chamadosComData = chamados.filter((item) => item.data_agendada);
-  const datas = [...new Set(chamadosComData.map((item) => item.data_agendada))]
-    .filter((data) => !dataSelecionada || data === dataSelecionada)
-    .sort();
+  let datas;
+  if (todasDatas) {
+    const datasComChamados = [...new Set(chamadosComData.map((item) => item.data_agendada))].sort();
+    datas = datasComChamados.slice(agendaPagina * 5, agendaPagina * 5 + 5);
+  } else {
+    const campoData = document.querySelector('#agendaData');
+    const dataInicial = campoData?.value || new Date().toISOString().slice(0, 10);
+    const inicio = new Date(`${dataInicial}T12:00:00`);
+    datas = Array.from({ length: 5 }, (_, indice) => {
+      const data = new Date(inicio);
+      data.setDate(inicio.getDate() + indice);
+      return data.toISOString().slice(0, 10);
+    });
+  }
 
   cabecalho.style.gridTemplateColumns = `repeat(${Math.max(datas.length, 1)}, minmax(220px, 1fr))`;
   agenda.style.gridTemplateColumns = `repeat(${Math.max(datas.length, 1)}, minmax(220px, 1fr))`;
@@ -76,10 +90,10 @@ function renderizarAgenda(chamados) {
     return;
   }
 
-  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header${data === dataSelecionada ? ' active' : ''}">${formatarDataAgenda(data)}</div>`).join('');
+  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header">${formatarDataAgenda(data)}</div>`).join('');
   agenda.innerHTML = datas.map((data) => `<div class="agenda-column">${chamadosComData
     .filter((item) => item.data_agendada === data)
-    .map((item) => `<a class="ticket-card-agenda priority-medium" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge badge-blue">${item.status}</span></a>`)
+    .map((item) => `<a class="ticket-card-agenda status-${(item.status || 'ABERTO').toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge badge-blue">${item.status}</span></a>`)
     .join('')}</div>`).join('');
 }
 
@@ -93,6 +107,13 @@ function formatarDataAgenda(data) {
 
 function filtrarAgenda() { renderizarAgenda(chamadosEmMemoria); }
 function mudarDia(dias) {
+  if (document.querySelector('#agendaTodasDatas')?.checked) {
+    const datasComChamados = [...new Set(chamadosEmMemoria.filter((item) => item.data_agendada).map((item) => item.data_agendada))];
+    const ultimaPagina = Math.max(0, Math.ceil(datasComChamados.length / 5) - 1);
+    agendaPagina = Math.min(ultimaPagina, Math.max(0, agendaPagina + dias));
+    renderizarAgenda(chamadosEmMemoria);
+    return;
+  }
   const campo = document.querySelector('#agendaData');
   if (!campo) return;
   const data = new Date(`${campo.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
@@ -101,10 +122,48 @@ function mudarDia(dias) {
   filtrarAgenda();
 }
 
+async function carregarClientesNoChamado() {
+  const seletor = document.querySelector('#clienteChamado');
+  if (!seletor) return;
+  try {
+    const clientes = await buscarClientes();
+    seletor.innerHTML = '<option value="">Selecione um cliente</option>' + clientes.map((cliente) => `<option value="${cliente.nome}" data-email="${cliente.email || ''}">${cliente.nome}</option>`).join('');
+  } catch (error) { seletor.innerHTML = `<option value="">Não foi possível carregar clientes</option>`; }
+}
+
+function abrirNovoClienteDoChamado() {
+  document.querySelector('#modalChamado')?.classList.remove('active');
+  document.querySelector('#modalNovoClienteChamado')?.classList.add('active');
+}
+
+function cancelarNovoClienteDoChamado() {
+  document.querySelector('#modalNovoClienteChamado')?.classList.remove('active');
+  document.querySelector('#modalChamado')?.classList.add('active');
+}
+
+async function salvarNovoClienteDoChamado(event) {
+  event.preventDefault();
+  const form = event.target;
+  const campos = form.elements;
+  try {
+    const cliente = await criarCliente({ nome: campos.nome.value.trim(), telefone: campos.telefone.value.trim(), contato: campos.contato.value.trim(), email: campos.email.value.trim() });
+    await carregarClientesNoChamado();
+    const seletor = document.querySelector('#clienteChamado');
+    seletor.value = cliente.nome;
+    document.querySelector('#emailClienteChamado').value = cliente.email || '';
+    form.reset();
+    cancelarNovoClienteDoChamado();
+  } catch (error) { alert(`Não foi possível cadastrar o cliente: ${error.message}`); }
+}
+
 async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
+  if (!campos.cliente.value || !campos.email_cliente.value || !campos.assunto.value || !campos.data_agendada.value) {
+    form.reportValidity();
+    return;
+  }
   try {
     await criarChamado({
       cliente: campos.cliente.value.trim(),
@@ -122,6 +181,9 @@ window.fecharModalChamado = fecharModalChamado;
 window.salvarChamado = salvarChamado;
 window.filtrarAgenda = filtrarAgenda;
 window.mudarDia = mudarDia;
+window.abrirNovoClienteDoChamado = abrirNovoClienteDoChamado;
+window.cancelarNovoClienteDoChamado = cancelarNovoClienteDoChamado;
+window.salvarNovoClienteDoChamado = salvarNovoClienteDoChamado;
 
 document.addEventListener('click', async (event) => {
   const statusTrigger = event.target.closest('[data-status-picker] .status-trigger');
@@ -183,8 +245,22 @@ window.addEventListener('scroll', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
+  const agendaData = document.querySelector('#agendaData');
+  if (agendaData && !agendaData.value) agendaData.value = new Date().toISOString().slice(0, 10);
   document.querySelector('#buscaChamados')?.addEventListener('input', aplicarFiltrosChamados);
   document.querySelector('#filtroStatusChamados')?.addEventListener('change', aplicarFiltrosChamados);
+  const clienteChamado = document.querySelector('#clienteChamado');
+  clienteChamado?.addEventListener('change', () => {
+    if (clienteChamado.value === '__novo__') {
+      clienteChamado.value = '';
+      abrirNovoClienteDoChamado();
+      return;
+    }
+    const email = clienteChamado.selectedOptions[0]?.dataset.email || '';
+    const campoEmail = document.querySelector('#emailClienteChamado');
+    if (campoEmail && email) campoEmail.value = email;
+  });
+  carregarClientesNoChamado();
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');
     const agenda = document.querySelector('#agendaDinamica');

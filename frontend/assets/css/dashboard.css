@@ -665,6 +665,22 @@ body {
   cursor: pointer;
 }
 
+.input-with-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-with-action select {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-with-action .btn-secondary-sm {
+  width: auto;
+  white-space: nowrap;
+}
+
 /* Cabeçalho e Filtros da Agenda */
 .card-header-agenda {
   display: flex;
@@ -867,6 +883,39 @@ body {
 .ticket-card-agenda.priority-high { border-left-color: #F59E0B; background-color: #FFFBEB; }
 .ticket-card-agenda.priority-medium { border-left-color: #2563EB; background-color: #EFF6FF; }
 .ticket-card-agenda.priority-low { border-left-color: #10B981; background-color: #ECFDF5; }
+.ticket-card-agenda.status-aberto { border-left-color: #3B82F6; background-color: #EFF6FF; }
+.ticket-card-agenda.status-andamento { border-left-color: #F59E0B; background-color: #FFFBEB; }
+.ticket-card-agenda.status-aguardando { border-left-color: #F97316; background-color: #FFF7ED; }
+.ticket-card-agenda.status-resolvido { border-left-color: #10B981; background-color: #ECFDF5; }
+
+.chamado-voltar {
+  text-decoration: none;
+}
+
+.info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-group p {
+  margin: 0;
+}
+
+.client-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-filters select {
+  min-height: 36px;
+  padding: 8px 28px 8px 10px;
+  border: 1px solid var(--border-color, #D1D5DB);
+  border-radius: var(--radius-sm, 6px);
+  background: #FFFFFF;
+  color: var(--text-dark, #1E1B18);
+}
 
 .ticket-card-agenda p {
   color: #6B7280;

@@ -72,7 +72,15 @@
       <div class="card-header">
         <h2>Clientes Cadastrados</h2>
         <!-- Filtros de Busca -->
-        <input type="text" placeholder="Buscar clientes" style="width: 250px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
+        <div class="client-filters">
+          <select id="filtroClientes" aria-label="Filtrar clientes">
+            <option value="">Filtrar por...</option>
+            <option value="status">Status Contratual</option>
+            <option value="acoes">Ações</option>
+            <option value="plano">Planos</option>
+          </select>
+          <input id="buscaClientes" type="text" placeholder="Buscar clientes" style="width: 250px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
+        </div>
       </div>
 
       <div class="table-wrapper">
@@ -81,7 +89,7 @@
             <tr>
               <th>Empresa</th>
               <th>CNPJ / Contato</th>
-              <th>Pacote de Horas</th>
+              <th>Planos</th>
               <th>Status Contratual</th>
               <th>Ações</th>
             </tr>
@@ -101,21 +109,35 @@
       <form id="form-novo-cliente" onsubmit="salvarCliente(event)">
         <div class="form-group">
           <label>Nome da Empresa</label>
-          <input type="text" required placeholder="Ex: NovaTech Ltda">
+          <input name="nome" type="text" required placeholder="Ex: NovaTech Ltda">
         </div>
         <div class="form-group">
           <label>CNPJ</label>
-          <input type="text" required placeholder="00.000.000/0001-00">
+          <input name="cnpj" type="text" required placeholder="00.000.000/0001-00">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Nome do Contato</label>
-            <input type="text" required placeholder="Ex: Paulo Mendes">
+            <input name="contato" type="text" required placeholder="Ex: Paulo Mendes">
           </div>
           <div class="form-group">
             <label>E-mail</label>
-            <input type="email" required placeholder="paulo@novatech.com">
+            <input name="email" type="email" required placeholder="paulo@novatech.com">
           </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Número de telefone</label>
+            <input name="telefone" type="tel" required placeholder="(00) 00000-0000">
+          </div>
+          <div class="form-group">
+            <label>Plano</label>
+            <input name="plano" type="text" required placeholder="Ex: 20 horas">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Ações do cliente</label>
+          <input name="acoes" type="text" placeholder="Ex: Renovar contrato">
         </div>
         <div class="modal-footer">
           <button type="button" class="button button--secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
