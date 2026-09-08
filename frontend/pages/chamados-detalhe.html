@@ -9,30 +9,228 @@
     <title>HelpTI</title>
 </head>
 <body>
+  <!-- Barra de Navegação Superior (Header com Abas) -->
+    <header class="top-navbar">
+        <div class="nav-container">
+        <div class="brand-group">
+            <a href="dashboard.html" class="navbar-brand">
+            <img src="../assets/images/Frame.png" alt="HelpTI Logo" class="brand-logo">
+            <span class="brand-name">HelpTI</span>
+            </a>
 
-    <main class="main-container">
+            <nav class="nav-tabs">
+                <a href="dashboard.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard-icon lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                    Dashboard
+                </a>
+                <a href="chamados.html" class="tab-item active">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ticket-icon lucide-ticket"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+                    Chamados
+                </a>
+                <a href="clientes.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users-icon lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
+                    Clientes
+                </a>
+                <a href="equipe.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-cog-icon lucide-user-cog"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
+                    Equipe
+                </a>
+                <a href="relatorios.html" class="tab-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-column-icon lucide-chart-column"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+                    Relatórios
+                </a>
+            </nav>
+        </div>
+
+        <div class="user-profile-wrapper" onclick="toggleProfileMenu(event)">
+            <div class="user-profile">
+                <span class="user-role">Funcionário</span>
+                <div class="user-avatar">
+                    <img src="https://ui-avatars.com/api/?name=Usuario+HelpTI&background=E5E7EB&color=374151" alt="Avatar">
+                </div>
+            </div>
+
+            <div class="profile-dropdown" id="profileDropdown">
+                <a href="settings.html" class="dropdown-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+                    Configurações
+                </a>
+                <a href="login.html" class="dropdown-item danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out-icon lucide-log-out"><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
+                    Sair da Conta
+                </a>
+            </div>
+        </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+  <main class="main-container">
+    
+    <!-- Cabeçalho com Breadcrumb -->
     <div class="page-title-bar">
       <div>
-        <span class="section-tag">CHAMADOS</span>
-        <h1 id="chamado-id">Chamado #-- - Carregando assunto...</h1>
-        <p id="chamado-assunto">Detalhes da solicitação de atendimento</p>
+        <div class="breadcrumb-trail">
+          <a href="chamados.html">Chamados</a> &rsaquo; <span id="chamado-breadcrumb-cliente">Vortex Negócios</span>
+        </div>
+        <h1 id="chamado-titulo">#TI-3829 — Sem conexão de internet no escritório</h1>
       </div>
-      <a href="chamados.html" class="btn-primary chamado-voltar">Voltar para Chamados</a>
     </div>
 
-    <section class="content-card">
-      <h2>Informações do Atendimento</h2>
-      <div class="info-group">
-        <p><strong>Cliente:</strong> <span id="chamado-cliente">-</span></p>
-        <p><strong>Prioridade:</strong> <span id="chamado-prioridade">-</span></p>
-        <p><strong>Status:</strong> <span id="chamado-status">-</span></p>
-        <p><strong>Descrição:</strong></p>
-        <p id="chamado-descricao" class="description-box">-</p>
+    <!-- Layout Grid (Coluna Principal + Sidebar de Ações/SLA) -->
+    <div class="ticket-detail-grid">
+      
+      <!-- Coluna Principal (Detalhes, Descrição e Timeline) -->
+      <div class="ticket-main-column">
+        
+        <!-- Detalhes Gerais -->
+        <section class="content-card">
+          <h2>Detalhes do Chamado</h2>
+          
+          <div class="ticket-info-grid">
+            <div class="info-item">
+              <span class="info-label">EMPRESA CLIENTE</span>
+              <span class="info-value" id="chamado-cliente">Vortex Negócios</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">CONTATO</span>
+              <span class="info-value" id="chamado-contato">Carlos Eduardo</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">TELEFONE</span>
+              <span class="info-value" id="chamado-telefone">(11) 3241-9080</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">E-MAIL</span>
+              <span class="info-value" id="chamado-email">ti@vortexnegocios.com.br</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">DATA DE ABERTURA</span>
+              <span class="info-value" id="chamado-data">Hoje, 10:14</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">CLASSIFICAÇÃO</span>
+              <div>
+                <span class="badge badge-red" id="chamado-nivel">Nível 3 - Operadora</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Descrição do Problema -->
+        <section class="content-card">
+          <h2>Descrição do Problema</h2>
+          <p class="description-text" id="chamado-descricao">
+            Desde as 09:30 da manhã, todos os computadores do escritório perderam conexão com a internet. O link dedicado da Vivo parece estar fora do ar. Já reiniciamos o roteador e o switch principal, mas sem sucesso. Precisamos de suporte urgente pois afeta toda a operação.
+          </p>
+        </section>
+
+        <!-- Histórico de Atualizações (Timeline) -->
+        <section class="content-card">
+          <h2>Histórico de Atualizações</h2>
+          
+          <div class="timeline-list">
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Aguardando retorno da operadora</strong>
+                  <span class="timeline-time">11:00</span>
+                </div>
+                <p>Abertura de chamado técnico de prioridade máxima junto ao suporte corporativo da Vivo para análise física da fibra.</p>
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Escalonado para operadora Vivo</strong>
+                  <span class="timeline-time">10:35</span>
+                </div>
+                <p>Direcionado por Fernando Silva.</p>
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Classificado como Nível 3 - Operadora</strong>
+                  <span class="timeline-time">10:20</span>
+                </div>
+                <p>Modificado de forma automática pela análise do escopo do problema.</p>
+              </div>
+            </div>
+
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Chamado aberto</strong>
+                  <span class="timeline-time">10:14</span>
+                </div>
+                <p>Registrado por Carlos Eduardo via Portal de Clientes.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
-    </section>
+
+      <!-- Sidebar Lateral (Escalonamento e Ações) -->
+      <aside class="ticket-sidebar">
+        
+        <!-- Status de Escalonamento -->
+        <section class="content-card">
+          <h2>Escalonamento &amp; Status</h2>
+          
+          <div class="sidebar-info-list">
+            <div class="info-item">
+              <span class="info-label">RESPONSÁVEL TÉCNICO</span>
+              <span class="info-value">Fernando Silva</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">SETOR</span>
+              <span class="info-value">Infraestrutura</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">ESCALONADO PARA</span>
+              <span class="info-value">Operadora Vivo</span>
+            </div>
+
+            <div class="info-item">
+              <span class="info-label">STATUS DO SLA</span>
+              <div>
+                <span class="badge badge-yellow">Tempo decorrido: 1h 46m</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Ações do Chamado -->
+        <section class="content-card">
+          <h2>Ações</h2>
+          <div class="action-buttons-group">
+            <button class="btn-primary btn-full">Responder Chamado</button>
+            <button class="btn-secondary btn-full">Escalonar para Terceiro</button>
+            <button class="btn-outline-danger btn-full">Encerrar Chamado</button>
+          </div>
+        </section>
+
+      </aside>
+
+    </div>
+
   </main>
 
   <script type="module" src="../assets/js/main.js"></script>
-
 </body>
 </html>
