@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
     <!-- CSS -->
-    <link rel="stylesheet" href="../assets/css/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/equipe.css">
     <title>HelpTI</title>
 </head>
 <body>
@@ -92,16 +92,16 @@
       <form id="form-nova-equipe" onsubmit="salvarMembro(event)">
         <div class="form-group">
           <label>Nome Completo</label>
-          <input type="text" required placeholder="Ex: Ana Souza">
+          <input name="nome" type="text" required placeholder="Ex: Ana Souza">
         </div>
         <div class="form-group">
           <label>E-mail Corporativo</label>
-          <input type="email" required placeholder="ana@helpti.com">
+          <input name="email" type="email" required placeholder="ana@helpti.com">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Cargo / Perfil</label>
-            <select required>
+            <select name="cargo" required>
               <option value="tecnico">Técnico / Suporte</option>
               <option value="rh">RH</option>
               <option value="financeiro">Financeiro</option>
@@ -110,18 +110,17 @@
           </div>
           <div class="form-group">
             <label>Valor Hora (R$)</label>
-            <input type="number" step="0.01" required placeholder="35.00">
+            <input name="valor_hora" type="number" step="0.01" required placeholder="35.00">
           </div>
         </div>
         <div class="form-group">
-          <label>Setor</label>
-          <select id="setor-membro" required>
-            <option value="">Selecione um setor</option>
-          </select>
+          <label for="setor-membro">Setor</label>
+          <input id="setor-membro" name="setor" type="text" list="setores-disponiveis" required placeholder="Digite ou selecione um setor">
+          <datalist id="setores-disponiveis"></datalist>
         </div>
         <div class="form-group">
           <label>Senha de acesso</label>
-          <input type="password" required minlength="6" placeholder="Mínimo de 6 caracteres">
+          <input name="senha" type="password" required minlength="6" placeholder="Mínimo de 6 caracteres">
         </div>
         <div class="modal-footer">
           <button type="button" class="button button--secondary" onclick="closeModal('modal-equipe')">Cancelar</button>

@@ -33,11 +33,45 @@ function renderizarClientes(clientes) {
 
 function filtrarClientes() {
   const termo = document.querySelector('#buscaClientes')?.value.trim().toLowerCase() || '';
-  const campo = document.querySelector('#filtroClientes')?.value || '';
-  const camposBusca = campo === 'plano' ? ['plano'] : campo === 'acoes' ? ['acoes'] : campo === 'status' ? ['status'] : ['nome', 'email', 'contato', 'telefone', 'cnpj', 'plano', 'acoes'];
+  const camposMarcados = [...document.querySelectorAll('#menuFiltroClientes input[type="checkbox"]:checked')]
+    .map((checkbox) => checkbox.value);
+  const camposBusca = camposMarcados.length ? camposMarcados : ['nome', 'cnpj', 'contato', 'email', 'telefone', 'plano', 'status'];
   const clientesFiltrados = clientesEmMemoria.filter((cliente) => camposBusca
-    .some((campoCliente) => String(campoCliente === 'status' ? (cliente.status || 'Ativo') : cliente[campoCliente] || '').toLowerCase().includes(termo)));
+    .some((campoCliente) => normalizarTexto(campoCliente === 'status' ? (cliente.status || 'Ativo') : cliente[campoCliente] || '').includes(normalizarTexto(termo))));
   renderizarClientes(clientesFiltrados);
+}
+
+function normalizarTexto(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function configurarFiltroClientes() {
+  const controle = document.querySelector('.client-filter-control');
+  const botao = document.querySelector('#botaoFiltroClientes');
+  const menu = document.querySelector('#menuFiltroClientes');
+  if (!controle || !botao || !menu) return;
+
+  botao.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const aberto = controle.classList.toggle('is-open');
+    botao.setAttribute('aria-expanded', String(aberto));
+  });
+
+  menu.addEventListener('change', (event) => {
+    if (!event.target.matches('input[type="checkbox"]')) return;
+    filtrarClientes();
+  });
+
+  document.querySelector('#filtroClientes')?.addEventListener('change', (event) => {
+    const campo = event.target.value;
+    if (!campo) return;
+    const checkbox = menu.querySelector(`input[value="${campo}"]`);
+    if (checkbox) checkbox.checked = true;
+    filtrarClientes();
+  });
 }
 
 async function carregarClientes() {
@@ -82,8 +116,8 @@ async function carregarSetores() {
   try {
     const { buscarSetores, buscarEquipe } = await import('./api.js');
     [setoresEmMemoria, equipeEmMemoria] = await Promise.all([buscarSetores(), buscarEquipe()]);
-    const seletor = document.querySelector('#setor-membro');
-    if (seletor) seletor.innerHTML = '<option value="">Selecione um setor</option>' + setoresEmMemoria.map((setor) => `<option value="${setor.id_setor}">${setor.nome}</option>`).join('');
+    const lista = document.querySelector('#setores-disponiveis');
+    if (lista) lista.innerHTML = setoresEmMemoria.map((setor) => `<option value="${setor.nome}"></option>`).join('');
     tabela.innerHTML = setoresEmMemoria.map((setor) => {
       const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
       const lista = participantes.map((membro) => `<li><a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></a></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
@@ -114,10 +148,19 @@ async function salvarSetor(event) {
 async function salvarMembro(event) {
   event.preventDefault();
   const form = event.target;
-  const values = [...form.querySelectorAll('input, select')].map((input) => input.value.trim());
+  const setorNome = form.elements.setor.value.trim();
   try {
-    const { criarMembro } = await import('./api.js');
-    await criarMembro({ nome: values[0], email: values[1], cargo: values[2], valor_hora: values[3], id_setor: values[4], senha: values[5] });
+    const { criarMembro, criarSetor } = await import('./api.js');
+    let setor = setoresEmMemoria.find((item) => item.nome.trim().toLowerCase() === setorNome.toLowerCase());
+    if (!setor) setor = await criarSetor({ nome: setorNome, descricao: '' });
+    await criarMembro({
+      nome: form.elements.nome.value.trim(),
+      email: form.elements.email.value.trim(),
+      cargo: form.elements.cargo.value,
+      valor_hora: form.elements.valor_hora.value,
+      id_setor: setor.id_setor,
+      senha: form.elements.senha.value
+    });
     closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); alert('Membro cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
 }
@@ -173,11 +216,18 @@ window.salvarConfiguracoes = salvarConfiguracoes;
 window.cancelarConfigurações = cancelarConfigurações;
 
 document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('active'));
+document.addEventListener('click', (event) => {
+  const controle = document.querySelector('.client-filter-control');
+  if (controle && !controle.contains(event.target)) {
+    controle.classList.remove('is-open');
+    document.querySelector('#botaoFiltroClientes')?.setAttribute('aria-expanded', 'false');
+  }
+});
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
 document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); carregarConfiguracoes(); });
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
-  document.querySelector('#filtroClientes')?.addEventListener('change', filtrarClientes);
+  configurarFiltroClientes();
 });
 
 document.addEventListener('DOMContentLoaded', async () => {

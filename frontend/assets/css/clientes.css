@@ -1,0 +1,112 @@
+@import url('common.css');
+
+.client-filters {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.client-filters select {
+	min-height: 36px;
+	padding: 8px 28px 8px 10px;
+	border: 1px solid var(--border-color, #D1D5DB);
+	border-radius: var(--radius-sm, 6px);
+	background: #FFFFFF;
+	color: var(--text-dark, #1E1B18);
+}
+
+.client-filter-select {
+	min-width: 150px;
+}
+
+.client-filter-control {
+	position: relative;
+}
+
+.client-filter-button {
+	width: 38px;
+	height: 38px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 1px solid var(--border-color, #D1D5DB);
+	border-radius: var(--radius-sm, 6px);
+	background: #FFFFFF;
+	color: var(--text-secondary, #6B7280);
+	cursor: pointer;
+}
+
+.client-filter-button:hover,
+.client-filter-button[aria-expanded="true"] {
+	color: var(--primary-color, #2563EB);
+	border-color: var(--primary-color, #2563EB);
+	background: #EFF6FF;
+}
+
+.client-filter-button svg {
+	width: 18px;
+	height: 18px;
+}
+
+.client-filter-menu {
+	display: none;
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	width: 220px;
+	padding: 10px;
+	background: #FFFFFF;
+	border: 1px solid var(--border-color, #E5E7EB);
+	border-radius: var(--radius-sm, 6px);
+	box-shadow: 0 8px 18px rgba(30, 41, 59, 0.12);
+	z-index: 30;
+}
+
+.client-filter-control.is-open .client-filter-menu {
+	display: grid;
+	gap: 2px;
+}
+
+.client-filter-title {
+	padding: 2px 6px 8px;
+	border-bottom: 1px solid var(--border-color, #E5E7EB);
+	color: var(--text-secondary, #6B7280);
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.client-filter-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 6px;
+	border-radius: 4px;
+	color: var(--text-dark, #1E1B18);
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.client-filter-option:hover {
+	background: #EFF6FF;
+	color: var(--primary-color, #2563EB);
+}
+
+.client-filter-option input {
+	width: 15px;
+	height: 15px;
+	accent-color: var(--primary-color, #2563EB);
+}
+
+@media (max-width: 700px) {
+	.client-filters {
+		align-items: stretch;
+		flex-wrap: wrap;
+	}
+
+	.client-filters input {
+		width: min(250px, 100%) !important;
+	}
+}

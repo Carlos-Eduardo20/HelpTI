@@ -1,0 +1,24 @@
+@import url('common.css');
+
+.ticket-detail-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+.ticket-main-column, .ticket-sidebar { display: flex; flex-direction: column; gap: 20px; }
+.ticket-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.info-item { display: flex; flex-direction: column; gap: 2px; }
+.info-label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-subtle, #8C847E); text-transform: uppercase; }
+.info-value { font-size: 13px; color: var(--text-dark, #1E1B18); font-weight: 500; }
+.description-text { font-size: 14px; line-height: 1.6; color: var(--text-dark, #1E1B18); background-color: var(--bg-beige-light, #FAF8F5); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color, #E2DCD0); }
+.timeline-list { position: relative; padding-left: 20px; display: flex; flex-direction: column; gap: 20px; }
+.timeline-list::before { content: ''; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background-color: var(--border-color, #E2DCD0); }
+.timeline-item { position: relative; }
+.timeline-dot { position: absolute; left: -20px; top: 4px; width: 14px; height: 14px; border-radius: 50%; background-color: var(--blue-600, #2563EB); border: 3px solid #FFFFFF; box-shadow: 0 0 0 1px var(--blue-600, #2563EB); }
+.timeline-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 4px; }
+.timeline-time { font-size: 11px; color: var(--text-subtle, #8C847E); }
+.timeline-content p { font-size: 13px; color: var(--text-muted, #5C5650); }
+.badge-green { background: #DCFCE7; color: #15803D; }
+.badge-yellow { background: #FEF3C7; color: #D97706; }
+.badge-blue { background: #EFF6FF; color: #1D4ED8; }
+.badge-red { background: #FEE2E2; color: #DC2626; }
+.action-buttons-group { display: flex; flex-direction: column; gap: 10px; }
+.btn-secondary { background-color: var(--bg-beige-dark, #EDE7DB); color: var(--text-dark, #1E1B18); border: 1px solid var(--border-color, #E2DCD0); padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-outline-danger { background-color: transparent; color: var(--red-dark, #DC2626); border: 1px solid var(--red-border, #F87171); padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+@media (max-width: 760px) { .ticket-detail-grid, .ticket-info-grid { grid-template-columns: 1fr; } }

@@ -3,6 +3,8 @@ import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, criarCl
 let chamadosEmMemoria = [];
 let agendaPagina = 0;
 let agendaModoAnterior = false;
+let paginaChamados = 1;
+const chamadosPorPagina = 5;
 
 function atualizarPerfil() {
   const nome = localStorage.getItem('perfilNome') || 'Usuário';
@@ -45,8 +47,47 @@ function aplicarFiltrosChamados() {
       .some((valor) => String(valor || '').toLowerCase().includes(busca));
     return correspondeBusca && (!status || chamado.status === status);
   });
+  const totalPaginas = Math.max(1, Math.ceil(chamadosFiltrados.length / chamadosPorPagina));
+  paginaChamados = Math.min(paginaChamados, totalPaginas);
+  const inicio = (paginaChamados - 1) * chamadosPorPagina;
+  const chamadosDaPagina = chamadosFiltrados.slice(inicio, inicio + chamadosPorPagina);
   const tabela = document.querySelector('#tabelaChamados');
-  if (tabela) tabela.innerHTML = chamadosFiltrados.map(linhaChamado).join('') || '<tr><td colspan="6">Nenhum chamado encontrado.</td></tr>';
+  if (tabela) tabela.innerHTML = chamadosDaPagina.map(linhaChamado).join('') || '<tr><td colspan="6">Nenhum chamado encontrado.</td></tr>';
+  renderizarPaginacao(chamadosFiltrados.length, totalPaginas);
+}
+
+function renderizarPaginacao(totalResultados, totalPaginas) {
+  const paginacao = document.querySelector('#paginacaoChamados');
+  if (!paginacao) return;
+  if (!totalResultados) {
+    paginacao.innerHTML = '';
+    return;
+  }
+
+  const inicio = (paginaChamados - 1) * chamadosPorPagina + 1;
+  const fim = Math.min(paginaChamados * chamadosPorPagina, totalResultados);
+  const paginas = criarListaPaginas(totalPaginas, paginaChamados);
+  paginacao.innerHTML = `
+    <span class="pagination-summary">Exibindo ${inicio}-${fim} de ${totalResultados} chamados</span>
+    <div class="pagination-controls">
+      <button class="pagination-button" type="button" data-pagina="${paginaChamados - 1}" aria-label="Página anterior" ${paginaChamados === 1 ? 'disabled' : ''}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      ${paginas.map((pagina) => pagina === '...' ? '<span class="pagination-ellipsis">...</span>' : `<button class="pagination-button ${pagina === paginaChamados ? 'active' : ''}" type="button" data-pagina="${pagina}" aria-label="Página ${pagina}" ${pagina === paginaChamados ? 'aria-current="page"' : ''}>${pagina}</button>`).join('')}
+      <button class="pagination-button" type="button" data-pagina="${paginaChamados + 1}" aria-label="Próxima página" ${paginaChamados === totalPaginas ? 'disabled' : ''}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+    </div>`;
+}
+
+function criarListaPaginas(totalPaginas, paginaAtual) {
+  const paginasPorBloco = 3;
+  const primeiroNumero = Math.floor((paginaAtual - 1) / paginasPorBloco) * paginasPorBloco + 1;
+  const ultimaPaginaDoBloco = Math.min(primeiroNumero + paginasPorBloco - 1, totalPaginas);
+  return Array.from(
+    { length: ultimaPaginaDoBloco - primeiroNumero + 1 },
+    (_, indice) => primeiroNumero + indice
+  );
 }
 
 async function carregarChamados() {
@@ -244,7 +285,7 @@ document.addEventListener('click', async (event) => {
   });
 
   const row = event.target.closest('.chamado-row');
-  if (row) window.location.href = `chamados-detalhe.html?id=${row.dataset.detalhes}`;
+  if (row && !event.target.closest('[data-status-picker]')) window.location.href = `chamados-detalhe.html?id=${row.dataset.detalhes}`;
 });
 
 window.addEventListener('resize', () => {
@@ -259,8 +300,20 @@ document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
   const agendaData = document.querySelector('#agendaData');
   if (agendaData && !agendaData.value) agendaData.value = new Date().toISOString().slice(0, 10);
-  document.querySelector('#buscaChamados')?.addEventListener('input', aplicarFiltrosChamados);
-  document.querySelector('#filtroStatusChamados')?.addEventListener('change', aplicarFiltrosChamados);
+  document.querySelector('#buscaChamados')?.addEventListener('input', () => {
+    paginaChamados = 1;
+    aplicarFiltrosChamados();
+  });
+  document.querySelector('#filtroStatusChamados')?.addEventListener('change', () => {
+    paginaChamados = 1;
+    aplicarFiltrosChamados();
+  });
+  document.querySelector('#paginacaoChamados')?.addEventListener('click', (event) => {
+    const botao = event.target.closest('[data-pagina]');
+    if (!botao || botao.disabled) return;
+    paginaChamados = Number(botao.dataset.pagina);
+    aplicarFiltrosChamados();
+  });
   const clienteChamado = document.querySelector('#clienteChamado');
   clienteChamado?.addEventListener('change', () => {
     if (clienteChamado.value === '__novo__') {
