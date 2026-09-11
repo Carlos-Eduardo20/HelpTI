@@ -73,13 +73,24 @@
         <h2>Clientes Cadastrados</h2>
         <!-- Filtros de Busca -->
         <div class="client-filters">
-          <select id="filtroClientes" aria-label="Filtrar clientes">
+          <select id="filtroClientes" class="client-filter-select" aria-label="Filtrar clientes">
             <option value="">Filtrar por...</option>
             <option value="status">Status Contratual</option>
             <option value="acoes">Ações</option>
             <option value="plano">Planos</option>
           </select>
           <input id="buscaClientes" type="text" placeholder="Buscar clientes" style="width: 250px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
+          <div class="client-filter-control">
+            <button class="client-filter-button" id="botaoFiltroClientes" type="button" aria-label="Abrir opções de filtro" aria-expanded="false" aria-controls="menuFiltroClientes">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+            </button>
+            <div class="client-filter-menu" id="menuFiltroClientes" role="menu">
+              <button type="button" data-client-filter="">Todos os campos</button>
+              <button type="button" data-client-filter="status">Status contratual</button>
+              <button type="button" data-client-filter="plano">Plano</button>
+              <button type="button" data-client-filter="acoes">Ações</button>
+            </div>
+          </div>
         </div>
       </div>
 

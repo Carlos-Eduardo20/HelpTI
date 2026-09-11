@@ -86,7 +86,7 @@ async function carregarSetores() {
     if (seletor) seletor.innerHTML = '<option value="">Selecione um setor</option>' + setoresEmMemoria.map((setor) => `<option value="${setor.id_setor}">${setor.nome}</option>`).join('');
     tabela.innerHTML = setoresEmMemoria.map((setor) => {
       const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
-      const lista = participantes.map((membro) => `<li><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
+      const lista = participantes.map((membro) => `<li><a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></a></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
       return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.descricao || 'Sem descrição'}</small></span><span class="status-badge status-info">${participantes.length} participante(s)</span></summary><ul class="sector-members">${lista}</ul></details></td></tr>`;
     }).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
   } catch (error) { tabela.innerHTML = `<tr><td colspan="3">${error.message}</td></tr>`; }
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const idSelecionado = params.get('id');
 
-  if (path.includes('chamados-detalhe.html') && idSelecionado) {
+  if (false && path.includes('chamados-detalhe.html') && idSelecionado) {
     const { buscarChamadoPorId } = await import('./api.js');
     const chamado = await buscarChamadoPorId(idSelecionado);
     if (chamado) {
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  if (path.includes('cliente-detalhe.html') && idSelecionado) {
+  if (false && path.includes('cliente-detalhe.html') && idSelecionado) {
     const { buscarClientes, buscarChamados } = await import('./api.js');
     const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
     const cliente = clientes.find((item) => item.id_usuario == idSelecionado);
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  if (path.includes('equipe-detalhe.html') && idSelecionado) {
+  if (false && path.includes('equipe-detalhe.html') && idSelecionado) {
     const { buscarEquipe } = await import('./api.js');
     const equipe = await buscarEquipe();
     const membro = equipe.find((item) => item.id_grupo_solucionadores == idSelecionado);
@@ -224,5 +224,102 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('membro-email').textContent = membro.email;
       document.getElementById('membro-funcao').textContent = membro.cargo;
     }
+  }
+});
+
+function setDetailText(id, value) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = value || '-';
+}
+
+function detailInitials(name) {
+  return String(name || '--').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '--';
+}
+
+function detailDate(value) {
+  if (!value) return 'Não informada';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('pt-BR');
+}
+
+function detailEscape(value) {
+  return String(value ?? '-').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const path = window.location.pathname;
+  const id = new URLSearchParams(window.location.search).get('id');
+  if (!id || !/(-detalhe\.html)$/.test(path)) return;
+
+  try {
+    if (path.includes('chamados-detalhe.html')) {
+      const { buscarChamadoPorId, buscarClientes, buscarEquipe } = await import('./api.js');
+      const [chamado, clientes, equipe] = await Promise.all([buscarChamadoPorId(id), buscarClientes(), buscarEquipe()]);
+      const cliente = clientes.find((item) => item.nome === chamado.cliente);
+      const responsavel = equipe.find((item) => item.id_grupo_solucionadores == chamado.id_grupo_solucionadores);
+      setDetailText('chamado-titulo', `#${chamado.id_chamado} — ${chamado.assunto || 'Sem assunto'}`);
+      setDetailText('chamado-breadcrumb-cliente', chamado.cliente);
+      setDetailText('chamado-cliente', chamado.cliente);
+      setDetailText('chamado-contato', cliente?.contato || 'Não informado');
+      setDetailText('chamado-telefone', cliente?.telefone || 'Não informado');
+      setDetailText('chamado-email', chamado.email_cliente || cliente?.email || 'Não informado');
+      setDetailText('chamado-data', detailDate(chamado.data_agendada));
+      setDetailText('chamado-nivel', `Tipo ${chamado.id_tipo_chamado || 'não informado'}`);
+      setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
+      const sidebarValues = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');
+      if (sidebarValues.length >= 4) {
+        sidebarValues[0].textContent = responsavel?.nome || 'Não atribuído';
+        sidebarValues[1].textContent = responsavel?.setor_nome || 'Não informado';
+        sidebarValues[2].textContent = 'Não informado';
+        sidebarValues[3].textContent = chamado.status || 'ABERTO';
+      }
+      const history = document.querySelector('.timeline-list');
+      if (history) history.innerHTML = `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>Chamado ${detailEscape(chamado.status || 'ABERTO').toLowerCase()}</strong><span class="timeline-time">${detailEscape(detailDate(chamado.data_agendada))}</span></div><p>Registro criado no sistema.</p></div></div>`;
+    }
+
+    if (path.includes('cliente-detalhe.html')) {
+      const { buscarClientes, buscarChamados } = await import('./api.js');
+      const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
+      const cliente = clientes.find((item) => item.id_usuario == id);
+      if (!cliente) throw new Error('Cliente não encontrado.');
+      setDetailText('cli-nome', cliente.nome);
+      setDetailText('cli-breadcrumb', cliente.nome);
+      setDetailText('cli-avatar', detailInitials(cliente.nome));
+      setDetailText('cli-cnpj', cliente.cnpj);
+      setDetailText('cli-email', cliente.email);
+      setDetailText('cli-telefone', cliente.telefone);
+      setDetailText('cli-endereco', cliente.contato);
+      setDetailText('cli-fatura', cliente.plano);
+      setDetailText('cli-contrato', cliente.acoes);
+      const table = document.querySelector('#tabela-chamados-cliente tbody');
+      const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
+      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.assunto)}</td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado encontrado para este cliente.</td></tr>';
+    }
+
+    if (path.includes('equipe-detalhe.html')) {
+      const { buscarEquipe, buscarChamados } = await import('./api.js');
+      const [equipe, chamados] = await Promise.all([buscarEquipe(), buscarChamados()]);
+      const membro = equipe.find((item) => item.id_grupo_solucionadores == id);
+      if (!membro) throw new Error('Membro da equipe não encontrado.');
+      setDetailText('membro-nome', membro.nome);
+      setDetailText('membro-breadcrumb', membro.nome);
+      setDetailText('membro-avatar', detailInitials(membro.nome));
+      setDetailText('membro-setor', membro.setor_nome || 'Sem setor');
+      setDetailText('membro-cargo', membro.cargo || 'Não informado');
+      setDetailText('membro-email', membro.email);
+      setDetailText('membro-telefone', 'Não informado');
+      setDetailText('membro-admissao', detailDate(membro.data_inicio));
+      setDetailText('membro-certificacoes', 'Não informado');
+      document.querySelectorAll('.team-stats-grid .stat-box-number').forEach((element) => { element.textContent = '—'; });
+      const skills = document.querySelector('.skills-tags-container');
+      if (skills) skills.textContent = 'Nenhuma especialidade cadastrada.';
+      const table = document.querySelector('#tabela-chamados-tecnico tbody');
+      const tickets = chamados.filter((chamado) => chamado.id_grupo_solucionadores == membro.id_grupo_solucionadores);
+      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.assunto)}</td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado atribuído a este membro.</td></tr>';
+    }
+  } catch (error) {
+    console.error('Não foi possível carregar os detalhes:', error);
+    const title = document.querySelector('.page-title-bar h1');
+    if (title) title.textContent = error.message || 'Não foi possível carregar os detalhes.';
   }
 });

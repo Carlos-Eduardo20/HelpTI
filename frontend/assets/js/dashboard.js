@@ -34,7 +34,7 @@ function posicionarMenuStatus(picker) {
 function linhaChamado(chamado) {
   const status = chamado.status || 'ABERTO';
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'];
-  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.assunto || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron">⌄</span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
+  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.assunto || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
 }
 
 function aplicarFiltrosChamados() {
@@ -62,39 +62,42 @@ function renderizarAgenda(chamados) {
   const agenda = document.querySelector('#agendaDinamica');
   const cabecalho = document.querySelector('#agendaCabecalho');
   if (!agenda || !cabecalho) return;
+  const chamadosComData = chamados.filter((item) => {
+    if (!item.data_agendada) return false;
+    const diaDaSemana = new Date(`${item.data_agendada}T12:00:00`).getDay();
+    return diaDaSemana >= 1 && diaDaSemana <= 5;
+  });
   const todasDatas = document.querySelector('#agendaTodasDatas')?.checked || false;
   if (todasDatas !== agendaModoAnterior) agendaPagina = 0;
   agendaModoAnterior = todasDatas;
-  const chamadosComData = chamados.filter((item) => item.data_agendada);
   let datas;
   if (todasDatas) {
     const datasComChamados = [...new Set(chamadosComData.map((item) => item.data_agendada))].sort();
     datas = datasComChamados.slice(agendaPagina * 5, agendaPagina * 5 + 5);
   } else {
     const campoData = document.querySelector('#agendaData');
-    const dataInicial = campoData?.value || new Date().toISOString().slice(0, 10);
-    const inicio = new Date(`${dataInicial}T12:00:00`);
+    const dataSelecionada = new Date(`${campoData?.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
+    const diaDaSemana = dataSelecionada.getDay();
+    const segunda = new Date(dataSelecionada);
+    segunda.setDate(dataSelecionada.getDate() + (diaDaSemana === 0 ? -6 : 1 - diaDaSemana));
     datas = Array.from({ length: 5 }, (_, indice) => {
-      const data = new Date(inicio);
-      data.setDate(inicio.getDate() + indice);
+      const data = new Date(segunda);
+      data.setDate(segunda.getDate() + indice);
       return data.toISOString().slice(0, 10);
     });
   }
+  const hoje = new Date().toISOString().slice(0, 10);
 
-  cabecalho.style.gridTemplateColumns = `repeat(${Math.max(datas.length, 1)}, minmax(220px, 1fr))`;
-  agenda.style.gridTemplateColumns = `repeat(${Math.max(datas.length, 1)}, minmax(220px, 1fr))`;
+  cabecalho.style.gridTemplateColumns = 'repeat(5, minmax(220px, 1fr))';
+  agenda.style.gridTemplateColumns = 'repeat(5, minmax(220px, 1fr))';
 
-  if (!datas.length) {
-    cabecalho.innerHTML = '';
-    agenda.innerHTML = '<p class="agenda-empty">Nenhum chamado para esta data.</p>';
-    return;
-  }
-
-  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header">${formatarDataAgenda(data)}</div>`).join('');
-  agenda.innerHTML = datas.map((data) => `<div class="agenda-column">${chamadosComData
-    .filter((item) => item.data_agendada === data)
-    .map((item) => `<a class="ticket-card-agenda status-${(item.status || 'ABERTO').toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge badge-blue">${item.status}</span></a>`)
-    .join('')}</div>`).join('');
+  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header ${data === hoje ? 'active' : ''}">${formatarDataAgenda(data)}</div>`).join('');
+  const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', RESOLVIDO: 'badge-green' };
+  agenda.innerHTML = datas.map((data) => {
+    const chamadosDoDia = chamadosComData.filter((item) => item.data_agendada === data);
+    const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('');
+    return `<div class="agenda-column">${cards}</div>`;
+  }).join('');
 }
 
 function formatarDataAgenda(data) {
@@ -106,18 +109,22 @@ function formatarDataAgenda(data) {
 }
 
 function filtrarAgenda() { renderizarAgenda(chamadosEmMemoria); }
-function mudarDia(dias) {
+function mudarDia(semanas) {
   if (document.querySelector('#agendaTodasDatas')?.checked) {
-    const datasComChamados = [...new Set(chamadosEmMemoria.filter((item) => item.data_agendada).map((item) => item.data_agendada))];
+    const datasComChamados = [...new Set(chamadosEmMemoria.filter((item) => {
+      if (!item.data_agendada) return false;
+      const diaDaSemana = new Date(`${item.data_agendada}T12:00:00`).getDay();
+      return diaDaSemana >= 1 && diaDaSemana <= 5;
+    }).map((item) => item.data_agendada))];
     const ultimaPagina = Math.max(0, Math.ceil(datasComChamados.length / 5) - 1);
-    agendaPagina = Math.min(ultimaPagina, Math.max(0, agendaPagina + dias));
+    agendaPagina = Math.min(ultimaPagina, Math.max(0, agendaPagina + semanas));
     renderizarAgenda(chamadosEmMemoria);
     return;
   }
   const campo = document.querySelector('#agendaData');
   if (!campo) return;
   const data = new Date(`${campo.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
-  data.setDate(data.getDate() + dias);
+  data.setDate(data.getDate() + (semanas * 7));
   campo.value = data.toISOString().slice(0, 10);
   filtrarAgenda();
 }
@@ -162,6 +169,11 @@ async function salvarChamado(event) {
   const campos = form.elements;
   if (!campos.cliente.value || !campos.email_cliente.value || !campos.assunto.value || !campos.data_agendada.value) {
     form.reportValidity();
+    return;
+  }
+  const diaDaSemana = new Date(`${campos.data_agendada.value}T12:00:00`).getDay();
+  if (diaDaSemana === 0 || diaDaSemana === 6) {
+    alert('Chamados só podem ser agendados de segunda a sexta-feira.');
     return;
   }
   try {

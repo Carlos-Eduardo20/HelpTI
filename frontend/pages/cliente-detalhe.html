@@ -83,16 +83,9 @@
       <!-- Ficha Cadastral -->
       <section class="content-card info-card">
         <div class="client-header-profile">
-          <div class="client-avatar-badge">VN</div>
+          <div class="client-avatar-badge" id="cli-avatar">--</div>
           <div>
-            <h2 id="cli-nome">
-              <script>
-              document.getElementById('cli-breadcrumb').textContent = document.getElementById('cli-nome').textContent;
-              </script>
-            </h2>
-            <script>
-              document.getElementById('cli-breadcrumb').textContent = document.getElementById('cli-nome').textContent;
-            </script>
+            <h2 id="cli-nome">Carregando...</h2>
             <span class="badge badge-green">Cliente Ativo</span>
           </div>
         </div>
@@ -114,17 +107,17 @@
           </div>
 
           <div class="info-item">
-            <span class="info-label">ENDEREÇO</span>
+            <span class="info-label">CONTATO</span>
             <span class="info-value" id="cli-endereco">Av. Paulista, 1000, Cj 1201 - Bela Vista, São Paulo/SP</span>
           </div>
 
           <div class="info-item">
-            <span class="info-label">ÚLTIMO PAGAMENTO DA FATURA</span>
+            <span class="info-label">PLANO</span>
             <span class="info-value" id="cli-fatura">15/08/2026 - R$ 4.850,00 (Pago)</span>
           </div>
 
           <div class="info-item">
-            <span class="info-label">CONTRATO &amp; OPERADORA DE LINK</span>
+            <span class="info-label">AÇÕES / OBSERVAÇÕES</span>
             <span class="info-value" id="cli-contrato">Link Dedicado Vivo 200MB SLA 99.5%</span>
           </div>
         </div>
@@ -212,7 +205,7 @@
             <th>CÓDIGO</th>
             <th>ASSUNTO</th>
             <th>STATUS</th>
-            <th>SLA</th>
+            <th>DATA</th>
           </tr>
         </thead>
         <tbody>

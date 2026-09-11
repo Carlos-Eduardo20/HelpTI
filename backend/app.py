@@ -252,6 +252,14 @@ def create_chamado():
         if not cliente or not assunto or not email_valido(email_cliente):
             return jsonify({'erro': 'Cliente, assunto e um e-mail válido são obrigatórios'}), 400
 
+        if data_agendada:
+            try:
+                data_agendada_date = datetime.strptime(data_agendada, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'erro': 'Data de agendamento inválida'}), 400
+            if data_agendada_date.weekday() >= 5:
+                return jsonify({'erro': 'Chamados só podem ser agendados de segunda a sexta-feira'}), 400
+
         conn = get_db_connection()
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
