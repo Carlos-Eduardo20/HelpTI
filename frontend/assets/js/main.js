@@ -1,4 +1,12 @@
-if (!localStorage.getItem('grupoId')) {
+const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
+if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
+  localStorage.removeItem('grupoId');
+  localStorage.removeItem('perfilNome');
+  localStorage.removeItem('loginExpiraEm');
+  localStorage.removeItem('emailLembrado');
+}
+
+if (!localStorage.getItem('grupoId') && !sessionStorage.getItem('grupoId')) {
   window.location.replace('login.html');
 }
 
@@ -16,7 +24,7 @@ function toggleProfileMenu(event) {
 }
 
 function mostrarPerfil() {
-  const nome = localStorage.getItem('perfilNome') || 'Usuário';
+  const nome = localStorage.getItem('workspaceName') || localStorage.getItem('perfilNome') || sessionStorage.getItem('perfilNome') || 'Usuário';
   document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
   document.querySelectorAll('.user-avatar img').forEach((image) => {
     image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`;
@@ -167,17 +175,33 @@ async function salvarMembro(event) {
 
 async function salvarConfiguracoes(event) {
   event.preventDefault();
+  const formulario = event.target;
+  const botao = formulario.querySelector('button[type="submit"]');
   const dados = {
     workspaceName: document.getElementById('workspaceName')?.value.trim(),
     supportEmail: document.getElementById('supportEmail')?.value.trim()
   };
+  if (!dados.workspaceName || !dados.supportEmail) {
+    alert('Preencha o nome do workspace e o e-mail de suporte.');
+    return;
+  }
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
   try {
     const { salvarConfiguracoes: salvar } = await import('./api.js');
-    await salvar(dados);
-    localStorage.setItem('workspaceName', dados.workspaceName);
-    localStorage.setItem('supportEmail', dados.supportEmail);
+    const configuracoesSalvas = await salvar(dados);
+    document.getElementById('workspaceName').value = configuracoesSalvas.workspaceName;
+    document.getElementById('supportEmail').value = configuracoesSalvas.supportEmail;
+    localStorage.setItem('workspaceName', configuracoesSalvas.workspaceName);
+    localStorage.setItem('supportEmail', configuracoesSalvas.supportEmail);
     alert('Configurações salvas com sucesso.');
-  } catch (error) { alert(`Não foi possível salvar: ${error.message}`); }
+    window.location.href = 'dashboard.html';
+  } catch (error) {
+    alert(`Não foi possível salvar: ${error.message}`);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar alterações';
+  }
 }
 
 function cancelarConfigurações() {
@@ -189,21 +213,11 @@ function encerrarSessao(event) {
   localStorage.removeItem('usuarioId');
   localStorage.removeItem('grupoId');
   localStorage.removeItem('perfilNome');
+  localStorage.removeItem('loginExpiraEm');
+  localStorage.removeItem('emailLembrado');
+  sessionStorage.removeItem('grupoId');
+  sessionStorage.removeItem('perfilNome');
   window.location.href = 'login.html';
-}
-
-async function carregarConfiguracoes() {
-  const nome = document.getElementById('workspaceName');
-  const email = document.getElementById('supportEmail');
-  if (!nome || !email) return;
-  try {
-    const { buscarConfiguracoes } = await import('./api.js');
-    const dados = await buscarConfiguracoes();
-    nome.value = dados.workspaceName || '';
-    email.value = dados.supportEmail || '';
-  } catch (error) {
-    alert(`Não foi possível carregar as configurações: ${error.message}`);
-  }
 }
 
 window.openModal = openModal;
@@ -224,7 +238,7 @@ document.addEventListener('click', (event) => {
   }
 });
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
-document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); carregarConfiguracoes(); });
+document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); });
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
   configurarFiltroClientes();

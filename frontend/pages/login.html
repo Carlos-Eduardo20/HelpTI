@@ -29,7 +29,7 @@
           <p>Insira suas credenciais para gerenciar seus chamados</p>
         </header>
 
-        <form id="loginForm" onsubmit="realizarLogin(event)">
+        <form id="loginForm" autocomplete="off" onsubmit="realizarLogin(event)">
           
           <div class="input-group">
             <label for="email">E-mail corporativo</label>
@@ -37,6 +37,7 @@
               type="email" 
               id="email" 
               placeholder="suporte@suaempresa.com.br" 
+              autocomplete="off"
               required
             >
           </div>
@@ -50,6 +51,7 @@
               type="password" 
               id="password" 
               placeholder="••••••••" 
+              autocomplete="new-password"
               required
             >
           </div>
@@ -74,10 +76,61 @@
   </div>
 
   <script>
+    const DURACAO_LOGIN_DIAS = 30;
+
+    function limparEstadoBotao() {
+      const formulario = document.getElementById('loginForm');
+      const botao = formulario?.querySelector('button[type="submit"]');
+      if (!botao) return;
+      botao.disabled = false;
+      botao.textContent = 'Entrar';
+    }
+
+    function limparSessaoExpirada() {
+      const expiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
+      if (localStorage.getItem('grupoId') && (!expiraEm || expiraEm <= Date.now())) {
+        localStorage.removeItem('perfilNome');
+        localStorage.removeItem('grupoId');
+        localStorage.removeItem('loginExpiraEm');
+        localStorage.removeItem('emailLembrado');
+      }
+    }
+
+    function abrirSessaoLembrada() {
+      const expiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
+      if (localStorage.getItem('grupoId') && expiraEm > Date.now()) {
+        window.location.replace('dashboard.html');
+        return true;
+      }
+      return false;
+    }
+
+    function limparCamposLogin() {
+      const email = document.getElementById('email');
+      const senha = document.getElementById('password');
+      const lembrar = document.getElementById('remember');
+      if (email) email.value = '';
+      if (senha) senha.value = '';
+      if (lembrar) lembrar.checked = false;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      limparSessaoExpirada();
+      if (abrirSessaoLembrada()) return;
+      limparEstadoBotao();
+      limparCamposLogin();
+    });
+    window.addEventListener('pageshow', () => {
+      if (abrirSessaoLembrada()) return;
+      limparEstadoBotao();
+      limparCamposLogin();
+    });
+
     async function realizarLogin(event) {
       event.preventDefault();
       const email = document.getElementById('email').value.trim();
       const senha = document.getElementById('password').value;
+      const lembrar = document.getElementById('remember').checked;
       const botao = event.target.querySelector('button[type="submit"]');
 
       botao.disabled = true;
@@ -91,8 +144,21 @@
         const dados = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(dados.erro || 'Não foi possível entrar.');
 
-        localStorage.setItem('perfilNome', dados.nome);
-        localStorage.setItem('grupoId', dados.id);
+        sessionStorage.removeItem('perfilNome');
+        sessionStorage.removeItem('grupoId');
+        localStorage.removeItem('perfilNome');
+        localStorage.removeItem('grupoId');
+        localStorage.removeItem('loginExpiraEm');
+        if (lembrar) {
+          localStorage.setItem('perfilNome', dados.nome);
+          localStorage.setItem('grupoId', dados.id);
+          localStorage.setItem('loginExpiraEm', String(Date.now() + DURACAO_LOGIN_DIAS * 24 * 60 * 60 * 1000));
+          localStorage.setItem('emailLembrado', email);
+        } else {
+          sessionStorage.setItem('perfilNome', dados.nome);
+          sessionStorage.setItem('grupoId', dados.id);
+          localStorage.removeItem('emailLembrado');
+        }
         window.location.href = 'dashboard.html';
       } catch (error) {
         alert(error.message);

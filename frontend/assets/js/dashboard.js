@@ -1,4 +1,4 @@
-import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, criarCliente } from './api.js';
+import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, criarCliente, buscarConfiguracoes } from './api.js';
 
 let chamadosEmMemoria = [];
 let agendaPagina = 0;
@@ -6,10 +6,19 @@ let agendaModoAnterior = false;
 let paginaChamados = 1;
 const chamadosPorPagina = 5;
 
-function atualizarPerfil() {
-  const nome = localStorage.getItem('perfilNome') || 'Usuário';
+async function atualizarPerfil() {
+  let nome = localStorage.getItem('workspaceName') || localStorage.getItem('perfilNome') || sessionStorage.getItem('perfilNome') || 'Usuário';
   document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
   document.querySelectorAll('.user-avatar img').forEach((image) => image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`);
+  try {
+    const configuracoes = await buscarConfiguracoes();
+    nome = configuracoes.workspaceName || nome;
+    localStorage.setItem('workspaceName', nome);
+    localStorage.setItem('supportEmail', configuracoes.supportEmail || '');
+    document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
+    document.querySelectorAll('.user-avatar img').forEach((image) => image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`);
+  } catch (error) {
+  }
 }
 
 function abrirModalChamado() { document.getElementById('modalChamado')?.classList.add('active'); }
@@ -150,6 +159,71 @@ function formatarDataAgenda(data) {
 }
 
 function filtrarAgenda() { renderizarAgenda(chamadosEmMemoria); }
+
+const nomesMesesAgenda = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+function formatarDataCurtaAgenda(data) {
+  const [ano, mes, dia] = data.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+function abrirCalendarioAgenda() {
+  const modal = document.querySelector('#modalCalendarioAgenda');
+  if (!modal) return;
+  const selecionada = document.querySelector('#agendaData')?.value || new Date().toISOString().slice(0, 10);
+  const data = new Date(`${selecionada}T12:00:00`);
+  modal.dataset.mes = String(data.getMonth());
+  modal.dataset.ano = String(data.getFullYear());
+  modal.hidden = false;
+  renderizarCalendarioAgenda();
+  document.querySelector('#fecharCalendarioAgenda')?.focus();
+}
+
+function fecharCalendarioAgenda() { const modal = document.querySelector('#modalCalendarioAgenda'); if (modal) modal.hidden = true; }
+
+function renderizarCalendarioAgenda() {
+  const modal = document.querySelector('#modalCalendarioAgenda');
+  const grade = document.querySelector('#calendarioAgendaDias');
+  const titulo = document.querySelector('#mesAnoAgenda');
+  if (!modal || !grade || !titulo) return;
+  const mes = Number(modal.dataset.mes);
+  const ano = Number(modal.dataset.ano);
+  titulo.textContent = `${nomesMesesAgenda[mes]} de ${ano}`;
+  const primeiroDia = new Date(ano, mes, 1);
+  const inicio = (primeiroDia.getDay() + 6) % 7;
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const diasMesAnterior = new Date(ano, mes, 0).getDate();
+  const selecionada = document.querySelector('#agendaData')?.value;
+  const hoje = new Date().toISOString().slice(0, 10);
+  const dias = [];
+  for (let indice = 0; indice < 42; indice += 1) {
+    const numero = indice - inicio + 1;
+    let dia = numero;
+    let mesDoDia = mes;
+    let anoDoDia = ano;
+    let classe = '';
+    if (numero < 1) { dia = diasMesAnterior + numero; mesDoDia -= 1; classe = ' is-other-month'; }
+    if (numero > ultimoDia) { dia = numero - ultimoDia; mesDoDia += 1; classe = ' is-other-month'; }
+    if (mesDoDia < 0) { mesDoDia = 11; anoDoDia -= 1; }
+    if (mesDoDia > 11) { mesDoDia = 0; anoDoDia += 1; }
+    const valor = `${anoDoDia}-${String(mesDoDia + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    if (valor === hoje) classe += ' is-today';
+    if (valor === selecionada) classe += ' is-selected';
+    dias.push(`<button type="button" class="agenda-calendar-day${classe}" data-data="${valor}">${dia}</button>`);
+  }
+  grade.innerHTML = dias.join('');
+}
+
+function selecionarDataAgenda(valor) {
+  const campo = document.querySelector('#agendaData');
+  const label = document.querySelector('#agendaDataLabel');
+  if (!campo || !label) return;
+  campo.value = valor;
+  label.textContent = formatarDataCurtaAgenda(valor);
+  fecharCalendarioAgenda();
+  filtrarAgenda();
+}
+
 function mudarDia(semanas) {
   if (document.querySelector('#agendaTodasDatas')?.checked) {
     const datasComChamados = [...new Set(chamadosEmMemoria.filter((item) => {
@@ -167,6 +241,8 @@ function mudarDia(semanas) {
   const data = new Date(`${campo.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
   data.setDate(data.getDate() + (semanas * 7));
   campo.value = data.toISOString().slice(0, 10);
+  const label = document.querySelector('#agendaDataLabel');
+  if (label) label.textContent = formatarDataCurtaAgenda(campo.value);
   filtrarAgenda();
 }
 
@@ -300,6 +376,32 @@ document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
   const agendaData = document.querySelector('#agendaData');
   if (agendaData && !agendaData.value) agendaData.value = new Date().toISOString().slice(0, 10);
+  if (agendaData) document.querySelector('#agendaDataLabel').textContent = formatarDataCurtaAgenda(agendaData.value);
+  document.querySelector('#abrirCalendarioAgenda')?.addEventListener('click', abrirCalendarioAgenda);
+  document.querySelector('#fecharCalendarioAgenda')?.addEventListener('click', fecharCalendarioAgenda);
+  document.querySelector('#confirmarCalendarioAgenda')?.addEventListener('click', fecharCalendarioAgenda);
+  document.querySelector('#mesAnteriorAgenda')?.addEventListener('click', () => {
+    const modal = document.querySelector('#modalCalendarioAgenda');
+    let mes = Number(modal.dataset.mes) - 1;
+    let ano = Number(modal.dataset.ano);
+    if (mes < 0) { mes = 11; ano -= 1; }
+    modal.dataset.mes = String(mes); modal.dataset.ano = String(ano); renderizarCalendarioAgenda();
+  });
+  document.querySelector('#mesProximoAgenda')?.addEventListener('click', () => {
+    const modal = document.querySelector('#modalCalendarioAgenda');
+    let mes = Number(modal.dataset.mes) + 1;
+    let ano = Number(modal.dataset.ano);
+    if (mes > 11) { mes = 0; ano += 1; }
+    modal.dataset.mes = String(mes); modal.dataset.ano = String(ano); renderizarCalendarioAgenda();
+  });
+  document.querySelector('#hojeCalendarioAgenda')?.addEventListener('click', () => selecionarDataAgenda(new Date().toISOString().slice(0, 10)));
+  document.querySelector('#calendarioAgendaDias')?.addEventListener('click', (event) => {
+    const botao = event.target.closest('[data-data]');
+    if (botao) selecionarDataAgenda(botao.dataset.data);
+  });
+  document.querySelector('#modalCalendarioAgenda')?.addEventListener('click', (event) => {
+    if (event.target.id === 'modalCalendarioAgenda') fecharCalendarioAgenda();
+  });
   document.querySelector('#buscaChamados')?.addEventListener('input', () => {
     paginaChamados = 1;
     aplicarFiltrosChamados();
