@@ -37,14 +37,38 @@
 	cursor: pointer;
 }
 
-.status-trigger-label { flex: 1; }
-.status-chevron { color: #7B8794; font-size: 17px; line-height: 10px; }
-.status-trigger svg { width: 16px; height: 16px; flex: 0 0 16px; }
-.status-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #94A3B8; }
-.status-aberto .status-dot { background: #3B82F6; }
-.status-andamento .status-dot { background: #F59E0B; }
-.status-aguardando .status-dot { background: #F97316; }
-.status-resolvido .status-dot { background: #10B981; }
+.status-trigger-label { 
+	flex: 1; 
+}
+.status-chevron { 
+	color: #7B8794; 
+	font-size: 17px; 
+	line-height: 10px; 
+}
+.status-trigger svg { 
+	width: 16px; 
+	height: 16px; 
+	flex: 0 0 16px; 
+}
+.status-dot { 
+	width: 8px; 
+	height: 8px; 
+	flex: 0 0 8px; 
+	border-radius: 50%; 
+	background: #94A3B8; 
+}
+.status-aberto .status-dot { 
+	background: #3B82F6; 
+}
+.status-andamento .status-dot { 
+	background: #F59E0B; 
+}
+.status-aguardando .status-dot { 
+	background: #F97316; 
+}
+.status-resolvido .status-dot { 
+	background: #10B981; 
+}
 
 .status-menu {
 	display: none;
@@ -93,7 +117,6 @@
 	gap: 16px;
 	margin-top: 20px;
 	padding-top: 16px;
-	border-top: 1px solid var(--border-color, #E5E7EB);
 }
 
 .pagination-summary {
