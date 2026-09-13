@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     descricao TEXT,
     data_agendada DATE,
     hora_agendada TIME,
+    classificacao TEXT(255) NULL,
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
 ) AUTO_INCREMENT = 100000;

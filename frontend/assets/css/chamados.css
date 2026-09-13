@@ -104,10 +104,22 @@
 	cursor: pointer;
 }
 
-.status-option:hover,
-.status-option.is-selected { background: #EFF8FA; color: #2399A8; font-weight: 600; }
-.status-select { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.empty-row { text-align: center; color: #9CA3AF; padding: 40px !important; }
+.status-option:hover, .status-option.is-selected { 
+	background: #EFF8FA; 
+	color: #2399A8; 
+	font-weight: 600; 
+}
+.status-select { 
+	position: absolute; 
+	width: 1px; height: 1px; 
+	opacity: 0; 
+	pointer-events: none; 
+}
+.empty-row { 
+	text-align: center; 
+	color: #9CA3AF; 
+	padding: 40px !important; 
+}
 
 .pagination {
 	display: flex;

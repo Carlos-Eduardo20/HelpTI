@@ -57,6 +57,10 @@ export async function criarMembro(dados) {
   return request('/equipe', { method: 'POST', body: JSON.stringify(dados) });
 }
 
+export async function buscarMembros() {
+  return request('/membros');
+}
+
 export async function buscarSetores() {
   return request('/setores');
 }
