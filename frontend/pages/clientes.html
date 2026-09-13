@@ -75,13 +75,16 @@
         <div class="client-filters">
           <select id="filtroClientes" class="client-filter-select" aria-label="Filtrar por">
             <option value="">Filtrar por...</option>
-            <option value="nome">Nome da empresa</option>
-            <option value="cnpj">CNPJ</option>
-            <option value="contato">Contato</option>
-            <option value="email">E-mail</option>
-            <option value="telefone">Telefone</option>
-            <option value="plano">Plano</option>
-            <option value="status">Status contratual</option>
+            <option value="">Ativo</option>
+            <option value="">Inativo</option>
+            <option value="">Hoje</option>
+            <option value="">Ultima semana</option>
+            <option value="">Último mês</option>
+            <option value="">Cidade</option>
+            <option value="">Estado</option>
+            <option value="">País</option>
+            <option value="">Vendedor</option>
+            <option value="">Gerente</option>
           </select>
           <input id="buscaClientes" type="text" placeholder="Buscar clientes" style="width: 250px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
           <div class="client-filter-control">
@@ -90,13 +93,15 @@
             </button>
             <div class="client-filter-menu" id="menuFiltroClientes" role="menu">
               <span class="client-filter-title">Buscar nos campos</span>
-              <label class="client-filter-option"><input type="checkbox" value="nome" checked> Nome da empresa</label>
-              <label class="client-filter-option"><input type="checkbox" value="cnpj"> CNPJ</label>
-              <label class="client-filter-option"><input type="checkbox" value="contato"> Contato</label>
-              <label class="client-filter-option"><input type="checkbox" value="email"> E-mail</label>
-              <label class="client-filter-option"><input type="checkbox" value="telefone"> Telefone</label>
-              <label class="client-filter-option"><input type="checkbox" value="plano"> Plano</label>
-              <label class="client-filter-option"><input type="checkbox" value="status"> Status contratual</label>
+              <label class="client-filter-option"><input type="checkbox" value="nome" checked>Mais Dispositivos</label>
+              <label class="client-filter-option"><input type="checkbox" value="cnpj">Ativos</label>
+              <label class="client-filter-option"><input type="checkbox" value="contato">Novos</label>
+              <label class="client-filter-option"><input type="checkbox" value="email">São Paulo</label>
+              <label class="client-filter-option"><input type="checkbox" value="telefone">Rio de Janeiro</label>
+              <label class="client-filter-option"><input type="checkbox" value="telefone">Outros estados</label>
+              <label class="client-filter-option"><input type="checkbox" value="telefone">Últimos 7 dias</label>
+              <label class="client-filter-option"><input type="checkbox" value="telefone">Último mês</label>
+              <label class="client-filter-option"><input type="checkbox" value="telefone">Últimos 6 meses</label>
             </div>
           </div>
         </div>
@@ -108,9 +113,7 @@
             <tr>
               <th>Empresa</th>
               <th>CNPJ / Contato</th>
-              <th>Planos</th>
-              <th>Status Contratual</th>
-              <th>Ações</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody id="tabelaClientes"></tbody>
@@ -148,10 +151,6 @@
           <div class="form-group">
             <label>Número de telefone</label>
             <input name="telefone" type="tel" required placeholder="(00) 00000-0000">
-          </div>
-          <div class="form-group">
-            <label>Plano</label>
-            <input name="plano" type="text" required placeholder="Ex: 20 horas">
           </div>
         </div>
         <div class="form-group">

@@ -152,6 +152,29 @@
                     <option value="AGUARDANDO">Aguardando Terceiros</option>
                     <option value="RESOLVIDO">Resolvido</option>
                 </select>
+
+                <div class="chamados-filter-control">
+                    <button class="chamados-filter-button" id="botaoFiltroChamados" type="button"
+                        aria-label="Abrir opções de filtro" aria-expanded="false" aria-controls="menuFiltroChamados">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path d="M10 5H3" />
+                            <path d="M12 19H3" />
+                            <path d="M14 3v4" />
+                            <path d="M16 17v4" />
+                            <path d="M21 12h-9" />
+                            <path d="M21 19h-5" />
+                            <path d="M21 5h-7" />
+                            <path d="M8 10v4" />
+                            <path d="M8 12H3" />
+                        </svg>
+                    </button>
+                    <div class="chamados-filter-menu" id="menuFiltroChamados" role="menu">
+                        <span class="chamados-filter-title">Buscar nos campos</span>
+                        <label class="chamados-filter-option"><input type="checkbox" value="nome" checked>Mais Dispositivos</label>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -167,10 +190,9 @@
                             <th>ID</th>
                             <th>Empresa Cliente</th>
                             <th>Assunto</th>
-                            <th>Técnico Responsável</th>
+                            <th>Técnico/Setor</th>
                             <th>SLA Restante</th>
                             <th>Status</th>
-                            <th>Classificação</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaChamados"></tbody>
