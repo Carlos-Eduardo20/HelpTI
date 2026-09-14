@@ -189,7 +189,6 @@
                         <tr>
                             <th>ID</th>
                             <th>Empresa Cliente</th>
-                            <th>Assunto</th>
                             <th>Técnico/Setor</th>
                             <th>SLA Restante</th>
                             <th>Status</th>
@@ -227,14 +226,17 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Assunto do Incidente</label>
-                    <input name="assunto" type="text" placeholder="Ex: Impressora não conecta" required>
-                </div>
-
-                <div class="form-group">
                     <label>Descrição:</label>
                     <textarea name="descricao" rows="4" placeholder="Descreva o problema relatado..."></textarea>
                 </div>
+
+                <div class="form-group">
+                    <label>Setor / Técnico Responsável</label>
+                    <select id="setorChamado" name="setor" required>
+                        <option value="">Carregando setores</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>Data agendada</label>
                     <input name="data_agendada" type="date" required>

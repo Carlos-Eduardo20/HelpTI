@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('cli-data').textContent = cliente.criado_em ? new Date(cliente.criado_em).toLocaleDateString('pt-BR') : '-';
       const tabelaChamados = document.querySelector('#tabela-chamados-cliente tbody');
       const chamadosCliente = chamados.filter((chamado) => chamado.cliente === cliente.nome);
-      tabelaChamados.innerHTML = chamadosCliente.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${chamado.id_chamado}'" style="cursor: pointer;"><td>#${chamado.id_chamado}</td><td>${chamado.assunto || '-'}</td><td>${chamado.status || '-'}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado encontrado para este cliente.</td></tr>';
+      tabelaChamados.innerHTML = chamadosCliente.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${chamado.id_chamado}'" style="cursor: pointer;"><td>#${chamado.id_chamado}</td><td>${chamado.status || '-'}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
   }
 
@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [chamado, clientes, equipe] = await Promise.all([buscarChamadoPorId(id), buscarClientes(), buscarEquipe()]);
       const cliente = clientes.find((item) => item.nome === chamado.cliente);
       const responsavel = equipe.find((item) => item.id_grupo_solucionadores == chamado.id_grupo_solucionadores);
-      setDetailText('chamado-titulo', `#${chamado.id_chamado} — ${chamado.assunto || 'Sem assunto'}`);
+      setDetailText('chamado-titulo', `#${chamado.id_chamado}`);
       setDetailText('chamado-breadcrumb-cliente', chamado.cliente);
       setDetailText('chamado-cliente', chamado.cliente);
       setDetailText('chamado-contato', cliente?.contato || 'Não informado');
