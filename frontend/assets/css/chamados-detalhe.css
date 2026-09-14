@@ -125,6 +125,18 @@
     font-weight: 600; 
     cursor: pointer; 
 }
+
+.btn-outline-warning {
+    background-color: transparent;
+    color: var(--yellow-dark, #D97706);
+    border: 1px solid var(--yellow-border, #FBBF24);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 @media (max-width: 760px) { 
     .ticket-detail-grid, .ticket-info-grid { 
         grid-template-columns: 1fr; 
