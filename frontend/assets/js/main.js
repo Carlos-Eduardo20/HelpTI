@@ -1,3 +1,5 @@
+import { buscarChamados, buscarClientes } from './api.js';
+
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
   localStorage.removeItem('grupoId');
@@ -36,7 +38,7 @@ let clientesEmMemoria = [];
 function renderizarClientes(clientes) {
   const tabela = document.querySelector('#tabelaClientes');
   if (!tabela) return;
-  tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}<br>${cliente.contato || ''}</td><td>${cliente.plano || '-'}</td><td><span class="status-badge status-success">${cliente.status || 'Ativo'}</span></td><td>${cliente.acoes || '-'}</td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
+  tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}<br>${cliente.contato || ''}</td><td><span class="status-badge status-success">${cliente.status || 'Ativo'}</span></td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
 }
 
 function filtrarClientes() {

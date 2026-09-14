@@ -23,7 +23,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard-icon lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
                     Dashboard
                 </a>
-                <a href="chamados.html" class="tab-item active">
+                <a href="chamados.html" class="tab-item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ticket-icon lucide-ticket"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
                     Chamados
                 </a>
@@ -31,7 +31,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users-icon lucide-users"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>
                     Clientes
                 </a>
-                <a href="equipe.html" class="tab-item">
+                <a href="equipe.html" class="tab-item active">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-cog-icon lucide-user-cog"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
                     Equipe
                 </a>
@@ -71,7 +71,9 @@
     <div class="page-title-bar">
       <div>
         <div class="breadcrumb-trail">
-          <a href="equipe.html">Equipe</a> &rsaquo; Infraestrutura &rsaquo; <span id="membro-breadcrumb">Fernando Silva</span>
+          <a href="equipe.html">Equipe</a>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg> 
+          <span id="membro-breadcrumb">Fernando Silva</span>
         </div>
         <h1>Ficha Cadastral do Técnico</h1>
       </div>
@@ -88,17 +90,15 @@
             <h2 id="membro-nome">Carregando...</h2>
             <span class="badge badge-green">Ativo</span>
           </div>
+          <button>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+            </button>
         </div>
 
         <div class="client-info-list">
           <div class="info-item">
             <span class="info-label">SETOR</span>
             <span class="info-value" id="membro-setor">Infraestrutura</span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">CARGO</span>
-            <span class="info-value" id="membro-cargo">Técnico de Campo</span>
           </div>
 
           <div class="info-item">
@@ -112,7 +112,7 @@
           </div>
 
           <div class="info-item">
-            <span class="info-label">DATA DE ADMISSÃO</span>
+            <span class="info-label">INÍCIO DO CONTRATO</span>
             <span class="info-value" id="membro-admissao">12/03/2023</span>
           </div>
 
