@@ -70,7 +70,8 @@ def ensure_data_columns():
         "ALTER TABLE grupo_solucionadores ADD COLUMN valor_hora DECIMAL(10, 2)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN id_setor INT",
         "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)"
+        "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN telefone VARCHAR(50)"
     )
     for statement in statements:
         try:
@@ -305,6 +306,48 @@ def create_cliente():
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
+@app.route('/api/clientes/<int:id>', methods=['PUT'])
+def update_cliente(id):
+    dados = request.get_json() or {}
+    campos = {campo: dados[campo] for campo in ('cnpj', 'email', 'telefone', 'contato') if campo in dados}
+    if not campos:
+        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        valores = list(campos.values()) + [id]
+        cursor.execute(f"UPDATE usuario SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_usuario = %s", valores)
+        conn.commit()
+        cursor.execute('SELECT * FROM usuario WHERE id_usuario = %s', (id,))
+        cliente = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        if not cliente:
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+        return jsonify(cliente), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/clientes/<int:id>', methods=['DELETE'])
+def delete_cliente(id):
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM usuario WHERE id_usuario = %s', (id,))
+        conn.commit()
+        removido = cursor.rowcount
+        cursor.close()
+        conn.close()
+        if not removido:
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+        return jsonify({'mensagem': 'Cliente removido com sucesso'}), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
 # ============ ROTAS DE EQUIPE ============
 
 # Rota para listar equipe
@@ -363,6 +406,49 @@ def create_equipe():
         cursor.close()
         conn.close()
         return jsonify(novo_membro), 201
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/equipe/<int:id>', methods=['PUT'])
+def update_equipe(id):
+    dados = request.get_json() or {}
+    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor') if campo in dados}
+    if not campos:
+        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        valores = list(campos.values()) + [id]
+        cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s", valores)
+        conn.commit()
+        cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (id,))
+        membro = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        if not membro:
+            return jsonify({'erro': 'Membro não encontrado'}), 404
+        membro.pop('senha', None)
+        return jsonify(membro), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/equipe/<int:id>', methods=['DELETE'])
+def delete_equipe(id):
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (id,))
+        conn.commit()
+        removido = cursor.rowcount
+        cursor.close()
+        conn.close()
+        if not removido:
+            return jsonify({'erro': 'Membro não encontrado'}), 404
+        return jsonify({'mensagem': 'Membro removido com sucesso'}), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -460,10 +546,17 @@ def get_relatorios():
         
         cursor = conn.cursor()
         
-        # Total de chamados por status
+        periodo = request.args.get('periodo', 'todos')
+        filtro_data = ''
+        if periodo == 'mes':
+            filtro_data = 'WHERE YEAR(data_agendada) = YEAR(CURDATE()) AND MONTH(data_agendada) = MONTH(CURDATE())'
+        elif periodo == 'dia':
+            filtro_data = 'WHERE data_agendada = CURDATE()'
+
         cursor.execute("""
             SELECT status, COUNT(*) as total 
-            FROM chamado 
+            FROM chamado
+            """ + filtro_data + """
             GROUP BY status;
         """)
         chamados_status = dict_fetchall(cursor)
@@ -471,17 +564,22 @@ def get_relatorios():
         # Taxa de SLA
         cursor.execute("""
             SELECT COUNT(*) as total_resolvidos 
-            FROM chamado 
-            WHERE status = 'RESOLVIDO';
+            FROM chamado
+            """ + (filtro_data + (' AND ' if filtro_data else ' WHERE ') + "status = 'RESOLVIDO'") + """;
         """)
         total_resolvidos = cursor.fetchone()[0]
+        total_chamados = sum(int(item['total']) for item in chamados_status)
+        contagens = {item['status']: int(item['total']) for item in chamados_status}
         
         cursor.close()
         conn.close()
         
         return jsonify({
             'chamados_por_status': chamados_status,
-            'total_resolvidos': total_resolvidos
+            'total_chamados': total_chamados,
+            'total_resolvidos': total_resolvidos,
+            'total_pendentes': total_chamados - total_resolvidos,
+            'status': contagens
         }), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500

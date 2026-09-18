@@ -1,5 +1,17 @@
 @import url('common.css');
 
+.breadcrumb-trail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-subtle, #8C847E); }
+.breadcrumb-trail a { color: var(--blue-600, #2563EB); text-decoration: none; }
+.breadcrumb-trail svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.page-title-bar > div { display: grid; gap: 4px; }
+.detail-edit-button, .detail-danger-button { min-height: 36px; padding: 8px 12px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.detail-edit-button { display: inline-flex; align-items: center; justify-content: center; background: #FFFFFF; border: 1px solid #111827; color: #111827; }
+.detail-edit-button:hover { background: #EFF6FF; border-color: #2563EB; color: #1D4ED8; }
+.detail-edit-button svg { width: 16px; height: 16px; }
+.detail-danger-button { width: 100%; background: #DC2626; border: 1px solid #B91C1C; color: #FFFFFF; }
+.detail-danger-button:hover { background: #B91C1C; }
+.info-value.detail-editing { width: 100%; min-height: 32px; padding: 6px 8px; border: 1px solid #9CA3AF; border-radius: 5px; font: inherit; color: var(--text-dark, #1E1B18); }
+
 .client-detail-grid {
 	display: grid;
 	grid-template-columns: 380px 1fr;

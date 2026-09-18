@@ -246,13 +246,83 @@ function mudarDia(semanas) {
   filtrarAgenda();
 }
 
+let clientesDoChamado = [];
+
+function normalizarBusca(valor) {
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function escaparHtml(valor) {
+  return String(valor || '').replace(/[&<>'"]/g, (caractere) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[caractere]);
+}
+
+function renderizarOpcoesClientes(termo = '') {
+  const lista = document.querySelector('#clienteDropdownList');
+  if (!lista) return;
+  const busca = normalizarBusca(termo);
+  const clientes = clientesDoChamado.filter((cliente) => normalizarBusca(`${cliente.nome} ${cliente.telefone} ${cliente.email}`).includes(busca));
+  lista.innerHTML = clientes.length
+    ? clientes.map((cliente) => `<li data-cliente-id="${escaparHtml(cliente.id_usuario)}"><strong>${escaparHtml(cliente.nome)}</strong><span>${escaparHtml(cliente.telefone || 'Telefone não informado')} · ${escaparHtml(cliente.email || 'E-mail não informado')}</span></li>`).join('')
+    : '<li class="select-empty">Nenhum cliente encontrado.</li>';
+}
+
+function selecionarClienteChamado(cliente) {
+  const campoBusca = document.querySelector('#clienteSearchInput');
+  const campoCliente = document.querySelector('#clienteChamado');
+  const campoEmail = document.querySelector('#emailClienteChamado');
+  const campoTelefone = document.querySelector('#telefoneClienteChamado');
+  if (!campoBusca || !campoCliente) return;
+  campoBusca.value = cliente.nome || '';
+  campoCliente.value = cliente.nome || '';
+  if (campoEmail) campoEmail.value = cliente.email || '';
+  if (campoTelefone) campoTelefone.value = cliente.telefone || '';
+  document.querySelector('#clienteDropdownList')?.classList.add('hidden');
+}
+
 async function carregarClientesNoChamado() {
-  const seletor = document.querySelector('#clienteChamado');
-  if (!seletor) return;
+  const campoBusca = document.querySelector('#clienteSearchInput');
+  if (!campoBusca) return;
   try {
-    const clientes = await buscarClientes();
-    seletor.innerHTML = '<option value="">Selecione um cliente</option>' + clientes.map((cliente) => `<option value="${cliente.nome}" data-email="${cliente.email || ''}">${cliente.nome}</option>`).join('');
-  } catch (error) { seletor.innerHTML = `<option value="">Não foi possível carregar clientes</option>`; }
+    clientesDoChamado = await buscarClientes();
+    renderizarOpcoesClientes();
+  } catch (error) {
+    const lista = document.querySelector('#clienteDropdownList');
+    if (lista) lista.innerHTML = '<li class="select-empty">Não foi possível carregar clientes.</li>';
+  }
+}
+
+function configurarBuscaClienteChamado() {
+  const campoBusca = document.querySelector('#clienteSearchInput');
+  const campoCliente = document.querySelector('#clienteChamado');
+  const lista = document.querySelector('#clienteDropdownList');
+  if (!campoBusca || !campoCliente || !lista) return;
+
+  const abrirLista = () => {
+    renderizarOpcoesClientes(campoBusca.value);
+    lista.classList.remove('hidden');
+  };
+  campoBusca.addEventListener('focus', abrirLista);
+  campoBusca.addEventListener('click', abrirLista);
+  campoBusca.addEventListener('input', () => {
+    if (campoBusca.value !== campoCliente.value) {
+      campoCliente.value = '';
+      document.querySelector('#emailClienteChamado').value = '';
+      document.querySelector('#telefoneClienteChamado').value = '';
+    }
+    abrirLista();
+  });
+  campoBusca.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') lista.classList.add('hidden');
+  });
+  lista.addEventListener('click', (event) => {
+    const opcao = event.target.closest('[data-cliente-id]');
+    if (!opcao) return;
+    const cliente = clientesDoChamado.find((item) => String(item.id_usuario) === opcao.dataset.clienteId);
+    if (cliente) selecionarClienteChamado(cliente);
+  });
+  document.addEventListener('click', (event) => {
+    if (!document.querySelector('#selectClienteWrapper')?.contains(event.target)) lista.classList.add('hidden');
+  });
 }
 
 function abrirNovoClienteDoChamado() {
@@ -284,7 +354,7 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.cliente.value || !campos.email_cliente.value || !campos.assunto.value || !campos.data_agendada.value) {
+  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.assunto.value || !campos.data_agendada.value) {
     form.reportValidity();
     return;
   }
@@ -297,6 +367,7 @@ async function salvarChamado(event) {
     await criarChamado({
       cliente: campos.cliente.value.trim(),
       email_cliente: campos.email_cliente.value.trim(),
+      telefone_cliente: campos.telefone_cliente.value.trim(),
       assunto: campos.assunto.value.trim(),
       descricao: campos.descricao.value.trim(),
       data_agendada: campos.data_agendada.value || null
@@ -315,6 +386,29 @@ window.cancelarNovoClienteDoChamado = cancelarNovoClienteDoChamado;
 window.salvarNovoClienteDoChamado = salvarNovoClienteDoChamado;
 
 document.addEventListener('click', async (event) => {
+  const statusFilterButton = event.target.closest('#botaoStatusChamados');
+  if (statusFilterButton) {
+    const controle = statusFilterButton.closest('.status-filter-control');
+    const aberto = controle.classList.toggle('is-open');
+    statusFilterButton.setAttribute('aria-expanded', String(aberto));
+    return;
+  }
+
+  const statusFilterOption = event.target.closest('[data-status-filter]');
+  if (statusFilterOption) {
+    const valor = statusFilterOption.dataset.statusFilter;
+    const select = document.querySelector('#filtroStatusChamados');
+    const controle = statusFilterOption.closest('.status-filter-control');
+    if (select) select.value = valor;
+    document.querySelector('#statusChamadosLabel').textContent = statusFilterOption.textContent;
+    controle.classList.remove('is-open');
+    document.querySelector('#botaoStatusChamados')?.setAttribute('aria-expanded', 'false');
+    controle.querySelectorAll('[data-status-filter]').forEach((option) => option.setAttribute('aria-selected', String(option === statusFilterOption)));
+    paginaChamados = 1;
+    aplicarFiltrosChamados();
+    return;
+  }
+
   const statusTrigger = event.target.closest('[data-status-picker] .status-trigger');
   if (statusTrigger) {
     const picker = statusTrigger.closest('[data-status-picker]');
@@ -359,6 +453,8 @@ document.addEventListener('click', async (event) => {
     if (menu) menu.removeAttribute('style');
     picker.querySelector('.status-trigger')?.setAttribute('aria-expanded', 'false');
   });
+  document.querySelector('.status-filter-control.is-open')?.classList.remove('is-open');
+  document.querySelector('#botaoStatusChamados')?.setAttribute('aria-expanded', 'false');
 
   const row = event.target.closest('.chamado-row');
   if (row && !event.target.closest('[data-status-picker]')) window.location.href = `chamados-detalhe.html?id=${row.dataset.detalhes}`;
@@ -416,17 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
     paginaChamados = Number(botao.dataset.pagina);
     aplicarFiltrosChamados();
   });
-  const clienteChamado = document.querySelector('#clienteChamado');
-  clienteChamado?.addEventListener('change', () => {
-    if (clienteChamado.value === '__novo__') {
-      clienteChamado.value = '';
-      abrirNovoClienteDoChamado();
-      return;
-    }
-    const email = clienteChamado.selectedOptions[0]?.dataset.email || '';
-    const campoEmail = document.querySelector('#emailClienteChamado');
-    if (campoEmail && email) campoEmail.value = email;
-  });
+  configurarBuscaClienteChamado();
   carregarClientesNoChamado();
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');

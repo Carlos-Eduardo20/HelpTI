@@ -92,7 +92,7 @@
               <span class="badge badge-green">Cliente Ativo</span>
             </div>
           </div>
-          <button>
+          <button type="button" class="detail-edit-button" data-edit-scope="cliente" aria-label="Editar dados do cliente">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
           </button>
         </div>
@@ -100,35 +100,35 @@
         <div class="client-info-list">
           <div class="info-item">
             <span class="info-label">CNPJ</span>
-            <span class="info-value" id="cli-cnpj"></span>
+            <span class="info-value" id="cli-cnpj" data-edit-field="cnpj"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">TELEFONE EMPRESARIAL</span>
-            <span class="info-value" id="cli-telefone"></span>
+            <span class="info-value" id="cli-telefone" data-edit-field="telefone"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">E-MAIL</span>
-            <span class="info-value" id="cli-email"></span>
+            <span class="info-value" id="cli-email" data-edit-field="email"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">Tel</span>
-            <span class="info-value" id="cli-telefone2"></span>
+            <span class="info-value" id="cli-telefone2" data-edit-field="telefone"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">Funcionários</span>
-            <span class="info-value" id="cli-Funcionario"></span>
+            <span class="info-value" id="cli-Funcionario" data-edit-field="contato"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">ENDEREÇO</span>
-            <span class="info-value" id="cli-endereco"></span>
+            <span class="info-value" id="cli-endereco" data-edit-field="contato"></span>
           </div>
 
-          <button>Desativar Cliente</button>
+          <button type="button" class="detail-danger-button" id="desativarCliente">Desativar Cliente</button>
         </div>
       </section>
 

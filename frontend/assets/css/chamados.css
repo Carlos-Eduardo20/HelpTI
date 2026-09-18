@@ -238,9 +238,85 @@
 	z-index: 30;
 }
 
-.chamados-filter-control .is-open .chamados-filter-menu {
+.chamados-filter-control.is-open .chamados-filter-menu {
 	display: grid;
 	gap: 2px;
+}
+
+.status-filter-control {
+	position: relative;
+	min-width: 190px;
+}
+
+.status-filter-button {
+	width: 100%;
+	min-height: 38px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 9px 12px;
+	border: 1px solid var(--border-color, #D1D5DB);
+	border-radius: var(--radius-sm, 6px);
+	background: #FFFFFF;
+	color: var(--text-primary, #111827);
+	font: inherit;
+	font-size: 14px;
+	cursor: pointer;
+}
+
+.status-filter-button:hover,
+.status-filter-control.is-open .status-filter-button {
+	border-color: var(--primary-color, #2563EB);
+	background: #EFF6FF;
+	color: var(--primary-color, #2563EB);
+}
+
+.status-filter-button svg { transition: transform 160ms ease; }
+.status-filter-control.is-open .status-filter-button svg { transform: rotate(90deg); }
+
+.status-filter-menu {
+	display: none;
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	padding: 5px;
+	border: 1px solid var(--border-color, #E5E7EB);
+	border-radius: var(--radius-sm, 6px);
+	background: #FFFFFF;
+	box-shadow: 0 12px 28px rgba(30, 41, 59, 0.16);
+	z-index: 40;
+}
+
+.status-filter-control.is-open .status-filter-menu { display: grid; gap: 2px; }
+
+.status-filter-menu button {
+	width: 100%;
+	padding: 9px 10px;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-dark, #1E1B18);
+	font: inherit;
+	font-size: 13px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.status-filter-menu button:hover,
+.status-filter-menu button[aria-selected="true"] {
+	background: #EFF6FF;
+	color: var(--primary-color, #2563EB);
+	font-weight: 600;
+}
+
+.status-filter-select {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
 }
 
 
@@ -294,7 +370,6 @@
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 10px;
   color: #1E1B18;
   pointer-events: none;
   transition: transform 0.2s ease;
@@ -333,4 +408,17 @@
 
 .hidden {
   display: none !important;
+}
+
+.searchable-select .select-arrow svg {
+	display: block;
+	width: 16px;
+	height: 16px;
+}
+
+.searchable-select:focus-within .select-arrow { color: var(--primary-color, #2563EB); }
+
+.select-dropdown-list li.select-empty {
+	color: #7B8794;
+	cursor: default;
 }

@@ -1,5 +1,10 @@
 @import url('common.css');
 
+.breadcrumb-trail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-subtle, #8C847E); }
+.breadcrumb-trail a { color: var(--blue-600, #2563EB); text-decoration: none; }
+.breadcrumb-trail svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.page-title-bar > div { display: grid; gap: 4px; }
+
 .ticket-detail-grid { 
     display: grid; 
     grid-template-columns: 1fr 320px; 

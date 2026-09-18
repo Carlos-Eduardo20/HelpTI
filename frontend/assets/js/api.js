@@ -46,6 +46,14 @@ export async function criarCliente(dadosCliente) {
   return request('/clientes', { method: 'POST', body: JSON.stringify(dadosCliente) });
 }
 
+export async function atualizarCliente(id, dadosCliente) {
+  return request(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(dadosCliente) });
+}
+
+export async function excluirCliente(id) {
+  return request(`/clientes/${id}`, { method: 'DELETE' });
+}
+
 // ============ EQUIPE ============
 
 // Busca a lista de técnicos/equipe
@@ -55,6 +63,14 @@ export async function buscarEquipe() {
 
 export async function criarMembro(dados) {
   return request('/equipe', { method: 'POST', body: JSON.stringify(dados) });
+}
+
+export async function atualizarMembro(id, dados) {
+  return request(`/equipe/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+}
+
+export async function excluirMembro(id) {
+  return request(`/equipe/${id}`, { method: 'DELETE' });
 }
 
 export async function buscarMembros() {

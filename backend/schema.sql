@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     email VARCHAR(255),
     cargo VARCHAR(100),
     valor_hora DECIMAL(10, 2),
+    telefone VARCHAR(50),
     status VARCHAR(50) DEFAULT 'ATIVO',
     senha VARCHAR(255) NOT NULL
 );

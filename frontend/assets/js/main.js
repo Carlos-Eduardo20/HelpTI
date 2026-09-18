@@ -1,4 +1,4 @@
-import { buscarChamados, buscarClientes } from './api.js';
+import { buscarChamados, buscarClientes, atualizarCliente, excluirCliente, atualizarMembro, excluirMembro } from './api.js';
 
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
@@ -312,6 +312,47 @@ function detailEscape(value) {
   return String(value ?? '-').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 }
 
+function iniciarEdicaoDetalhe(scope, registro) {
+  const campos = [...document.querySelectorAll(`[data-edit-scope="${scope}"]`)].length
+    ? document.querySelectorAll('.info-value[data-edit-field]') : [];
+  campos.forEach((campo) => {
+    if (campo.querySelector('input')) return;
+    const valor = campo.dataset.editField === 'id_setor' ? (registro.setor_nome || '') : (registro[campo.dataset.editField] || campo.textContent.trim());
+    const input = document.createElement('input');
+    input.className = 'info-value detail-editing';
+    input.id = campo.id;
+    input.value = valor;
+    input.dataset.editField = campo.dataset.editField;
+    campo.replaceWith(input);
+    input.addEventListener('keydown', async (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const dados = { [input.dataset.editField]: input.value.trim() };
+      if (input.dataset.editField === 'valor_hora') dados.valor_hora = input.value.replace(/[^\d,.]/g, '').replace(',', '.') || null;
+      if (input.dataset.editField === 'data_inicio') dados.data_inicio = input.value;
+      if (scope === 'equipe' && input.dataset.editField === 'id_setor') {
+        const setor = [...document.querySelectorAll('#setores-disponiveis option')].find((option) => option.value === input.value);
+        dados.id_setor = setor?.dataset.id || (input.value.trim() === (registro.setor_nome || '').trim() ? registro.id_setor : input.value.trim());
+      }
+      try {
+        const atualizado = scope === 'cliente' ? await atualizarCliente(registro.id_usuario, dados) : await atualizarMembro(registro.id_grupo_solucionadores, dados);
+        registro = atualizado;
+        const span = document.createElement('span');
+        span.className = 'info-value';
+        span.id = input.id;
+        span.dataset.editField = input.dataset.editField;
+        span.textContent = input.dataset.editField === 'id_setor' ? (atualizado.setor_nome || input.value) : (atualizado[input.dataset.editField] || input.value);
+        input.replaceWith(span);
+      } catch (error) { alert(`Não foi possível salvar: ${error.message}`); input.focus(); }
+    });
+    input.focus();
+  });
+}
+
+function configurarDetalheEditavel(scope, registro) {
+  document.querySelector(`[data-edit-scope="${scope}"]`)?.addEventListener('click', () => iniciarEdicaoDetalhe(scope, registro));
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const path = window.location.pathname;
   const id = new URLSearchParams(window.location.search).get('id');
@@ -357,6 +398,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDetailText('cli-endereco', cliente.contato);
       setDetailText('cli-fatura', cliente.plano);
       setDetailText('cli-contrato', cliente.acoes);
+      configurarDetalheEditavel('cliente', cliente);
+      document.querySelector('#desativarCliente')?.addEventListener('click', async () => {
+        if (!window.confirm('Tem certeza de que deseja apagar este cliente?')) return;
+        try { await excluirCliente(cliente.id_usuario); window.location.href = 'clientes.html'; } catch (error) { alert(`Não foi possível apagar: ${error.message}`); }
+      });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
       const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
       if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.assunto)}</td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td><td>${detailEscape(chamado.classificacao)}</td></tr>`).join('') || '<tr><td colspan="6">Nenhum chamado encontrado para este cliente.</td></tr>';
@@ -375,6 +421,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDetailText('membro-email', membro.email);
       setDetailText('membro-telefone', 'Não informado');
       setDetailText('membro-admissao', detailDate(membro.data_inicio));
+      setDetailText('membro-valor-hora', membro.valor_hora ? `R$ ${Number(membro.valor_hora).toFixed(2).replace('.', ',')}` : 'Não informado');
+      configurarDetalheEditavel('equipe', membro);
+      document.querySelector('#desativarMembro')?.addEventListener('click', async () => {
+        if (!window.confirm('Tem certeza de que deseja apagar este técnico?')) return;
+        try { await excluirMembro(membro.id_grupo_solucionadores); window.location.href = 'equipe.html'; } catch (error) { alert(`Não foi possível apagar: ${error.message}`); }
+      });
       setDetailText('membro-certificacoes', 'Não informado');
       document.querySelectorAll('.team-stats-grid .stat-box-number').forEach((element) => { element.textContent = '—'; });
       const skills = document.querySelector('.skills-tags-container');

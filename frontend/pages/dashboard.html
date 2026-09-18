@@ -258,7 +258,6 @@
 
   </main>
 
-  <!-- Modal / Pop-up Novo Chamado -->
   <!-- Modal de Novo Chamado -->
   <div class="modal-overlay" id="modalChamado">
     <div class="modal-content">
@@ -269,94 +268,36 @@
 
       <form id="formNovoChamado" onsubmit="salvarChamado(event)">
         <div class="form-group">
-          <label>Cliente / Empresa</label>
+          <label for="clienteSearchInput">Cliente / Empresa</label>
           <div class="searchable-select" id="selectClienteWrapper">
-            <!-- Campo onde o usuário digita e vê a seleção -->
-            <input type="tel" id="clienteSearchInput" placeholder="Numero do Cliente" autocomplete="off" required>
-            <!-- Campo oculto para enviar o valor no formulário -->
+            <input type="search" id="clienteSearchInput" placeholder="Busque por nome, telefone ou e-mail" autocomplete="off" required>
             <input type="hidden" id="clienteChamado" name="cliente">
-
-            <!-- Seta visual idêntica à do select -->
-            <span class="select-arrow">▼</span>
-
-            <!-- Lista de opções que desce ao clicar ou digitar -->
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6" /></svg></span>
             <ul class="select-dropdown-list hidden" id="clienteDropdownList">
-              <li></li>
+              <li class="select-empty">Carregando clientes...</li>
             </ul>
           </div>
         </div>
 
         <div class="form-group">
-          <label>E-mail para notificações</label>
-          <div class="searchable-select" id="selectClienteWrapper">
-            <!-- Campo onde o usuário digita e vê a seleção -->
-            <input type="tel" id="clienteSearchInput" placeholder="Numero do Cliente" autocomplete="off" required>
-            <!-- Campo oculto para enviar o valor no formulário -->
-            <input type="hidden" id="clienteChamado" name="cliente">
-
-            <!-- Seta visual idêntica à do select -->
-            <span class="select-arrow">▼</span>
-
-            <!-- Lista de opções que desce ao clicar ou digitar -->
-            <ul class="select-dropdown-list hidden" id="clienteDropdownList">
-              <li></li>
-            </ul>
-          </div>
+          <label for="emailClienteChamado">E-mail para notificações</label>
+          <input type="email" id="emailClienteChamado" name="email_cliente" placeholder="cliente@empresa.com.br" required readonly>
         </div>
 
 
         <div class="form-group">
-          <label>Número de contato</label>
-          <div class="searchable-select" id="selectClienteWrapper">
-            <!-- Campo onde o usuário digita e vê a seleção -->
-            <input type="tel" id="clienteSearchInput" placeholder="Numero do Cliente" autocomplete="off" required>
-            <!-- Campo oculto para enviar o valor no formulário -->
-            <input type="hidden" id="clienteChamado" name="cliente">
-
-            <!-- Seta visual idêntica à do select -->
-            <span class="select-arrow">▼</span>
-
-            <!-- Lista de opções que desce ao clicar ou digitar -->
-            <ul class="select-dropdown-list hidden" id="clienteDropdownList">
-              <li></li>
-            </ul>
-          </div>
+          <label for="telefoneClienteChamado">Número de contato</label>
+          <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(00) 00000-0000" required readonly>
         </div>
 
         <div class="form-group">
-          <label>Setor</label>
-          <div class="searchable-select" id="selectClienteWrapper">
-            <!-- Campo onde o usuário digita e vê a seleção -->
-            <input type="tel" id="clienteSearchInput" placeholder="Numero do Cliente" autocomplete="off" required>
-            <!-- Campo oculto para enviar o valor no formulário -->
-            <input type="hidden" id="clienteChamado" name="cliente">
-
-            <!-- Seta visual idêntica à do select -->
-            <span class="select-arrow">▼</span>
-
-            <!-- Lista de opções que desce ao clicar ou digitar -->
-            <ul class="select-dropdown-list hidden" id="clienteDropdownList">
-              <li></li>
-            </ul>
-          </div>
+          <label for="assuntoChamado">Assunto</label>
+          <input type="text" id="assuntoChamado" name="assunto" placeholder="Resumo do chamado" required>
         </div>
 
         <div class="form-group">
-          <label>Técnico Responsável:</label>
-          <div class="searchable-select" id="selectClienteWrapper">
-            <!-- Campo onde o usuário digita e vê a seleção -->
-            <input type="tel" id="clienteSearchInput" placeholder="Numero do Cliente" autocomplete="off" required>
-            <!-- Campo oculto para enviar o valor no formulário -->
-            <input type="hidden" id="clienteChamado" name="cliente">
-
-            <!-- Seta visual idêntica à do select -->
-            <span class="select-arrow">▼</span>
-
-            <!-- Lista de opções que desce ao clicar ou digitar -->
-            <ul class="select-dropdown-list hidden" id="clienteDropdownList">
-              <li></li>
-            </ul>
-          </div>
+          <label for="dataAgendadaChamado">Data de atendimento</label>
+          <input type="date" id="dataAgendadaChamado" name="data_agendada" required>
         </div>
 
         <div class="form-group">

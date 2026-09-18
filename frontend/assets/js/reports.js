@@ -15,6 +15,13 @@ async function carregarRelatorios(periodo = 'todos') {
     document.querySelector('#total-pendentes').textContent = pendentes;
     document.querySelector('#taxa-resolucao').textContent = `${taxa}%`;
     document.querySelector('#periodo-atual').textContent = nomesPeriodo[periodo];
+    document.querySelectorAll('[data-status]').forEach((item) => {
+      const quantidade = Number(dados.status?.[item.dataset.status] || 0);
+      const percentual = total ? Math.round((quantidade / total) * 100) : 0;
+      item.querySelector('.status-percent').textContent = `${percentual}%`;
+      item.querySelector('.count-text').textContent = `${quantidade} chamados`;
+      item.querySelector('.progress-bar-fill').style.width = `${percentual}%`;
+    });
   } catch (error) {
     console.error('Não foi possível carregar os relatórios:', error);
   }

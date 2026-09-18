@@ -92,7 +92,7 @@
               <span class="badge badge-green">Ativo</span>
             </div>
           </div>
-          <button>
+          <button type="button" class="detail-edit-button" data-edit-scope="equipe" aria-label="Editar dados do técnico">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
             </button>
         </div>
@@ -100,30 +100,30 @@
         <div class="client-info-list">
           <div class="info-item">
             <span class="info-label">SETOR</span>
-            <span class="info-value" id="membro-setor">Infraestrutura</span>
+            <span class="info-value" id="membro-setor" data-edit-field="id_setor"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">E-MAIL</span>
-            <span class="info-value" id="membro-email">fernando@helpti.com</span>
+            <span class="info-value" id="membro-email" data-edit-field="email"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">TELEFONE</span>
-            <span class="info-value" id="membro-telefone">(11) 9781-4455</span>
+            <span class="info-value" id="membro-telefone" data-edit-field="telefone"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">INÍCIO DO CONTRATO</span>
-            <span class="info-value" id="membro-admissao">12/03/2023</span>
+            <span class="info-value" id="membro-admissao" data-edit-field="data_inicio"></span>
           </div>
 
           <div class="info-item">
             <span class="info-label">VALOR DA HORA</span>
-            <span class="info-value" id="membro-valor-hora">R$ 150,00</span>
+            <span class="info-value" id="membro-valor-hora" data-edit-field="valor_hora"></span>
           </div>
 
-          <button>Desativar Técnico</button>
+          <button type="button" class="detail-danger-button" id="desativarMembro">Desativar Técnico</button>
       </section>
 
       <!-- Coluna da Direita (Métricas & Especialidades) -->
