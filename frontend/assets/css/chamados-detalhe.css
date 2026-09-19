@@ -71,7 +71,7 @@
     width: 14px; height: 14px; 
     border-radius: 50%; 
     background-color: var(--blue-600, #2563EB); 
-    border: 3px solid #FFFFFF; 
+    border: 3px solid var(--white, #FFFFFF); 
     box-shadow: 0 0 0 1px var(--blue-600, #2563EB); 
 }
 .timeline-header { 
