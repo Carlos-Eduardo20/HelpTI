@@ -85,7 +85,14 @@
                         Relatórios
                     </a>
                     <a href="educacao.html" class="tab-item">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16c3 3 9 3 12 0v-3.5"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-graduation-cap">
+                            <path
+                                d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z" />
+                            <path d="M22 10v6" />
+                            <path d="M6 12.5V16c3 3 9 3 12 0v-3.5" />
+                        </svg>
                         Educação
                     </a>
                 </nav>
@@ -149,19 +156,33 @@
                     style="flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
 
                 <div class="status-filter-control">
-                    <button class="status-filter-button" id="botaoStatusChamados" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="menuStatusChamados">
+                    <button class="status-filter-button" id="botaoStatusChamados" type="button" aria-haspopup="listbox"
+                        aria-expanded="false" aria-controls="menuStatusChamados">
                         <span id="statusChamadosLabel">Todos os Status</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-chevron-right">
+                            <path d="m9 18 6-6-6-6" />
+                        </svg>
                     </button>
                     <div class="status-filter-menu" id="menuStatusChamados" role="listbox">
-                        <button type="button" role="option" data-status-filter="" aria-selected="true">Todos os Status</button>
-                        <button type="button" role="option" data-status-filter="ABERTO" aria-selected="false">Aberto</button>
-                        <button type="button" role="option" data-status-filter="ANDAMENTO" aria-selected="false">Em Andamento</button>
-                        <button type="button" role="option" data-status-filter="AGUARDANDO" aria-selected="false">Aguardando Terceiros</button>
-                        <button type="button" role="option" data-status-filter="RESOLVIDO" aria-selected="false">Resolvido</button>
+                        <button type="button" role="option" data-status-filter="" aria-selected="true">Todos os
+                            Status</button>
+                        <button type="button" role="option" data-status-filter="ABERTO"
+                            aria-selected="false">Aberto</button>
+                        <button type="button" role="option" data-status-filter="ANDAMENTO" aria-selected="false">Em
+                            Andamento</button>
+                        <button type="button" role="option" data-status-filter="AGUARDANDO"
+                            aria-selected="false">Aguardando Terceiros</button>
+                        <button type="button" role="option" data-status-filter="RESOLVIDO"
+                            aria-selected="false">Resolvido</button>
                     </div>
                     <select id="filtroStatusChamados" class="status-filter-select" aria-hidden="true" tabindex="-1">
-                        <option value="">Todos os Status</option><option value="ABERTO">Aberto</option><option value="ANDAMENTO">Em Andamento</option><option value="AGUARDANDO">Aguardando Terceiros</option><option value="RESOLVIDO">Resolvido</option>
+                        <option value="">Todos os Status</option>
+                        <option value="ABERTO">Aberto</option>
+                        <option value="ANDAMENTO">Em Andamento</option>
+                        <option value="AGUARDANDO">Aguardando Terceiros</option>
+                        <option value="RESOLVIDO">Resolvido</option>
                     </select>
                 </div>
 
@@ -226,9 +247,14 @@
                 <div class="form-group">
                     <label>Cliente / Empresa</label>
                     <div class="searchable-select" id="selectClienteWrapper">
-                        <input type="search" id="clienteSearchInput" placeholder="Busque por nome, telefone ou e-mail" autocomplete="off" required>
+                        <input type="search" id="clienteSearchInput" placeholder="Busque por nome, telefone ou e-mail"
+                            autocomplete="off" required>
                         <input type="hidden" id="clienteChamado" name="cliente">
-                        <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6" /></svg></span>
+                        <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right">
+                                <path d="m9 18 6-6-6-6" />
+                            </svg></span>
                         <ul class="select-dropdown-list hidden" id="clienteDropdownList">
                             <li class="select-empty">Carregando clientes...</li>
                         </ul>
@@ -237,36 +263,50 @@
 
                 <div class="form-group">
                     <label for="emailClienteChamado">E-mail para notificações</label>
-                    <input type="email" id="emailClienteChamado" name="email_cliente" placeholder="cliente@empresa.com.br" required readonly>
+                    <input type="email" id="emailClienteChamado" name="email_cliente"
+                        placeholder="cliente@empresa.com.br" required readonly>
                 </div>
 
                 <div class="form-group">
                     <label for="telefoneClienteChamado">Número de contato</label>
-                    <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(00) 00000-0000" required readonly>
+                    <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(00) 00000-0000"
+                        required readonly>
                 </div>
 
-                <div class="form-group">
-                    <label for="setorChamado">Setor</label>
-                    <select id="setorChamado" name="id_setor" required>
-                        <option value="">Selecione o setor</option>
-                    </select>
+                <label>Setor</label>
+                <div class="searchable-select" id="selectSetorWrapper">
+                    <input type="search" id="SetorSearchInput" placeholder="Busque o setor"
+                        autocomplete="off" required>
+                    <input type="hidden" id="setorEquipe" name="cliente">
+                    <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16"
+                            height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right">
+                            <path d="m9 18 6-6-6-6" />
+                        </svg></span>
+                    <ul class="select-dropdown-list hidden" id="clienteDropdownList">
+                        <li class="select-empty">Carregando Setores.....</li>
+                    </ul>
                 </div>
 
-                <div class="form-group">
-                    <label for="tecnicoChamado">Técnico responsável</label>
-                    <select id="tecnicoChamado" name="id_grupo_solucionadores" required disabled>
-                        <option value="">Selecione primeiro o setor</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="assuntoChamado">Assunto</label>
-                    <input type="text" id="assuntoChamado" name="assunto" placeholder="Resumo do chamado" required>
+                <label>Técnico/Funcionário</label>
+                <div class="searchable-select" id="selectFuncionarioWrapper">
+                    <input type="search" id="funcionarioSearchInput" placeholder="Busque por nome, telefone ou e-mail"
+                        autocomplete="off" required>
+                    <input type="hidden" id="funcionarioId" name="funcionario">
+                    <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16"
+                            height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right">
+                            <path d="m9 18 6-6-6-6" />
+                        </svg></span>
+                    <ul class="select-dropdown-list hidden" id="clienteDropdownList">
+                        <li class="select-empty">Carregando Funcionários...</li>
+                    </ul>
                 </div>
 
                 <div class="form-group">
                     <label>Descrição:</label>
-                    <textarea name="descricao" rows="4" placeholder="Descreva o problema relatado..." required></textarea>
+                    <textarea name="descricao" rows="4" placeholder="Descreva o problema relatado..."
+                        required></textarea>
                 </div>
 
                 <div class="modal-actions">
