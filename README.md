@@ -147,20 +147,20 @@ Se o banco já existia, execute no MySQL Workbench `ALTER TABLE grupo_solucionad
 
 ### Iniciar o projeto
 
-Com o MySQL em execução e o ambiente virtual ativado:
+Com o MySQL em execução e o ambiente virtual ativado, execute na pasta raiz `HelpTI`:
 
 ```powershell
-cd backend
 python app.py
 ```
 
-O comando acima inicia a API e o frontend juntos. O navegador abrirá em `http://127.0.0.1:5000/`.
+O arquivo [app.py](app.py) na raiz importa o servidor Flask que está em [backend/app.py](backend/app.py), aplica o schema/compatibilidade do banco e inicia API e frontend juntos. O navegador abrirá em `http://127.0.0.1:5000/`.
 
 Endereços úteis:
 
 - Aplicação: `http://127.0.0.1:5000/`
 - Login direto: `http://127.0.0.1:5000/frontend/pages/login.html`
 - Teste da API: `http://127.0.0.1:5000/api/health`
+- Educação: `http://127.0.0.1:5000/frontend/pages/educacao.html`
 
 Não é necessário executar `python -m http.server` nem abrir a porta 8000.
 

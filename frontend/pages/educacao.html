@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
+  <link rel="stylesheet" href="../assets/css/educacao.css">
+  <title>Educação | HelpTI</title>
+</head>
+<body>
+  <header class="top-navbar">
+    <div class="nav-container">
+      <div class="brand-group">
+        <a href="dashboard.html" class="navbar-brand">
+          <img src="../assets/images/Frame.png" alt="HelpTI Logo" class="brand-logo">
+          <span class="brand-name">HelpTI</span>
+        </a>
+        <nav class="nav-tabs" aria-label="Navegação principal">
+          <a href="dashboard.html" class="tab-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Dashboard</a>
+          <a href="chamados.html" class="tab-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>Chamados</a>
+          <a href="clientes.html" class="tab-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</a>
+          <a href="equipe.html" class="tab-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2v-.48a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.4 15a1.7 1.7 0 0 0-1.56-1.03H7v-2h.84A1.7 1.7 0 0 0 9.4 10.4a1.7 1.7 0 0 0-.34-1.88L9 8.46l1.42-1.42.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 13.39 5.9V5h2v.9a1.7 1.7 0 0 0 1.03 1.54 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.94 12H21v2h-.1A1.7 1.7 0 0 0 19.4 15z"/></svg>Equipe</a>
+          <a href="relatorios.html" class="tab-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>Relatórios</a>
+          <a href="educacao.html" class="tab-item active"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z"/><path d="M22 10v6M6 12.5V16c3 3 9 3 12 0v-3.5"/></svg>Educação</a>
+        </nav>
+      </div>
+      <div class="user-profile-wrapper" onclick="toggleProfileMenu(event)">
+        <div class="user-profile">
+          <span class="user-role">Funcionário</span>
+          <div class="user-avatar"><img src="https://ui-avatars.com/api/?name=Usuario+HelpTI&background=E5E7EB&color=374151" alt="Avatar"></div>
+        </div>
+        <div class="profile-dropdown" id="profileDropdown">
+          <a href="settings.html" class="dropdown-item">Configurações</a>
+          <a href="login.html" class="dropdown-item danger">Sair</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="education-container">
+    <section class="education-intro">
+      <div>
+        <p class="eyebrow">Laboratório de conhecimento</p>
+        <h1>Educação em computação gráfica</h1>
+        <p class="intro-copy">Explore os fundamentos visuais que transformam dados, ideias e algoritmos em experiências digitais.</p>
+      </div>
+      <div class="intro-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+    </section>
+
+    <section class="education-grid" aria-label="Conteúdos de computação gráfica">
+      <article class="lesson-card lesson-featured">
+        <span class="lesson-number">01</span>
+        <h2>O pipeline gráfico</h2>
+        <p>Da geometria ao pixel: entenda como vértices, transformações, iluminação e rasterização trabalham juntos para formar uma imagem.</p>
+        <div class="pipeline"><span>Modelo</span><i>→</i><span>Espaço</span><i>→</i><span>Pixel</span></div>
+      </article>
+      <article class="lesson-card">
+        <span class="lesson-number">02</span>
+        <h2>Geometria e coordenadas</h2>
+        <p>Aprenda a posicionar objetos em espaços 2D e 3D usando vetores, matrizes e sistemas de coordenadas.</p>
+        <a href="#glossario">Ver fundamentos <span>→</span></a>
+      </article>
+      <article class="lesson-card">
+        <span class="lesson-number">03</span>
+        <h2>Cor e iluminação</h2>
+        <p>Conheça RGB, materiais, sombras e os princípios que dão profundidade e legibilidade às cenas digitais.</p>
+        <a href="#glossario">Ver fundamentos <span>→</span></a>
+      </article>
+      <article class="lesson-card">
+        <span class="lesson-number">04</span>
+        <h2>Renderização</h2>
+        <p>Compare rasterização e ray tracing e descubra como cada técnica equilibra velocidade, precisão e realismo.</p>
+        <a href="#glossario">Ver fundamentos <span>→</span></a>
+      </article>
+    </section>
+
+    <section class="glossary" id="glossario">
+      <div><p class="eyebrow">Mapa rápido</p><h2>Vocabulário essencial</h2></div>
+      <div class="glossary-list">
+        <div><strong>Vértice</strong><span>Ponto que descreve a forma de um objeto.</span></div>
+        <div><strong>Shader</strong><span>Programa que calcula aparência e iluminação.</span></div>
+        <div><strong>Rasterização</strong><span>Conversão de formas em fragmentos de tela.</span></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="../assets/js/main.js"></script>
+</body>
+</html>

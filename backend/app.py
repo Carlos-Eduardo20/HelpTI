@@ -4,11 +4,14 @@ from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
 import os
+import json
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import webbrowser
 from threading import Timer
 
+BASE_DIR = os.path.dirname(__file__)
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 load_dotenv()
 
 
@@ -71,7 +74,8 @@ def ensure_data_columns():
         "ALTER TABLE grupo_solucionadores ADD COLUMN id_setor INT",
         "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
         "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN telefone VARCHAR(50)"
+        "ALTER TABLE grupo_solucionadores ADD COLUMN telefone VARCHAR(50)",
+        "ALTER TABLE setor ADD COLUMN niveis TEXT"
     )
     for statement in statements:
         try:
@@ -412,7 +416,7 @@ def create_equipe():
 @app.route('/api/equipe/<int:id>', methods=['PUT'])
 def update_equipe(id):
     dados = request.get_json() or {}
-    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor') if campo in dados}
+    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'nivel') if campo in dados}
     if not campos:
         return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
     try:
@@ -501,8 +505,13 @@ def get_setores():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('SELECT id_setor, nome, descricao FROM setor ORDER BY nome;')
+        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor ORDER BY nome;')
         setores = dict_fetchall(cursor)
+        for setor in setores:
+            try:
+                setor['niveis'] = json.loads(setor.get('niveis') or '[]')
+            except (TypeError, json.JSONDecodeError):
+                setor['niveis'] = []
         cursor.close()
         conn.close()
         return jsonify(setores), 200
@@ -515,21 +524,29 @@ def create_setor():
         dados = request.get_json() or {}
         nome = (dados.get('nome') or '').strip()
         descricao = (dados.get('descricao') or '').strip()
+        niveis = dados.get('niveis') or []
         if not nome:
             return jsonify({'erro': 'Nome do setor é obrigatório'}), 400
+        if not isinstance(niveis, list):
+            return jsonify({'erro': 'Os níveis devem ser uma lista'}), 400
+        niveis = [f'Nível {indice}' for indice, _ in enumerate(niveis, start=1)]
         conn = get_db_connection()
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('SELECT id_setor, nome, descricao FROM setor WHERE LOWER(nome) = LOWER(%s) LIMIT 1;', (nome,))
+        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE LOWER(nome) = LOWER(%s) LIMIT 1;', (nome,))
         setor = dict_fetchone(cursor)
         if not setor:
-            cursor.execute('INSERT INTO setor (nome, descricao) VALUES (%s, %s);', (nome, descricao))
+            cursor.execute('INSERT INTO setor (nome, descricao, niveis) VALUES (%s, %s, %s);', (nome, descricao, json.dumps(niveis, ensure_ascii=False)))
             conn.commit()
-            cursor.execute('SELECT id_setor, nome, descricao FROM setor WHERE id_setor = %s;', (cursor.lastrowid,))
+            cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_setor = %s;', (cursor.lastrowid,))
             setor = dict_fetchone(cursor)
         cursor.close()
         conn.close()
+        try:
+            setor['niveis'] = json.loads(setor.get('niveis') or '[]')
+        except (TypeError, json.JSONDecodeError):
+            setor['niveis'] = []
         return jsonify(setor), 201
     except Error as e:
         return jsonify({'erro': str(e)}), 500

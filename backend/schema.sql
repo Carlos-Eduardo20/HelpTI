@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS tipo_chamado (
     descricao VARCHAR(500)
 );
 
+-- Tabela de Setores e níveis de alocação
+CREATE TABLE IF NOT EXISTS setor (
+    id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(200) NOT NULL UNIQUE,
+    descricao VARCHAR(500),
+    niveis TEXT
+);
+
 -- Tabela de Grupos de Solucionadores
 CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     id_grupo_solucionadores INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

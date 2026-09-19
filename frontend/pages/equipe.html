@@ -78,6 +78,9 @@
               <path d="M8 17v-3" />
             </svg>
             Relatórios</a>
+          <a href="educacao.html" class="tab-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16c3 3 9 3 12 0v-3.5"/></svg>
+            Educação</a>
         </nav>
       </div>
 
@@ -126,14 +129,14 @@
       <div class="card-header">
         <h2>Setores</h2>
         <div class="card-header-actions">
-          <button class="btn-primary" type="button" onclick="openModal('modal-equipe')">
+          <button class="btn-primary" type="button" onclick="openModal('modal-setor')">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
               stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               class="lucide lucide-plus-icon lucide-plus">
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
-            Novo Técnico</button>
+            Novo Setor</button>
         </div>
       </div>
       <div class="table-wrapper">
@@ -142,6 +145,36 @@
         </table>
       </div>
     </section>
+
+    <div id="modal-setor" class="modal-overlay">
+      <div class="modal-card sector-modal-card">
+        <div class="modal-header">
+          <h2>Novo Setor</h2>
+          <button class="modal-close" type="button" onclick="closeModal('modal-setor')">&times;</button>
+        </div>
+        <form id="form-novo-setor" onsubmit="salvarSetor(event)">
+          <div class="form-group">
+            <label for="nome-setor">Nome do setor</label>
+            <input id="nome-setor" name="nome" type="text" required placeholder="Ex: Infraestrutura">
+          </div>
+          <label class="level-toggle" for="possui-nivel">
+            <input id="possui-nivel" type="checkbox">
+            <span>Possui Nível?</span>
+          </label>
+          <div id="levels-editor" class="levels-editor" hidden>
+            <div class="levels-editor-header">
+              <span>Níveis do setor</span>
+              <button type="button" class="button button--secondary" id="adicionar-nivel">Adicionar nível</button>
+            </div>
+            <div id="levels-list" class="levels-list"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="button button--secondary" onclick="closeModal('modal-setor')">Cancelar</button>
+            <button type="submit" class="button button--primary">Criar Setor</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- MODAL 2: Novo Membro da Equipe -->
     <div id="modal-equipe" class="modal-overlay">
@@ -198,6 +231,39 @@
           <button>
             <a href="equipe-detalhe.html"></a>
           </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-nivel" class="modal-overlay">
+      <div class="modal-card level-detail-card">
+        <div class="modal-header">
+          <div>
+            <h2 id="nivel-titulo">Nível</h2>
+            <p id="nivel-setor" class="modal-subtitle"></p>
+          </div>
+          <button class="modal-close" type="button" onclick="closeModal('modal-nivel')">&times;</button>
+        </div>
+        <div id="nivel-membros" class="level-members-list"></div>
+        <div class="modal-footer">
+          <button type="button" class="button button--secondary" onclick="closeModal('modal-nivel')">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-adicionar-nivel" class="modal-overlay">
+      <div class="modal-card level-detail-card">
+        <div class="modal-header">
+          <div>
+            <h2>Adicionar funcionário</h2>
+            <p id="adicionar-nivel-titulo" class="modal-subtitle"></p>
+          </div>
+          <button class="modal-close" type="button" onclick="closeModal('modal-adicionar-nivel')">&times;</button>
+        </div>
+        <div id="funcionarios-disponiveis" class="available-members-list"></div>
+        <div class="modal-footer">
+          <button type="button" class="button button--secondary" onclick="closeModal('modal-adicionar-nivel')">Cancelar</button>
+          <button type="button" class="button button--primary" id="confirmar-adicao-nivel">Adicionar selecionados</button>
         </div>
       </div>
     </div>

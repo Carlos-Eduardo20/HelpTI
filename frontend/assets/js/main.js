@@ -128,12 +128,95 @@ async function carregarSetores() {
     [setoresEmMemoria, equipeEmMemoria] = await Promise.all([buscarSetores(), buscarEquipe()]);
     const lista = document.querySelector('#setores-disponiveis');
     if (lista) lista.innerHTML = setoresEmMemoria.map((setor) => `<option value="${setor.nome}"></option>`).join('');
-    tabela.innerHTML = setoresEmMemoria.map((setor) => {
-      const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
-      const lista = participantes.map((membro) => `<li><a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></a></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
-      return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.descricao || 'Sem descrição'}</small></span><span class="status-badge status-info">${participantes.length} participante(s)</span></summary><ul class="sector-members">${lista}</ul></details></td></tr>`;
-    }).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
+    tabela.innerHTML = setoresEmMemoria.map((setor) => renderizarSetor(setor)).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
   } catch (error) { tabela.innerHTML = `<tr><td colspan="3">${error.message}</td></tr>`; }
+}
+
+function iconeNivel(icone) {
+  const caminhos = icone === 'plus'
+    ? '<path d="M5 12h14"/><path d="M12 5v14" />'
+    : '<path d="m9 18 6-6-6-6" />';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${caminhos}</svg>`;
+}
+
+function renderizarSetor(setor) {
+  const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
+  const lista = participantes.map((membro) => `<li><a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></a></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
+  const niveis = (setor.niveis || []).map((nivel, indice) => {
+    const membros = participantes.filter((membro) => Number(membro.nivel) === indice + 1).length;
+    return `<div class="sector-level-row"><div><strong>${nivel}</strong><small>${membros} funcionário(s) alocado(s)</small></div><div class="level-actions"><button type="button" class="level-action" title="Ver detalhes de ${nivel}" aria-label="Ver detalhes de ${nivel}" data-level-action="details" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar funcionário em ${nivel}" aria-label="Adicionar funcionário em ${nivel}" data-level-action="add" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div></div>`;
+  }).join('');
+  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.niveis?.length ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="status-badge status-info">${participantes.length} participante(s)</span></summary>${niveis ? `<div class="sector-levels">${niveis}</div>` : ''}<ul class="sector-members">${lista}</ul></details></td></tr>`;
+}
+
+function obterNivelAtual() {
+  return window.nivelSelecionado || { setorId: null, nivel: null };
+}
+
+function membrosDoNivel(setorId, nivel) {
+  return equipeEmMemoria.filter((membro) => membro.id_setor == setorId && Number(membro.nivel) === Number(nivel));
+}
+
+function opcoesDeNiveis(setor) {
+  return (setor.niveis || []).map((nivel, indice) => `<option value="${indice + 1}">${nivel}</option>`).join('');
+}
+
+function abrirDetalhesNivel(setorId, nivel) {
+  const setor = setoresEmMemoria.find((item) => item.id_setor == setorId);
+  if (!setor) return;
+  window.nivelSelecionado = { setorId, nivel };
+  document.querySelector('#nivel-titulo').textContent = setor.niveis[nivel - 1] || `Nível ${nivel}`;
+  document.querySelector('#nivel-setor').textContent = setor.nome;
+  const membros = membrosDoNivel(setorId, nivel);
+  document.querySelector('#nivel-membros').innerHTML = membros.length ? membros.map((membro) => `<div class="level-member-row"><div><strong>${membro.nome || '-'}</strong><small>${membro.email || 'Sem e-mail'}</small></div><div class="level-member-actions"><select data-member-level="${membro.id_grupo_solucionadores}" aria-label="Nível de ${membro.nome}">${opcoesDeNiveis(setor)}</select><button type="button" class="level-remove-button" data-remove-member="${membro.id_grupo_solucionadores}">Remover</button></div></div>`).join('') : '<p class="empty-row">Nenhum funcionário neste nível.</p>';
+  document.querySelectorAll('[data-member-level]').forEach((select) => {
+    select.value = String(nivel);
+    select.addEventListener('change', () => alterarNivelFuncionario(select.dataset.memberLevel, setorId, select.value));
+  });
+  document.querySelectorAll('[data-remove-member]').forEach((button) => button.addEventListener('click', () => removerFuncionarioNivel(button.dataset.removeMember)));
+  openModal('modal-nivel');
+}
+
+function abrirAdicionarFuncionarioNivel(setorId, nivel) {
+  const setor = setoresEmMemoria.find((item) => item.id_setor == setorId);
+  if (!setor) return;
+  window.nivelSelecionado = { setorId, nivel };
+  const alocados = new Set(membrosDoNivel(setorId, nivel).map((membro) => String(membro.id_grupo_solucionadores)));
+  const disponiveis = equipeEmMemoria.filter((membro) => !alocados.has(String(membro.id_grupo_solucionadores)));
+  document.querySelector('#adicionar-nivel-titulo').textContent = `${setor.niveis[nivel - 1] || `Nível ${nivel}`} · ${setor.nome}`;
+  document.querySelector('#funcionarios-disponiveis').innerHTML = disponiveis.length ? disponiveis.map((membro) => `<label class="available-member-row"><input type="checkbox" value="${membro.id_grupo_solucionadores}"><span><strong>${membro.nome || '-'}</strong><small>${membro.setor_nome || 'Sem setor'} · ${membro.nivel ? `Nível ${membro.nivel}` : 'Sem nível alocado'}</small></span></label>`).join('') : '<p class="empty-row">Todos os funcionários já estão neste nível.</p>';
+  openModal('modal-adicionar-nivel');
+}
+
+async function alterarNivelFuncionario(id, setorId, nivel) {
+  try {
+    const { atualizarMembro } = await import('./api.js');
+    await atualizarMembro(id, { nivel: Number(nivel), id_setor: setorId });
+    await carregarSetores();
+    abrirDetalhesNivel(setorId, Number(nivel));
+  } catch (error) { alert(`Não foi possível alterar o nível: ${error.message}`); }
+}
+
+async function removerFuncionarioNivel(id) {
+  const { setorId, nivel } = obterNivelAtual();
+  try {
+    const { atualizarMembro } = await import('./api.js');
+    await atualizarMembro(id, { nivel: null });
+    await carregarSetores();
+    abrirDetalhesNivel(setorId, nivel);
+  } catch (error) { alert(`Não foi possível remover o funcionário do nível: ${error.message}`); }
+}
+
+async function adicionarFuncionariosSelecionados() {
+  const { setorId, nivel } = obterNivelAtual();
+  const selecionados = [...document.querySelectorAll('#funcionarios-disponiveis input:checked')].map((input) => input.value);
+  if (!selecionados.length) return;
+  try {
+    const { atualizarMembro } = await import('./api.js');
+    await Promise.all(selecionados.map((id) => atualizarMembro(id, { nivel, id_setor: setorId })));
+    closeModal('modal-adicionar-nivel');
+    await carregarSetores();
+  } catch (error) { alert(`Não foi possível adicionar os funcionários: ${error.message}`); }
 }
 
 function mostrarParticipantes(idSetor) {
@@ -147,12 +230,47 @@ function mostrarParticipantes(idSetor) {
 async function salvarSetor(event) {
   event.preventDefault();
   const form = event.target;
-  const inputs = form.querySelectorAll('input, textarea');
+  const possuiNivel = form.querySelector('#possui-nivel').checked;
+  const niveis = possuiNivel ? [...form.querySelectorAll('#levels-list input')].map((input) => input.value.trim()).filter(Boolean) : [];
+  if (possuiNivel && !niveis.length) {
+    alert('Adicione pelo menos um nível para este setor.');
+    return;
+  }
   try {
     const { criarSetor } = await import('./api.js');
-    await criarSetor({ nome: inputs[0].value.trim(), descricao: inputs[1].value.trim() });
-    closeModal('modal-setor'); form.reset(); await carregarSetores(); alert('Setor criado com sucesso.');
+    await criarSetor({ nome: form.elements.nome.value.trim(), niveis });
+    closeModal('modal-setor');
+    form.reset();
+    document.querySelector('#levels-list').innerHTML = '';
+    document.querySelector('#levels-editor').hidden = true;
+    await carregarSetores();
+    alert('Setor criado com sucesso.');
   } catch (error) { alert(`Não foi possível criar o setor: ${error.message}`); }
+}
+
+function adicionarNivel() {
+  const lista = document.querySelector('#levels-list');
+  if (!lista) return;
+  const numero = lista.children.length + 1;
+  const item = document.createElement('div');
+  item.className = 'level-row';
+  item.innerHTML = `<input name="nivel" type="text" value="Nível ${numero}" aria-label="Nível ${numero}" readonly><button type="button" class="level-remove" aria-label="Remover Nível ${numero}">&times;</button>`;
+  item.querySelector('.level-remove').addEventListener('click', () => {
+    item.remove();
+    [...lista.querySelectorAll('input')].forEach((input, index) => { input.value = `Nível ${index + 1}`; input.setAttribute('aria-label', `Nível ${index + 1}`); });
+  });
+  lista.appendChild(item);
+}
+
+function configurarModalSetor() {
+  const checkbox = document.querySelector('#possui-nivel');
+  const editor = document.querySelector('#levels-editor');
+  if (!checkbox || !editor) return;
+  checkbox.addEventListener('change', () => {
+    editor.hidden = !checkbox.checked;
+    if (checkbox.checked && !document.querySelector('#levels-list').children.length) adicionarNivel();
+  });
+  document.querySelector('#adicionar-nivel')?.addEventListener('click', adicionarNivel);
 }
 
 async function salvarMembro(event) {
@@ -230,8 +348,21 @@ window.salvarMembro = salvarMembro;
 window.salvarSetor = salvarSetor;
 window.salvarConfiguracoes = salvarConfiguracoes;
 window.cancelarConfigurações = cancelarConfigurações;
+window.abrirDetalhesNivel = abrirDetalhesNivel;
+window.abrirAdicionarFuncionarioNivel = abrirAdicionarFuncionarioNivel;
 
 document.addEventListener('click', () => document.getElementById('profileDropdown')?.classList.remove('active'));
+document.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-level-action]');
+  if (!action) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const setorId = action.dataset.setorId;
+  const nivel = Number(action.dataset.levelIndex);
+  if (action.dataset.levelAction === 'details') abrirDetalhesNivel(setorId, nivel);
+  if (action.dataset.levelAction === 'add') abrirAdicionarFuncionarioNivel(setorId, nivel);
+});
+document.querySelector('#confirmar-adicao-nivel')?.addEventListener('click', adicionarFuncionariosSelecionados);
 document.addEventListener('click', (event) => {
   const controle = document.querySelector('.client-filter-control');
   if (controle && !controle.contains(event.target)) {
@@ -240,7 +371,7 @@ document.addEventListener('click', (event) => {
   }
 });
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
-document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); });
+document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); configurarModalSetor(); });
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
   configurarFiltroClientes();
