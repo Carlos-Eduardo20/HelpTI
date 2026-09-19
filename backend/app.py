@@ -65,6 +65,7 @@ def ensure_data_columns():
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
         "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
         "ALTER TABLE chamado ADD COLUMN descricao TEXT",
+        "ALTER TABLE chamado ADD COLUMN id_setor INT",
         "ALTER TABLE chamado ADD COLUMN data_agendada DATE",
         "ALTER TABLE chamado ADD COLUMN hora_agendada TIME",
         "ALTER TABLE grupo_solucionadores ADD COLUMN nome VARCHAR(200)",
@@ -152,7 +153,13 @@ def get_chamados():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM chamado ORDER BY id_chamado DESC;')
+        cursor.execute('''
+            SELECT chamado.*, setor.nome AS setor_nome, grupo_solucionadores.nome AS tecnico
+            FROM chamado
+            LEFT JOIN setor ON setor.id_setor = chamado.id_setor
+            LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
+            ORDER BY chamado.id_chamado DESC;
+        ''')
         chamados = dict_fetchall(cursor)
         
         cursor.close()
@@ -170,7 +177,13 @@ def get_chamado(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (id,))
+        cursor.execute('''
+            SELECT chamado.*, setor.nome AS setor_nome, grupo_solucionadores.nome AS tecnico
+            FROM chamado
+            LEFT JOIN setor ON setor.id_setor = chamado.id_setor
+            LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
+            WHERE chamado.id_chamado = %s;
+        ''', (id,))
         chamado = dict_fetchone(cursor)
         
         cursor.close()
@@ -187,30 +200,40 @@ def get_chamado(id):
 @app.route('/api/chamados', methods=['POST'])
 def create_chamado():
     try:
-        dados = request.get_json()
+        dados = request.get_json() or {}
         
-        cliente = dados.get('cliente')
-        assunto = dados.get('assunto')
-        descricao = dados.get('descricao', '')
+        cliente = (dados.get('cliente') or '').strip()
+        assunto = (dados.get('assunto') or '').strip()
+        descricao = (dados.get('descricao') or '').strip()
+        id_setor = dados.get('id_setor')
+        id_grupo_solucionadores = dados.get('id_grupo_solucionadores')
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
-        data_agendada = dados.get('data_agendada') or None
-        hora_agendada = dados.get('hora_agendada') or None
 
-        if not cliente or not assunto:
-            return jsonify({'erro': 'Cliente e assunto são obrigatórios'}), 400
+        if not cliente or not dados.get('email_cliente') or not dados.get('telefone_cliente') or not assunto or not descricao or not id_setor or not id_grupo_solucionadores:
+            return jsonify({'erro': 'Todos os campos do chamado são obrigatórios'}), 400
 
         conn = get_db_connection()
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT id_grupo_solucionadores
+            FROM grupo_solucionadores
+            WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'
+        ''', (id_grupo_solucionadores, id_setor))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
         
         query = """
             INSERT INTO chamado
-                (id_tipo_chamado, status, cliente, assunto, descricao, data_agendada, hora_agendada)
-            VALUES (%s, 'ABERTO', %s, %s, %s, %s, %s);
+                (id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, assunto, descricao)
+            VALUES (%s, %s, %s, 'ABERTO', %s, %s, %s);
         """
-        cursor.execute(query, (id_tipo_chamado, cliente, assunto, descricao, data_agendada, hora_agendada))
+        cursor.execute(query, (id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, assunto, descricao))
         conn.commit()
         
         novo_id = cursor.lastrowid
@@ -251,6 +274,27 @@ def update_chamado(id):
         conn.close()
         
         return jsonify(chamado_atualizado), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/chamados/<int:id>', methods=['DELETE'])
+def delete_chamado(id):
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM escalonamento WHERE id_chamado = %s;', (id,))
+        cursor.execute('DELETE FROM chamado WHERE id_chamado = %s;', (id,))
+        removido = cursor.rowcount
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+        if not removido:
+            return jsonify({'erro': 'Chamado não encontrado'}), 404
+        return jsonify({'mensagem': 'Chamado encerrado e removido com sucesso'}), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -387,8 +431,10 @@ def create_equipe():
         email = dados.get('email')
         senha = dados.get('senha')
         cargo = dados.get('cargo', 'tecnico')
+        nivel = dados.get('nivel') or None
         valor_hora = dados.get('valor_hora') or None
         id_setor = dados.get('id_setor') or None
+        telefone = dados.get('telefone') or None
         if not nome or not email or not senha:
             return jsonify({'erro': 'Nome, e-mail e senha são obrigatórios'}), 400
 
@@ -398,9 +444,9 @@ def create_equipe():
         cursor = conn.cursor()
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, status, senha)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s)""",
-            (nome, 1, nome, email, cargo, valor_hora, id_setor, senha)
+            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, status, senha, telefone)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s)""",
+            (nome, nivel, nome, email, cargo, valor_hora, id_setor, senha, telefone)
         )
         conn.commit()
         novo_id = cursor.lastrowid
@@ -548,6 +594,28 @@ def create_setor():
         except (TypeError, json.JSONDecodeError):
             setor['niveis'] = []
         return jsonify(setor), 201
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/setores/<int:id>', methods=['DELETE'])
+def delete_setor(id):
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+
+        cursor = conn.cursor()
+        cursor.execute('UPDATE grupo_solucionadores SET id_setor = NULL, nivel = NULL WHERE id_setor = %s;', (id,))
+        cursor.execute('UPDATE chamado SET id_setor = NULL WHERE id_setor = %s;', (id,))
+        cursor.execute('DELETE FROM setor WHERE id_setor = %s;', (id,))
+        removido = cursor.rowcount
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+        if not removido:
+            return jsonify({'erro': 'Setor não encontrado'}), 404
+        return jsonify({'mensagem': 'Setor e níveis removidos com sucesso'}), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
 CREATE TABLE IF NOT EXISTS chamado (
     id_chamado MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id_tipo_chamado INT NOT NULL,
+    id_setor INT,
     id_grupo_solucionadores INT,
     status VARCHAR(50) DEFAULT 'ABERTO',
     cliente VARCHAR(200) NOT NULL,
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     hora_agendada TIME,
     classificacao TEXT(255) NULL,
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
+    FOREIGN KEY (id_setor) REFERENCES setor(id_setor),
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
 ) AUTO_INCREMENT = 100000;
 

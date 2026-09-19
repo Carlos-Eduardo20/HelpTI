@@ -1,4 +1,4 @@
-import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, criarCliente, buscarConfiguracoes } from './api.js';
+import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
 
 let chamadosEmMemoria = [];
 let agendaPagina = 0;
@@ -21,7 +21,14 @@ async function atualizarPerfil() {
   }
 }
 
-function abrirModalChamado() { document.getElementById('modalChamado')?.classList.add('active'); }
+function abrirModalChamado() {
+  document.getElementById('modalChamado')?.classList.add('active');
+  const campoSetor = document.querySelector('#setorChamado');
+  if (campoSetor) {
+    campoSetor.value = '';
+    renderizarOpcoesTecnicos();
+  }
+}
 function fecharModalChamado() { document.getElementById('modalChamado')?.classList.remove('active'); }
 
 function posicionarMenuStatus(picker) {
@@ -247,6 +254,8 @@ function mudarDia(semanas) {
 }
 
 let clientesDoChamado = [];
+let setoresDoChamado = [];
+let equipeDoChamado = [];
 
 function normalizarBusca(valor) {
   return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -288,6 +297,32 @@ async function carregarClientesNoChamado() {
   } catch (error) {
     const lista = document.querySelector('#clienteDropdownList');
     if (lista) lista.innerHTML = '<li class="select-empty">Não foi possível carregar clientes.</li>';
+  }
+}
+
+function renderizarOpcoesTecnicos(idSetor = '') {
+  const campo = document.querySelector('#tecnicoChamado');
+  if (!campo) return;
+  const tecnicos = equipeDoChamado.filter((membro) => String(membro.id_setor) === String(idSetor) && (membro.status || 'ATIVO') === 'ATIVO');
+  campo.innerHTML = idSetor
+    ? `<option value="">Selecione o técnico responsável</option>${tecnicos.map((membro) => `<option value="${escaparHtml(membro.id_grupo_solucionadores)}">${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</option>`).join('')}`
+    : '<option value="">Selecione primeiro o setor</option>';
+  campo.disabled = !idSetor || !tecnicos.length;
+}
+
+async function carregarResponsaveisDoChamado() {
+  const campoSetor = document.querySelector('#setorChamado');
+  const campoTecnico = document.querySelector('#tecnicoChamado');
+  if (!campoSetor || !campoTecnico) return;
+  try {
+    [setoresDoChamado, equipeDoChamado] = await Promise.all([buscarSetores(), buscarEquipe()]);
+    campoSetor.innerHTML = `<option value="">Selecione o setor</option>${setoresDoChamado.map((setor) => `<option value="${escaparHtml(setor.id_setor)}">${escaparHtml(setor.nome)}</option>`).join('')}`;
+    campoSetor.addEventListener('change', () => renderizarOpcoesTecnicos(campoSetor.value));
+    renderizarOpcoesTecnicos();
+  } catch (error) {
+    campoSetor.innerHTML = '<option value="">Não foi possível carregar os setores</option>';
+    campoTecnico.innerHTML = '<option value="">Não foi possível carregar os técnicos</option>';
+    campoTecnico.disabled = true;
   }
 }
 
@@ -354,13 +389,8 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.assunto.value || !campos.data_agendada.value) {
+  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.id_setor.value || !campos.id_grupo_solucionadores.value || !campos.assunto.value.trim() || !campos.descricao.value.trim()) {
     form.reportValidity();
-    return;
-  }
-  const diaDaSemana = new Date(`${campos.data_agendada.value}T12:00:00`).getDay();
-  if (diaDaSemana === 0 || diaDaSemana === 6) {
-    alert('Chamados só podem ser agendados de segunda a sexta-feira.');
     return;
   }
   try {
@@ -368,9 +398,10 @@ async function salvarChamado(event) {
       cliente: campos.cliente.value.trim(),
       email_cliente: campos.email_cliente.value.trim(),
       telefone_cliente: campos.telefone_cliente.value.trim(),
+      id_setor: campos.id_setor.value,
+      id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
       assunto: campos.assunto.value.trim(),
-      descricao: campos.descricao.value.trim(),
-      data_agendada: campos.data_agendada.value || null
+      descricao: campos.descricao.value.trim()
     });
     fecharModalChamado(); form.reset(); await carregarChamados(); alert('Chamado criado com sucesso.');
   } catch (error) { alert(`Não foi possível criar o chamado: ${error.message}`); }
@@ -514,6 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   configurarBuscaClienteChamado();
   carregarClientesNoChamado();
+  carregarResponsaveisDoChamado();
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');
     const agenda = document.querySelector('#agendaDinamica');

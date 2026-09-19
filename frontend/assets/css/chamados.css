@@ -109,6 +109,34 @@
 	color: #2399A8; 
 	font-weight: 600; 
 }
+.status-option[data-status-value="ABERTO"]:hover,
+.status-option[data-status-value="ABERTO"].is-selected,
+.status-filter-menu button[data-status-filter="ABERTO"]:hover,
+.status-filter-menu button[data-status-filter="ABERTO"][aria-selected="true"] {
+	color: #2563EB;
+}
+.status-option[data-status-value="ANDAMENTO"]:hover,
+.status-option[data-status-value="ANDAMENTO"].is-selected,
+.status-filter-menu button[data-status-filter="ANDAMENTO"]:hover,
+.status-filter-menu button[data-status-filter="ANDAMENTO"][aria-selected="true"] {
+	color: #D97706;
+}
+.status-option[data-status-value="AGUARDANDO"]:hover,
+.status-option[data-status-value="AGUARDANDO"].is-selected,
+.status-filter-menu button[data-status-filter="AGUARDANDO"]:hover,
+.status-filter-menu button[data-status-filter="AGUARDANDO"][aria-selected="true"] {
+	color: #EA580C;
+}
+.status-option[data-status-value="RESOLVIDO"]:hover,
+.status-option[data-status-value="RESOLVIDO"].is-selected,
+.status-filter-menu button[data-status-filter="RESOLVIDO"]:hover,
+.status-filter-menu button[data-status-filter="RESOLVIDO"][aria-selected="true"] {
+	color: #16A34A;
+}
+.status-option[data-status-value="ABERTO"] .status-dot { background: #2563EB; }
+.status-option[data-status-value="ANDAMENTO"] .status-dot { background: #F59E0B; }
+.status-option[data-status-value="AGUARDANDO"] .status-dot { background: #F97316; }
+.status-option[data-status-value="RESOLVIDO"] .status-dot { background: #16A34A; }
 .status-select { 
 	position: absolute; 
 	width: 1px; height: 1px; 

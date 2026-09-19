@@ -34,6 +34,10 @@ export async function atualizarChamado(id, dadosChamado) {
   return request(`/chamados/${id}`, { method: 'PUT', body: JSON.stringify(dadosChamado) });
 }
 
+export async function excluirChamado(id) {
+  return request(`/chamados/${id}`, { method: 'DELETE' });
+}
+
 // ============ CLIENTES ============
 
 // Busca a lista de clientes
@@ -83,6 +87,10 @@ export async function buscarSetores() {
 
 export async function criarSetor(dados) {
   return request('/setores', { method: 'POST', body: JSON.stringify(dados) });
+}
+
+export async function excluirSetor(id) {
+  return request(`/setores/${id}`, { method: 'DELETE' });
 }
 
 // ============ RELATÓRIOS ============
