@@ -87,7 +87,7 @@ function aplicarFiltrosChamados() {
   const status = document.querySelector('#filtroStatusChamados')?.value || '';
   const periodo = document.querySelector('input[name="filtroAbertura"]:checked')?.value || '';
   const chamadosFiltrados = chamadosEmMemoria.filter((chamado) => {
-    const correspondeBusca = [chamado.id_chamado, chamado.cliente, chamado.assunto]
+    const correspondeBusca = [chamado.id_chamado, chamado.cliente]
       .some((valor) => String(valor || '').toLowerCase().includes(busca));
     return correspondeBusca && (!status || chamado.status === status) && correspondeAoPeriodoDeAbertura(chamado, periodo);
   });
@@ -180,7 +180,7 @@ function renderizarAgenda(chamados) {
   const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', RESOLVIDO: 'badge-green' };
   agenda.innerHTML = datas.map((data) => {
     const chamadosDoDia = chamadosComData.filter((item) => item.data_agendada === data);
-    const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><p>${item.assunto || '-'}</p><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('');
+    const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('');
     return `<div class="agenda-column">${cards}</div>`;
   }).join('');
 }
@@ -484,7 +484,7 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.id_setor.value || !campos.id_grupo_solucionadores.value || !campos.assunto.value.trim() || !campos.descricao.value.trim()) {
+  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.id_setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
     form.reportValidity();
     return;
   }
@@ -495,7 +495,6 @@ async function salvarChamado(event) {
       telefone_cliente: campos.telefone_cliente.value.trim(),
       id_setor: campos.id_setor.value,
       id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
-      assunto: campos.assunto.value.trim(),
       descricao: campos.descricao.value.trim()
     });
     fecharModalChamado(); form.reset(); await carregarChamados(); alert('Chamado criado com sucesso.');

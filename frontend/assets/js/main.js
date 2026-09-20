@@ -488,8 +488,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { buscarChamadoPorId } = await import('./api.js');
     const chamado = await buscarChamadoPorId(idSelecionado);
     if (chamado) {
-      document.getElementById('chamado-id').textContent = `Chamado #${chamado.id_chamado} - ${chamado.assunto}`;
-      document.getElementById('chamado-assunto').textContent = 'Detalhes da solicitação de atendimento';
+      document.getElementById('chamado-id').textContent = `Chamado #${chamado.id_chamado}`;
       document.getElementById('chamado-cliente').textContent = chamado.cliente;
       document.getElementById('chamado-prioridade').textContent = chamado.prioridade;
       document.getElementById('chamado-status').textContent = chamado.status;
@@ -646,7 +645,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
       const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
-      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.assunto)}</td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td><td>${detailEscape(chamado.classificacao)}</td></tr>`).join('') || '<tr><td colspan="6">Nenhum chamado encontrado para este cliente.</td></tr>';
+      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td><td>${detailEscape(chamado.classificacao)}</td></tr>`).join('') || '<tr><td colspan="6">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
 
     if (path.includes('equipe-detalhe.html')) {
@@ -674,7 +673,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (skills) skills.textContent = 'Nenhuma especialidade cadastrada.';
       const table = document.querySelector('#tabela-chamados-tecnico tbody');
       const tickets = chamados.filter((chamado) => chamado.id_grupo_solucionadores == membro.id_grupo_solucionadores);
-      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.assunto)}</td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado atribuído a este membro.</td></tr>';
+      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado atribuído a este membro.</td></tr>';
     }
   } catch (error) {
     console.error('Não foi possível carregar os detalhes:', error);
