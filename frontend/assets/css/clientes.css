@@ -100,6 +100,19 @@
 	accent-color: var(--primary-color, #2563EB);
 }
 
+.table-wrapper .data-table {
+	min-width: 760px;
+}
+
+.table-wrapper .data-table th:nth-child(1),
+.table-wrapper .data-table td:nth-child(1) { min-width: 180px; }
+.table-wrapper .data-table th:nth-child(2),
+.table-wrapper .data-table td:nth-child(2) { min-width: 170px; }
+.table-wrapper .data-table th:nth-child(3),
+.table-wrapper .data-table td:nth-child(3) { min-width: 150px; }
+.table-wrapper .data-table th:nth-child(4),
+.table-wrapper .data-table td:nth-child(4) { min-width: 150px; }
+
 @media (max-width: 700px) {
 	.client-filters {
 		align-items: stretch;

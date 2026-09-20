@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     cliente VARCHAR(200) NOT NULL,
     assunto VARCHAR(255) NOT NULL,
     descricao TEXT,
+    data_abertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     data_agendada DATE,
     hora_agendada TIME,
     classificacao TEXT(255) NULL,

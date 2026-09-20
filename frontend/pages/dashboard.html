@@ -294,17 +294,28 @@
         </div>
 
         <div class="form-group">
-          <label for="setorChamado">Setor</label>
-          <select id="setorChamado" name="id_setor" required>
-            <option value="">Selecione o setor</option>
-          </select>
+          <label for="setorSearchInput">Setor</label>
+          <div class="searchable-select" id="selectSetorWrapper">
+            <input type="search" id="setorSearchInput" placeholder="Busque o setor" autocomplete="off" required>
+            <input type="hidden" id="setorChamado" name="id_setor">
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg></span>
+            <ul class="select-dropdown-list hidden" id="setorDropdownList"><li class="select-empty">Carregando setores...</li></ul>
+          </div>
         </div>
 
         <div class="form-group">
-          <label for="tecnicoChamado">Técnico responsável</label>
-          <select id="tecnicoChamado" name="id_grupo_solucionadores" required disabled>
-            <option value="">Selecione primeiro o setor</option>
-          </select>
+          <label for="tecnicoSearchInput">Técnico responsável</label>
+          <div class="searchable-select" id="selectTecnicoWrapper">
+            <input type="search" id="tecnicoSearchInput" placeholder="Busque o técnico" autocomplete="off" required disabled>
+            <input type="hidden" id="tecnicoChamado" name="id_grupo_solucionadores">
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg></span>
+            <ul class="select-dropdown-list hidden" id="tecnicoDropdownList"><li class="select-empty">Selecione primeiro o setor</li></ul>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="assuntoChamado">Assunto</label>
+          <input type="text" id="assuntoChamado" name="assunto" placeholder="Informe o assunto do chamado" required>
         </div>
 
         <div class="form-group">

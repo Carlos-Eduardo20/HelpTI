@@ -38,7 +38,7 @@ let clientesEmMemoria = [];
 function renderizarClientes(clientes) {
   const tabela = document.querySelector('#tabelaClientes');
   if (!tabela) return;
-  tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}<br>${cliente.contato || ''}</td><td><span class="status-badge status-success">${cliente.status || 'Ativo'}</span></td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
+  tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}</td><td>${cliente.contato || '-'}</td><td>${cliente.telefone || '-'}</td><td><span class="status-badge status-success">${cliente.status || 'Ativo'}</span></td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
 }
 
 function filtrarClientes() {
@@ -141,13 +141,12 @@ function iconeNivel(icone) {
 
 function renderizarSetor(setor) {
   const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
-  const lista = participantes.map((membro) => `<li><a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></a></li>`).join('') || '<li class="empty-row">Nenhum participante neste setor.</li>';
   const niveis = (setor.niveis || []).map((nivel, indice) => {
     const membrosDoNivelAtual = participantes.filter((membro) => Number(membro.nivel) === indice + 1);
-    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
-    return `<div class="sector-level-row"><div><strong>${nivel}</strong><small>${membrosDoNivelAtual.length} funcionário(s) alocado(s)</small><div class="level-members-inline" hidden>${membrosHtml}</div></div><div class="level-actions"><button type="button" class="level-action" title="Mostrar funcionários de ${nivel}" aria-label="Mostrar funcionários de ${nivel}" aria-expanded="false" data-level-action="details" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar técnico em ${nivel}" aria-label="Adicionar técnico em ${nivel}" data-level-action="add" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div></div>`;
+    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
+    return `<div class="sector-level-row"><div class="level-summary"><strong>${nivel}</strong><small>${membrosDoNivelAtual.length} funcionário(s) alocado(s)</small></div><div class="level-actions"><button type="button" class="level-action" title="Mostrar funcionários de ${nivel}" aria-label="Mostrar funcionários de ${nivel}" aria-expanded="false" data-level-action="details" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar técnico em ${nivel}" aria-label="Adicionar técnico em ${nivel}" data-level-action="add" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div><div class="level-members-inline" hidden>${membrosHtml}</div></div>`;
   }).join('');
-  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.niveis?.length ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${setor.id_setor}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${niveis ? `<div class="sector-levels">${niveis}</div>` : ''}<ul class="sector-members">${lista}</ul></details></td></tr>`;
+  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.niveis?.length ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${setor.id_setor}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${niveis ? `<div class="sector-levels">${niveis}</div>` : '<div class="sector-levels"><span class="empty-row">Nenhum nível cadastrado.</span></div>'}</details></td></tr>`;
 }
 
 function obterNivelAtual() {
@@ -208,6 +207,64 @@ function alternarMembrosNivel(botao) {
   const aberto = lista.hidden;
   lista.hidden = !aberto;
   botao.setAttribute('aria-expanded', String(aberto));
+}
+
+const equipamentosPadrao = [
+  { nome: 'Servidores AD/Files', quantidade: 2 },
+  { nome: 'Firewall Fortinet', quantidade: 1 },
+  { nome: 'Switches Core', quantidade: 2 },
+  { nome: 'Access Points', quantidade: 6 },
+  { nome: 'Workstations', quantidade: 20 },
+  { nome: 'Printers IP', quantidade: 3 }
+];
+
+function equipamentosDoCliente(id) {
+  const chave = `helpti-equipamentos-${id}`;
+  const salvos = JSON.parse(localStorage.getItem(chave) || 'null');
+  if (Array.isArray(salvos)) return salvos;
+  localStorage.setItem(chave, JSON.stringify(equipamentosPadrao));
+  return [...equipamentosPadrao];
+}
+
+function renderizarEquipamentos(id) {
+  const lista = document.querySelector('#mapa-equipamentos');
+  if (!lista) return;
+  const equipamentos = equipamentosDoCliente(id);
+  lista.innerHTML = equipamentos.map((equipamento, indice) => `<div class="asset-item"><span class="asset-name">${detailEscape(equipamento.nome)}</span><strong class="asset-count">${Number(equipamento.quantidade) || 0} un</strong><div class="asset-actions"><button type="button" data-editar-equipamento="${indice}" aria-label="Editar ${detailEscape(equipamento.nome)}">Editar</button><button type="button" data-apagar-equipamento="${indice}" aria-label="Apagar ${detailEscape(equipamento.nome)}">Apagar</button></div></div>`).join('');
+  const total = equipamentos.reduce((soma, equipamento) => soma + (Number(equipamento.quantidade) || 0), 0);
+  document.querySelector('#equipamentos-total').textContent = `Total: ${total} equipamento(s) cadastrado(s)`;
+}
+
+function salvarEquipamento(id, indice = null) {
+  const equipamentos = equipamentosDoCliente(id);
+  const atual = indice === null ? { nome: '', quantidade: 1 } : equipamentos[indice];
+  const nome = window.prompt('Nome do equipamento:', atual.nome);
+  if (nome === null || !nome.trim()) return;
+  const quantidade = window.prompt('Número de equipamentos:', atual.quantidade);
+  if (quantidade === null || !/^\d+$/.test(quantidade) || Number(quantidade) < 0) return alert('Informe uma quantidade inteira válida.');
+  const equipamento = { nome: nome.trim(), quantidade: Number(quantidade) };
+  if (indice === null) equipamentos.push(equipamento); else equipamentos[indice] = equipamento;
+  localStorage.setItem(`helpti-equipamentos-${id}`, JSON.stringify(equipamentos));
+  renderizarEquipamentos(id);
+}
+
+function configurarEquipamentos(id) {
+  renderizarEquipamentos(id);
+  document.querySelector('#adicionar-equipamento')?.addEventListener('click', () => salvarEquipamento(id));
+  document.querySelector('#editar-equipamentos')?.addEventListener('click', () => {
+    document.querySelector('#mapa-equipamentos')?.classList.toggle('is-editing');
+  });
+  document.querySelector('#mapa-equipamentos')?.addEventListener('click', (event) => {
+    const editar = event.target.closest('[data-editar-equipamento]');
+    const apagar = event.target.closest('[data-apagar-equipamento]');
+    if (editar) salvarEquipamento(id, Number(editar.dataset.editarEquipamento));
+    if (apagar && window.confirm('Apagar este equipamento?')) {
+      const equipamentos = equipamentosDoCliente(id);
+      equipamentos.splice(Number(apagar.dataset.apagarEquipamento), 1);
+      localStorage.setItem(`helpti-equipamentos-${id}`, JSON.stringify(equipamentos));
+      renderizarEquipamentos(id);
+    }
+  });
 }
 
 async function excluirSetor(idSetor) {
@@ -309,6 +366,10 @@ async function salvarMembro(event) {
   event.preventDefault();
   const form = event.target;
   const setorNome = form.elements.setor.value.trim();
+  if (!/^[A-Za-zÀ-ÿ ]+$/.test(form.elements.nome.value.trim()) || !/^[A-Za-zÀ-ÿ ]+$/.test(setorNome)) {
+    form.reportValidity();
+    return;
+  }
   try {
     const { criarMembro, criarSetor } = await import('./api.js');
     let setor = setoresEmMemoria.find((item) => item.nome.trim().toLowerCase() === setorNome.toLowerCase());
@@ -317,7 +378,6 @@ async function salvarMembro(event) {
       nome: form.elements.nome.value.trim(),
       email: form.elements.email.value.trim(),
       telefone: form.elements.telefone.value.trim(),
-      cargo: form.elements.cargo.value,
       valor_hora: form.elements.valor_hora.value,
       id_setor: setor.id_setor,
       nivel: form.elements.nivel.value,
@@ -579,6 +639,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDetailText('cli-fatura', cliente.plano);
       setDetailText('cli-contrato', cliente.acoes);
       configurarDetalheEditavel('cliente', cliente);
+      configurarEquipamentos(id);
       document.querySelector('#desativarCliente')?.addEventListener('click', async () => {
         if (!window.confirm('Tem certeza de que deseja apagar este cliente?')) return;
         try { await excluirCliente(cliente.id_usuario); window.location.href = 'clientes.html'; } catch (error) { alert(`Não foi possível apagar: ${error.message}`); }

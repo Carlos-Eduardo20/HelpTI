@@ -25,7 +25,13 @@ function abrirModalChamado() {
   document.getElementById('modalChamado')?.classList.add('active');
   const campoSetor = document.querySelector('#setorChamado');
   if (campoSetor) {
+    const buscaSetor = document.querySelector('#setorSearchInput');
+    const buscaTecnico = document.querySelector('#tecnicoSearchInput');
+    const campoTecnico = document.querySelector('#tecnicoChamado');
     campoSetor.value = '';
+    if (buscaSetor) buscaSetor.value = '';
+    if (campoTecnico) campoTecnico.value = '';
+    if (buscaTecnico) { buscaTecnico.value = ''; buscaTecnico.disabled = true; }
     renderizarOpcoesTecnicos();
   }
 }
@@ -52,16 +58,38 @@ function posicionarMenuStatus(picker) {
 function linhaChamado(chamado) {
   const status = chamado.status || 'ABERTO';
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'];
-  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
+  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
+}
+
+function dataAberturaDoChamado(chamado) {
+  const valor = chamado.data_abertura;
+  if (!valor) return null;
+  const data = new Date(valor.includes('T') ? valor : `${valor}T12:00:00`);
+  return Number.isNaN(data.getTime()) ? null : data;
+}
+
+function correspondeAoPeriodoDeAbertura(chamado, periodo) {
+  if (!periodo) return true;
+  const dataAbertura = dataAberturaDoChamado(chamado);
+  if (!dataAbertura) return false;
+  const hoje = new Date();
+  const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const inicioAbertura = new Date(dataAbertura.getFullYear(), dataAbertura.getMonth(), dataAbertura.getDate());
+  const diferencaDias = Math.floor((inicioHoje - inicioAbertura) / 86400000);
+  return periodo === 'hoje' ? diferencaDias === 0
+    : periodo === 'ontem' ? diferencaDias === 1
+      : periodo === 'mes' ? diferencaDias >= 0 && diferencaDias < 30
+        : diferencaDias >= 0 && diferencaDias < 365;
 }
 
 function aplicarFiltrosChamados() {
   const busca = document.querySelector('#buscaChamados')?.value.trim().toLowerCase() || '';
   const status = document.querySelector('#filtroStatusChamados')?.value || '';
+  const periodo = document.querySelector('input[name="filtroAbertura"]:checked')?.value || '';
   const chamadosFiltrados = chamadosEmMemoria.filter((chamado) => {
     const correspondeBusca = [chamado.id_chamado, chamado.cliente, chamado.assunto]
       .some((valor) => String(valor || '').toLowerCase().includes(busca));
-    return correspondeBusca && (!status || chamado.status === status);
+    return correspondeBusca && (!status || chamado.status === status) && correspondeAoPeriodoDeAbertura(chamado, periodo);
   });
   const totalPaginas = Math.max(1, Math.ceil(chamadosFiltrados.length / chamadosPorPagina));
   paginaChamados = Math.min(paginaChamados, totalPaginas);
@@ -304,25 +332,92 @@ function renderizarOpcoesTecnicos(idSetor = '') {
   const campo = document.querySelector('#tecnicoChamado');
   if (!campo) return;
   const tecnicos = equipeDoChamado.filter((membro) => String(membro.id_setor) === String(idSetor) && (membro.status || 'ATIVO') === 'ATIVO');
-  campo.innerHTML = idSetor
-    ? `<option value="">Selecione o técnico responsável</option>${tecnicos.map((membro) => `<option value="${escaparHtml(membro.id_grupo_solucionadores)}">${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</option>`).join('')}`
-    : '<option value="">Selecione primeiro o setor</option>';
-  campo.disabled = !idSetor || !tecnicos.length;
+  const busca = document.querySelector('#tecnicoSearchInput');
+  const lista = document.querySelector('#tecnicoDropdownList');
+  if (!busca || !lista) return;
+  campo.value = '';
+  busca.value = '';
+  busca.disabled = !idSetor || !tecnicos.length;
+  lista.innerHTML = idSetor && tecnicos.length
+    ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
+    : `<li class="select-empty">${idSetor ? 'Nenhum técnico disponível' : 'Selecione primeiro o setor'}</li>`;
+}
+
+function renderizarOpcoesSetores(termo = '') {
+  const lista = document.querySelector('#setorDropdownList');
+  if (!lista) return;
+  const busca = normalizarBusca(termo);
+  const setores = setoresDoChamado.filter((setor) => normalizarBusca(setor.nome).includes(busca));
+  lista.innerHTML = setores.length
+    ? setores.map((setor) => `<li data-setor-id="${escaparHtml(setor.id_setor)}"><strong>${escaparHtml(setor.nome)}</strong><span>${escaparHtml(setor.descricao || 'Setor de atendimento')}</span></li>`).join('')
+    : '<li class="select-empty">Nenhum setor encontrado.</li>';
+}
+
+function filtrarOpcoesTecnicos(termo = '') {
+  const lista = document.querySelector('#tecnicoDropdownList');
+  const idSetor = document.querySelector('#setorChamado')?.value || '';
+  if (!lista) return;
+  const busca = normalizarBusca(termo);
+  const tecnicos = equipeDoChamado.filter((membro) => String(membro.id_setor) === String(idSetor) && (membro.status || 'ATIVO') === 'ATIVO' && normalizarBusca(`${membro.nome || ''} ${membro.descricao || ''} ${membro.cargo || ''} ${membro.email || ''}`).includes(busca));
+  lista.innerHTML = tecnicos.length
+    ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
+    : '<li class="select-empty">Nenhum técnico encontrado.</li>';
+}
+
+function configurarBuscaResponsaveis() {
+  const buscaSetor = document.querySelector('#setorSearchInput');
+  const campoSetor = document.querySelector('#setorChamado');
+  const listaSetor = document.querySelector('#setorDropdownList');
+  const buscaTecnico = document.querySelector('#tecnicoSearchInput');
+  const campoTecnico = document.querySelector('#tecnicoChamado');
+  const listaTecnico = document.querySelector('#tecnicoDropdownList');
+  if (!buscaSetor || !campoSetor || !listaSetor || !buscaTecnico || !campoTecnico || !listaTecnico) return;
+
+  buscaSetor.addEventListener('focus', () => { renderizarOpcoesSetores(buscaSetor.value); listaSetor.classList.remove('hidden'); });
+  buscaSetor.addEventListener('input', () => {
+    campoSetor.value = '';
+    renderizarOpcoesTecnicos();
+    renderizarOpcoesSetores(buscaSetor.value);
+    listaSetor.classList.remove('hidden');
+  });
+  listaSetor.addEventListener('click', (event) => {
+    const opcao = event.target.closest('[data-setor-id]');
+    if (!opcao) return;
+    const setor = setoresDoChamado.find((item) => String(item.id_setor) === opcao.dataset.setorId);
+    if (!setor) return;
+    buscaSetor.value = setor.nome || '';
+    campoSetor.value = setor.id_setor;
+    listaSetor.classList.add('hidden');
+    renderizarOpcoesTecnicos(campoSetor.value);
+  });
+  buscaTecnico.addEventListener('focus', () => { filtrarOpcoesTecnicos(buscaTecnico.value); listaTecnico.classList.remove('hidden'); });
+  buscaTecnico.addEventListener('input', () => { campoTecnico.value = ''; filtrarOpcoesTecnicos(buscaTecnico.value); listaTecnico.classList.remove('hidden'); });
+  listaTecnico.addEventListener('click', (event) => {
+    const opcao = event.target.closest('[data-tecnico-id]');
+    if (!opcao) return;
+    const tecnico = equipeDoChamado.find((item) => String(item.id_grupo_solucionadores) === opcao.dataset.tecnicoId);
+    if (!tecnico) return;
+    buscaTecnico.value = tecnico.nome || tecnico.descricao || 'Técnico';
+    campoTecnico.value = tecnico.id_grupo_solucionadores;
+    listaTecnico.classList.add('hidden');
+  });
+  document.addEventListener('click', (event) => {
+    if (!document.querySelector('#selectSetorWrapper')?.contains(event.target)) listaSetor.classList.add('hidden');
+    if (!document.querySelector('#selectTecnicoWrapper')?.contains(event.target)) listaTecnico.classList.add('hidden');
+  });
 }
 
 async function carregarResponsaveisDoChamado() {
   const campoSetor = document.querySelector('#setorChamado');
-  const campoTecnico = document.querySelector('#tecnicoChamado');
-  if (!campoSetor || !campoTecnico) return;
+  if (!campoSetor) return;
   try {
     [setoresDoChamado, equipeDoChamado] = await Promise.all([buscarSetores(), buscarEquipe()]);
-    campoSetor.innerHTML = `<option value="">Selecione o setor</option>${setoresDoChamado.map((setor) => `<option value="${escaparHtml(setor.id_setor)}">${escaparHtml(setor.nome)}</option>`).join('')}`;
-    campoSetor.addEventListener('change', () => renderizarOpcoesTecnicos(campoSetor.value));
+    renderizarOpcoesSetores();
     renderizarOpcoesTecnicos();
   } catch (error) {
-    campoSetor.innerHTML = '<option value="">Não foi possível carregar os setores</option>';
-    campoTecnico.innerHTML = '<option value="">Não foi possível carregar os técnicos</option>';
-    campoTecnico.disabled = true;
+    const listaSetor = document.querySelector('#setorDropdownList');
+    if (listaSetor) listaSetor.innerHTML = '<li class="select-empty">Não foi possível carregar os setores.</li>';
+    renderizarOpcoesTecnicos();
   }
 }
 
@@ -377,8 +472,8 @@ async function salvarNovoClienteDoChamado(event) {
   try {
     const cliente = await criarCliente({ nome: campos.nome.value.trim(), telefone: campos.telefone.value.trim(), contato: campos.contato.value.trim(), email: campos.email.value.trim() });
     await carregarClientesNoChamado();
-    const seletor = document.querySelector('#clienteChamado');
-    seletor.value = cliente.nome;
+    document.querySelector('#clienteChamado').value = cliente.nome;
+    document.querySelector('#clienteSearchInput').value = cliente.nome;
     document.querySelector('#emailClienteChamado').value = cliente.email || '';
     form.reset();
     cancelarNovoClienteDoChamado();
@@ -422,6 +517,24 @@ document.addEventListener('click', async (event) => {
     const controle = statusFilterButton.closest('.status-filter-control');
     const aberto = controle.classList.toggle('is-open');
     statusFilterButton.setAttribute('aria-expanded', String(aberto));
+    return;
+  }
+
+  const chamadosFilterButton = event.target.closest('#botaoFiltroChamados');
+  if (chamadosFilterButton) {
+    const controle = chamadosFilterButton.closest('.chamados-filter-control');
+    const aberto = controle.classList.toggle('is-open');
+    chamadosFilterButton.setAttribute('aria-expanded', String(aberto));
+    return;
+  }
+
+  const filtroAbertura = event.target.closest('input[name="filtroAbertura"]');
+  if (filtroAbertura) {
+    document.querySelectorAll('input[name="filtroAbertura"]').forEach((opcao) => {
+      opcao.checked = opcao === filtroAbertura;
+    });
+    paginaChamados = 1;
+    aplicarFiltrosChamados();
     return;
   }
 
@@ -486,6 +599,8 @@ document.addEventListener('click', async (event) => {
   });
   document.querySelector('.status-filter-control.is-open')?.classList.remove('is-open');
   document.querySelector('#botaoStatusChamados')?.setAttribute('aria-expanded', 'false');
+  document.querySelector('.chamados-filter-control.is-open')?.classList.remove('is-open');
+  document.querySelector('#botaoFiltroChamados')?.setAttribute('aria-expanded', 'false');
 
   const row = event.target.closest('.chamado-row');
   if (row && !event.target.closest('[data-status-picker]')) window.location.href = `chamados-detalhe.html?id=${row.dataset.detalhes}`;
@@ -544,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aplicarFiltrosChamados();
   });
   configurarBuscaClienteChamado();
+  configurarBuscaResponsaveis();
   carregarClientesNoChamado();
   carregarResponsaveisDoChamado();
   carregarChamados().catch((error) => {

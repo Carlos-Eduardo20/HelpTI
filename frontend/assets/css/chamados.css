@@ -42,9 +42,10 @@
 }
 .status-chevron { 
 	color: #7B8794; 
-	font-size: 17px; 
-	line-height: 10px; 
+	display: inline-flex;
+	transition: transform 160ms ease;
 }
+.status-picker.is-open .status-chevron { transform: rotate(90deg); }
 .status-trigger svg { 
 	width: 16px; 
 	height: 16px; 
@@ -271,6 +272,11 @@
 	gap: 2px;
 }
 
+.chamados-filter-control {
+	position: relative;
+	margin-left: auto;
+}
+
 .status-filter-control {
 	position: relative;
 	min-width: 190px;
@@ -378,6 +384,15 @@
 	width: 15px;
 	height: 15px;
 	accent-color: var(--primary-color, #2563EB);
+}
+
+.table-wrapper {
+	width: calc(100% + 20px);
+	margin-right: -20px;
+}
+
+.table-wrapper .data-table {
+	min-width: 100%;
 }
 
 

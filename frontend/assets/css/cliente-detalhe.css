@@ -79,7 +79,10 @@
 	display: flex;
 	flex-direction: column;
 	gap: 20px;
+	min-width: 0;
 }
+
+.infra-column > .content-card { width: 100%; box-sizing: border-box; }
 
 .card-header-flex {
 	display: flex;
@@ -126,6 +129,11 @@
 	font-size: 14px;
 	color: var(--blue-600, #2563EB);
 }
+
+.asset-actions { display: none; gap: 6px; margin-top: 8px; }
+.assets-grid.is-editing .asset-actions { display: flex; }
+.asset-actions button { border: 0; background: transparent; color: var(--blue-600, #2563EB); font-size: 11px; cursor: pointer; }
+.asset-actions button + button { color: #DC2626; }
 
 .topology-flow {
 	display: flex;

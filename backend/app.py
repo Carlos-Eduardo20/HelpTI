@@ -65,6 +65,7 @@ def ensure_data_columns():
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
         "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
         "ALTER TABLE chamado ADD COLUMN descricao TEXT",
+        "ALTER TABLE chamado ADD COLUMN data_abertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
         "ALTER TABLE chamado ADD COLUMN id_setor INT",
         "ALTER TABLE chamado ADD COLUMN data_agendada DATE",
         "ALTER TABLE chamado ADD COLUMN hora_agendada TIME",
