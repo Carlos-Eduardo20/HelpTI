@@ -85,7 +85,14 @@
             Relatórios
           </a>
           <a href="educacao.html" class="tab-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16c3 3 9 3 12 0v-3.5"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="lucide lucide-graduation-cap">
+              <path
+                d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z" />
+              <path d="M22 10v6" />
+              <path d="M6 12.5V16c3 3 9 3 12 0v-3.5" />
+            </svg>
             Educação
           </a>
         </nav>
@@ -154,42 +161,63 @@
         <section class="content-card">
           <h2>Detalhes do Chamado</h2>
 
-          <div class="ticket-info-grid">
-            <div class="info-item">
-              <span class="info-label">EMPRESA CLIENTE</span>
-              <span class="info-value" id="chamado-cliente"></span>
-            </div>
+          <div class="info-ticket-wrapper">
+            <div class="ticket-info-section">
 
-            <div class="info-item">
-              <span class="info-label">CONTATO</span>
-              <span class="info-value" id="chamado-contato"></span>
-            </div>
+              <!-- Grid de 2 Colunas: Empresa à esquerda | Funcionários à direita -->
+              <div class="ticket-details-columns">
 
-            <div class="info-item">
-              <span class="info-label">TELEFONE</span>
-              <span class="info-value" id="chamado-telefone"></span>
-            </div>
+                <!-- COLUNA ESQUERDA: Dados da Empresa (Um embaixo do outro) -->
+                <div class="company-info-column">
+                  <div class="info-item">
+                    <span class="info-label">EMPRESA CLIENTE</span>
+                    <span class="info-value" id="chamado-cliente">Corp</span>
+                  </div>
 
-            <div class="info-item">
-              <span class="info-label">E-MAIL</span>
-              <span class="info-value" id="chamado-email"></span>
-            </div>
+                  <div class="info-item">
+                    <span class="info-label">E-MAIL DA EMPRESA</span>
+                    <span class="info-value" id="chamado-email">paulo.pinto@gmail.com</span>
+                  </div>
 
-            <div class="info-item">
-              <span class="info-label">DATA DE ABERTURA</span>
-              <span class="info-value" id="chamado-data"></span>
-            </div>
+                  <div class="info-item">
+                    <span class="info-label">TELEFONE DA EMPRESA</span>
+                    <span class="info-value" id="chamado-telefone">11516468532468</span>
+                  </div>
+                </div>
 
-            <div class="info-item">
-              <span class="info-label">SETOR</span>
-              <div>
-                <span class="badge badge-green" id="chamado-nivel"></span>
+                <!-- COLUNA DIREITA: Dados do Funcionário -->
+                <div class="employee-info-column">
+                  <span class="info-label">FUNCIONÁRIOS</span>
+
+                  <!-- Linha com Nome e Telefone lado a lado -->
+                  <div class="employee-card-row">
+                    <div class="info-item">
+                      <span class="info-sublabel">NOME</span>
+                      <span class="info-value" id="chamado-contato-nome">Paulo</span>
+                    </div>
+
+                    <div class="info-item">
+                      <span class="info-sublabel">TELEFONE</span>
+                      <span class="info-value" id="chamado-contato-tel">654654654</span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
-            </div>
 
-            <div class="form-group">
-              <label>Agendar Chamado</label>
-              <input name="data_agendada" type="datetime-local" required>
+              <!-- Secção Inferior: Data e Agendamento -->
+              <div class="open-and-scheduler-ticket">
+                <div class="info-date">
+                  <span class="date-wrapper">DATA DE ABERTURA</span>
+                  <span class="date-hour-open" id="chamado-data">21/09/2026 10:30</span>
+                </div>
+
+                <div class="form-group">
+                  <label class="info-label" for="data_agendada">AGENDAR CHAMADO</label>
+                  <input id="data_agendada" name="data_agendada" type="datetime-local" class="form-input" required>
+                </div>
+              </div>
+
             </div>
           </div>
         </section>
@@ -275,4 +303,5 @@
 
   <script type="module" src="../assets/js/main.js"></script>
 </body>
+
 </html>

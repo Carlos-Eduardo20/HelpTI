@@ -81,7 +81,14 @@
             </svg>
             Relatórios</a>
           <a href="educacao.html" class="tab-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-graduation-cap"><path d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16c3 3 9 3 12 0v-3.5"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="lucide lucide-graduation-cap">
+              <path
+                d="M21.42 10.922a1 1 0 0 0 0-1.844L12.83 5.15a2 2 0 0 0-1.66 0L2.58 9.078a1 1 0 0 0 0 1.844l8.59 3.93a2 2 0 0 0 1.66 0z" />
+              <path d="M22 10v6" />
+              <path d="M6 12.5V16c3 3 9 3 12 0v-3.5" />
+            </svg>
             Educação</a>
         </nav>
       </div>
@@ -273,9 +280,14 @@
         <div class="form-group">
           <label for="clienteSearchInput">Cliente / Empresa</label>
           <div class="searchable-select" id="selectClienteWrapper">
-            <input type="search" id="clienteSearchInput" placeholder="Busque por nome, telefone ou e-mail" autocomplete="off" required>
+            <input type="search" id="clienteSearchInput" placeholder="Busque por nome, telefone ou e-mail"
+              autocomplete="off" required>
             <input type="hidden" id="clienteChamado" name="cliente">
-            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6" /></svg></span>
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" class="lucide lucide-chevron-right">
+                <path d="m9 18 6-6-6-6" />
+              </svg></span>
             <ul class="select-dropdown-list hidden" id="clienteDropdownList">
               <li class="select-empty">Carregando clientes...</li>
             </ul>
@@ -283,14 +295,39 @@
         </div>
 
         <div class="form-group">
-          <label for="emailClienteChamado">E-mail para notificações</label>
-          <input type="email" id="emailClienteChamado" name="email_cliente" placeholder="cliente@empresa.com.br" required readonly>
+          <label for="emailClienteChamado">E-mail da Empresa</label>
+          <input type="email" id="emailClienteChamado" name="email_cliente" placeholder="cliente@empresa.com.br"
+            required readonly>
         </div>
 
 
         <div class="form-group">
-          <label for="telefoneClienteChamado">Número de contato</label>
-          <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(00) 00000-0000" required readonly>
+          <label for="telefoneClienteChamado">Telefone da Empresa</label>
+          <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(00) 00000-0000" required
+            readonly>
+        </div>
+
+        <div class="form-group">
+          <label for="nomeFuncionario">Adicionar Funcionário</label>
+          <div class="searchable-select" id="selectSetorWrapper">
+            <input type="search" id="funcionarioSearchInput" placeholder="Busque o funcionário" autocomplete="off"
+              required>
+            <input type="hidden" id="funcionarioChamado" name="id_funcionario">
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg></span>
+            <ul class="select-dropdown-list hidden" id="funcionarioDropdownList">
+              <li class="select-empty">Carregando funcionários...</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Telefone do Funcionário</label>
+          <input type="tel" id="telefoneFuncionarioChamado" name="telefone_funcionario" placeholder="(00) 00000-0000"
+            required readonly>
         </div>
 
         <div class="form-group">
@@ -298,18 +335,31 @@
           <div class="searchable-select" id="selectSetorWrapper">
             <input type="search" id="setorSearchInput" placeholder="Busque o setor" autocomplete="off" required>
             <input type="hidden" id="setorChamado" name="id_setor">
-            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg></span>
-            <ul class="select-dropdown-list hidden" id="setorDropdownList"><li class="select-empty">Carregando setores...</li></ul>
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg></span>
+            <ul class="select-dropdown-list hidden" id="setorDropdownList">
+              <li class="select-empty">Carregando setores...</li>
+            </ul>
           </div>
         </div>
 
         <div class="form-group">
           <label for="tecnicoSearchInput">Técnico responsável</label>
           <div class="searchable-select" id="selectTecnicoWrapper">
-            <input type="search" id="tecnicoSearchInput" placeholder="Busque o técnico" autocomplete="off" required disabled>
+            <input type="search" id="tecnicoSearchInput" placeholder="Busque o técnico" autocomplete="off" required
+              disabled>
             <input type="hidden" id="tecnicoChamado" name="id_grupo_solucionadores">
-            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg></span>
-            <ul class="select-dropdown-list hidden" id="tecnicoDropdownList"><li class="select-empty">Selecione primeiro o setor</li></ul>
+            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg></span>
+            <ul class="select-dropdown-list hidden" id="tecnicoDropdownList">
+              <li class="select-empty">Selecione primeiro o setor</li>
+            </ul>
           </div>
         </div>
 

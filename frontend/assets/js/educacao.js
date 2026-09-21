@@ -1,33 +1,33 @@
 // Base de Conhecimento / Diagnósticos por Componente
 const DIAGNOSTICOS = {
-    "Gabinete": {
-        erros: "Botão Power com mau contato ou acúmulo de poeira nos filtros de ar.",
-        solucao: "Verifique os cabos do Painel Frontal conectados à placa-mãe e realize a limpeza periódica das saídas de ar."
-    },
-    "Placa-mãe": {
-        erros: "Curto-circuito, BIOS corrompida ou capacitores estufados.",
-        solucao: "Faça o reset da BIOS (Clear CMOS), verifique os espaçadores do gabinete e teste com outra fonte de alimentação."
-    },
-    "Processador": {
-        erros: "Superaquecimento (Overheating) ou pinos dobrados.",
-        solucao: "Substitua a pasta térmica, limpe o cooler e certifique-se de que o sistema de refrigeração está firmemente instalado."
-    },
-    "Módulos de RAM": {
-        erros: "Tela azul (BSOD), apitos de erro na inicialização ou memória não reconhecida.",
-        solucao: "Limpe os contatos dourados com uma borracha escolar macia e teste os módulos em slots diferentes."
-    },
-    "Placa de vídeo": {
-        erros: "Artefatos visuais na tela, ausência de vídeo ou ventoinhas paradas.",
-        solucao: "Verifique se os cabos de alimentação PCIe estão bem conectados e atualize os drivers de vídeo."
-    },
-    "Fonte de alimentação": {
-        erros: "Computador desliga sozinho em carga alta ou não liga.",
-        solucao: "Utilize um testador de fonte para verificar as tensões de 12V, 5V e 3.3V antes de substituir a unidade."
-    },
-    "HD/SSD": {
-        erros: "Lentidão extrema, erros de I/O ou sistema operacional não encontrado.",
-        solucao: "Verifique a saúde do disco com diagnósticos S.M.A.R.T. e troque o cabo Sata ou o slot M.2."
-    }
+  "Gabinete": {
+    erros: "Botão Power com mau contato ou acúmulo de poeira nos filtros de ar.",
+    solucao: "Verifique os cabos do Painel Frontal conectados à placa-mãe e realize a limpeza periódica das saídas de ar."
+  },
+  "Placa-mãe": {
+    erros: "Curto-circuito, BIOS corrompida ou capacitores estufados.",
+    solucao: "Faça o reset da BIOS (Clear CMOS), verifique os espaçadores do gabinete e teste com outra fonte de alimentação."
+  },
+  "Processador": {
+    erros: "Superaquecimento (Overheating) ou pinos dobrados.",
+    solucao: "Substitua a pasta térmica, limpe o cooler e certifique-se de que o sistema de refrigeração está firmemente instalado."
+  },
+  "Módulos de RAM": {
+    erros: "Tela azul (BSOD), apitos de erro na inicialização ou memória não reconhecida.",
+    solucao: "Limpe os contatos dourados com uma borracha escolar macia e teste os módulos em slots diferentes."
+  },
+  "Placa de vídeo": {
+    erros: "Artefatos visuais na tela, ausência de vídeo ou ventoinhas paradas.",
+    solucao: "Verifique se os cabos de alimentação PCIe estão bem conectados e atualize os drivers de vídeo."
+  },
+  "Fonte de alimentação": {
+    erros: "Computador desliga sozinho em carga alta ou não liga.",
+    solucao: "Utilize um testador de fonte para verificar as tensões de 12V, 5V e 3.3V antes de substituir a unidade."
+  },
+  "HD/SSD": {
+    erros: "Lentidão extrema, erros de I/O ou sistema operacional não encontrado.",
+    solucao: "Verifique a saúde do disco com diagnósticos S.M.A.R.T. e troque o cabo Sata ou o slot M.2."
+  }
 };
 
 const BODY = "#DCE3EE", DARK = "#2E3A4E", ACCENT = "#2563EB", PCB = "#1E3A5F", GOLD = "#D4A73C", FRAME = "#3A4860";

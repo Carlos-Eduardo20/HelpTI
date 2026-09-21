@@ -1,42 +1,117 @@
 @import url('common.css');
 
-.breadcrumb-trail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-subtle, #8C847E); }
-.breadcrumb-trail a { color: var(--blue-600, #2563EB); text-decoration: none; }
-.breadcrumb-trail svg { width: 16px; height: 16px; flex: 0 0 16px; }
-.page-title-bar > div { display: grid; gap: 4px; }
+/* Estilização do Card de Conteúdo */
+.content-card {
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
 
-.ticket-detail-grid { 
-    display: grid; 
-    grid-template-columns: 1fr 320px; 
-    gap: 20px; 
+.content-card h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-dark, #1E1B18);
+    margin-bottom: 20px;
 }
-.ticket-main-column, .ticket-sidebar { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 20px; 
+
+/* Estrutura das Informações do Chamado */
+.info-ticket-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
+
+.ticket-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Grid de Informações Básicas */
 .ticket-info-grid { 
     display: grid; 
-    grid-template-columns: 
-    repeat(2, 1fr); gap: 16px; 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 16px; 
 }
+
 .info-item { 
     display: flex; 
     flex-direction: column; 
-    gap: 2px; 
+    gap: 4px; 
 }
+
 .info-label { 
-    font-size: 10px; 
+    font-size: 11px; 
     font-weight: 700;
     letter-spacing: 0.05em; 
     color: var(--text-subtle, #8C847E); 
     text-transform: uppercase; 
 }
+
 .info-value { 
-    font-size: 13px; 
+    font-size: 14px; 
     color: var(--text-dark, #1E1B18); 
     font-weight: 500; 
 }
+
+/* Secção de Abertura e Agendamento */
+/* Data de Abertura e Agendamento */
+.open-and-scheduler-ticket {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: flex-start;
+    padding-top: 20px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-color, #E2DCD0);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-input {
+    width: 100%;
+    height: 40px;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    color: var(--text-dark, #1E1B18);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+
+.form-input:focus {
+    border-color: var(--blue-600, #2563EB);
+}
+
+/* Breadcrumb & Titulo */
+.breadcrumb-trail { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-subtle, #8C847E); }
+.breadcrumb-trail a { color: var(--blue-600, #2563EB); text-decoration: none; }
+.breadcrumb-trail svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.page-title-bar > div { display: grid; gap: 4px; }
+
+/* Layout da Página */
+.ticket-detail-grid { 
+    display: grid; 
+    grid-template-columns: 1fr 320px; 
+    gap: 20px; 
+}
+
+.ticket-main-column, .ticket-sidebar { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 20px; 
+}
+
+/* Descrição e Histórico */
 .description-text { 
     font-size: 14px; 
     line-height: 1.6; 
@@ -46,6 +121,7 @@
     border-radius: 8px; 
     border: 1px solid var(--border-color, #E2DCD0); 
 }
+
 .timeline-list { 
     position: relative; 
     padding-left: 20px; 
@@ -53,6 +129,7 @@
     flex-direction: column; 
     gap: 20px; 
 }
+
 .timeline-list::before { 
     content: ''; 
     position: absolute; 
@@ -62,18 +139,21 @@
     width: 2px; 
     background-color: var(--border-color, #E2DCD0); 
 }
-.timeline-item { 
-    position: relative; 
-}
+
+.timeline-item { position: relative; }
+
 .timeline-dot { 
     position: absolute; 
-    left: -20px; top: 4px; 
-    width: 14px; height: 14px; 
+    left: -20px; 
+    top: 4px; 
+    width: 14px; 
+    height: 14px; 
     border-radius: 50%; 
     background-color: var(--blue-600, #2563EB); 
     border: 3px solid var(--white, #FFFFFF); 
     box-shadow: 0 0 0 1px var(--blue-600, #2563EB); 
 }
+
 .timeline-header { 
     display: flex; 
     justify-content: space-between; 
@@ -81,35 +161,30 @@
     font-size: 13px; 
     margin-bottom: 4px; 
 }
+
 .timeline-time { 
     font-size: 11px; 
     color: var(--text-subtle, #8C847E); 
 }
+
 .timeline-content p { 
     font-size: 13px; 
     color: var(--text-muted, #5C5650); 
 }
-.badge-green { 
-    background: #DCFCE7; 
-    color: #15803D; 
-}
-.badge-yellow { 
-    background: #FEF3C7; 
-    color: #D97706; 
-}
-.badge-blue { 
-    background: #EFF6FF; 
-    color: #1D4ED8; 
-}
-.badge-red { 
-    background: #FEE2E2; 
-    color: #DC2626; 
-}
+
+/* Badges */
+.badge-green { background: #DCFCE7; color: #15803D; }
+.badge-yellow { background: #FEF3C7; color: #D97706; }
+.badge-blue { background: #EFF6FF; color: #1D4ED8; }
+.badge-red { background: #FEE2E2; color: #DC2626; }
+
+/* Botões */
 .action-buttons-group { 
     display: flex; 
     flex-direction: column; 
     gap: 10px; 
 }
+
 .btn-secondary { 
     background-color: var(--bg-beige-dark, #EDE7DB); 
     color: var(--text-dark, #1E1B18); 
@@ -120,6 +195,7 @@
     font-weight: 600; 
     cursor: pointer; 
 }
+
 .btn-outline-danger { 
     background-color: transparent; 
     color: var(--red-dark, #DC2626); 
@@ -142,8 +218,101 @@
     cursor: pointer;
 }
 
+/* Responsividade para Dispositivos Móveis */
 @media (max-width: 760px) { 
-    .ticket-detail-grid, .ticket-info-grid { 
-        grid-template-columns: 1fr; 
+    .ticket-detail-grid, 
+    .ticket-info-grid, 
+    .open-and-scheduler-ticket,
+    .ticket-details-columns,
+    .employee-card-row { 
+        grid-template-columns: 1fr;
+        gap: 16px;
     } 
+}
+
+/* Layout Principal em 2 Colunas */
+.ticket-details-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Colunas iguais lado a lado */
+    gap: 32px;
+}
+
+/* Coluna Esquerda: Itens empilhados um embaixo do outro */
+.company-info-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Coluna Direita: Funcionários */
+.employee-info-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-color: var(--white);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #E2DCD0);
+}
+
+/* Linha com Nome e Telefone lado a lado */
+.employee-card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+/* Rótulos secundários para os dados do funcionário */
+.info-sublabel {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-subtle, #8C847E);
+    text-transform: uppercase;
+}
+
+/* Estilo padrão de Info Item */
+.info-item {
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+}
+
+.info-label {
+    height: 17px;
+    font-size: 11px; 
+    font-weight: 700;
+    letter-spacing: 0.05em; 
+    color: var(--text-subtle, #8C847E); 
+    text-transform: uppercase; 
+}
+
+.info-value { 
+    font-size: 14px; 
+    color: var(--text-dark, #1E1B18); 
+    font-weight: 500; 
+}
+
+.info-date {
+    height: 67px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+}
+
+.date-wrapper {
+    height: 17px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-subtle, #8C847E);
+    text-transform: uppercase;
+}
+
+.date-hour-open {
+    height: 40px;
+    background-color: #FFFFFF;
+    color: var(--text-dark, #1E1B18);
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
 }
