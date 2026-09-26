@@ -406,14 +406,47 @@
 }
 
 
-.chamados-filter-title {
-	padding: 2px 6px 8px;
+.chamados-filter-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 2px 4px 8px 6px;
 	border-bottom: 1px solid var(--border-color, #E5E7EB);
+}
+
+.chamados-filter-title {
+	min-width: 0;
+	padding: 0;
 	color: var(--text-secondary, #6B7280);
 	font-size: 11px;
 	font-weight: 700;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
+}
+
+.limpar-filtro-abertura {
+	width: 28px;
+	height: 28px;
+	flex: 0 0 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--text-secondary, #6B7280);
+	cursor: pointer;
+}
+
+.limpar-filtro-abertura:hover {
+	background: #EFF6FF;
+	color: var(--primary-color, #2563EB);
+}
+
+.limpar-filtro-abertura svg {
+	width: 16px;
+	height: 16px;
 }
 
 .chamados-filter-option {

@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify, redirect, send_from_directory
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
 import os
 import json
+import re
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
@@ -62,6 +63,15 @@ def ensure_data_columns():
     cursor.execute("""INSERT IGNORE INTO configuracao
         (id_configuracao, workspace_name, support_email)
         VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br')""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS cliente_contato (
+        id_cliente_contato INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        id_usuario INT NOT NULL,
+        nome VARCHAR(200) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        telefone VARCHAR(50) NOT NULL,
+        CONSTRAINT fk_cliente_contato_usuario FOREIGN KEY (id_usuario)
+            REFERENCES usuario(id_usuario) ON DELETE CASCADE
+    )""")
     statements = (
         "CREATE TABLE IF NOT EXISTS setor (id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL UNIQUE, descricao VARCHAR(500))",
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
@@ -411,6 +421,27 @@ def get_clientes():
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM usuario;')
         clientes = dict_fetchall(cursor)
+
+        if clientes:
+            ids = [cliente['id_usuario'] for cliente in clientes]
+            placeholders = ', '.join(['%s'] * len(ids))
+            cursor.execute(f'SELECT id_usuario, nome, email, telefone FROM cliente_contato WHERE id_usuario IN ({placeholders}) ORDER BY id_cliente_contato', ids)
+            contatos_por_cliente = {}
+            for contato in dict_fetchall(cursor):
+                contatos_por_cliente.setdefault(contato['id_usuario'], []).append({
+                    'nome': contato['nome'],
+                    'email': contato['email'],
+                    'telefone': contato['telefone']
+                })
+            for cliente in clientes:
+                contatos = contatos_por_cliente.get(cliente['id_usuario'])
+                if not contatos and any(cliente.get(campo) for campo in ('contato', 'email', 'telefone')):
+                    contatos = [{
+                        'nome': cliente.get('contato') or '',
+                        'email': cliente.get('email') or '',
+                        'telefone': cliente.get('telefone') or ''
+                    }]
+                cliente['contatos'] = contatos or []
         
         cursor.close()
         conn.close()
@@ -422,12 +453,23 @@ def get_clientes():
 @app.route('/api/clientes', methods=['POST'])
 def create_cliente():
     try:
-        dados = request.get_json()
-        
-        nome = dados.get('nome')
-        email = dados.get('email')
-        telefone = dados.get('telefone')
-        contato = dados.get('contato')
+        dados = request.get_json() or {}
+        nome = (dados.get('nome') or '').strip()
+        contatos = dados.get('contatos') or []
+        if not contatos and any(dados.get(campo) for campo in ('email', 'telefone', 'contato')):
+            contatos = [{
+                'email': dados.get('email'),
+                'telefone': dados.get('telefone'),
+                'nome': dados.get('contato')
+            }]
+        contatos = [{campo: (item.get(campo) or '').strip() for campo in ('email', 'nome', 'telefone')} for item in contatos if isinstance(item, dict)]
+
+        if not nome or not contatos:
+            return jsonify({'erro': 'Empresa e pelo menos um contato são obrigatórios'}), 400
+        if any(not contato[campo] for contato in contatos for campo in ('email', 'nome', 'telefone')):
+            return jsonify({'erro': 'Preencha e-mail, nome e telefone de todos os contatos'}), 400
+
+        primeiro_contato = contatos[0]
 
         conn = get_db_connection()
         if not conn:
@@ -436,23 +478,32 @@ def create_cliente():
         cursor = conn.cursor()
         
         query = """
-            INSERT INTO usuario (nome, email, telefone, contato)
-            VALUES (%s, %s, %s, %s);
+            INSERT INTO usuario (nome, cnpj, email, telefone, contato)
+            VALUES (%s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (nome, email, telefone, contato))
-        conn.commit()
-        
+        cnpj = (dados.get('cnpj') or '').strip() or None
+        cursor.execute(query, (nome, cnpj, primeiro_contato['email'], primeiro_contato['telefone'], primeiro_contato['nome']))
         novo_id = cursor.lastrowid
+        cursor.executemany(
+            'INSERT INTO cliente_contato (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
+            [(novo_id, contato['nome'], contato['email'], contato['telefone']) for contato in contatos]
+        )
+        conn.commit()
         
         cursor.execute('SELECT * FROM usuario WHERE id_usuario = %s;', (novo_id,))
         novo_cliente = dict_fetchone(cursor)
         
-        cursor.close()
-        conn.close()
-        
+        novo_cliente['contatos'] = contatos
         return jsonify(novo_cliente), 201
     except Error as e:
+        if 'conn' in locals() and conn:
+            conn.rollback()
         return jsonify({'erro': str(e)}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
 
 @app.route('/api/clientes/<int:id>', methods=['PUT'])
 def update_cliente(id):
@@ -602,6 +653,76 @@ def delete_equipe(id):
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
+DOMINIOS_EMAIL_PESSOAL = {
+    'aol.com', 'bol.com.br', 'email.com', 'fastmail.com', 'gmail.com',
+    'gmx.com', 'googlemail.com', 'hotmail.com', 'hotmail.com.br', 'icloud.com',
+    'ig.com.br', 'live.com', 'mail.com', 'me.com', 'msn.com', 'outlook.com',
+    'outlook.com.br', 'pm.me', 'proton.me', 'protonmail.com', 'terra.com.br',
+    'uol.com.br', 'yahoo.com', 'yahoo.com.br', 'yandex.com', 'zoho.com'
+}
+
+
+def obter_nome_empresa(email):
+    dominio = email.rsplit('@', 1)[1].lower()
+    nome = re.split(r'[-_]+', dominio.split('.', 1)[0])
+    return ' '.join(parte.capitalize() for parte in nome if parte)
+
+
+def email_corporativo_valido(email):
+    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+        return False
+    dominio = email.rsplit('@', 1)[1].lower()
+    return not any(
+        dominio == bloqueado or dominio.endswith(f'.{bloqueado}')
+        for bloqueado in DOMINIOS_EMAIL_PESSOAL
+    )
+
+
+@app.route('/api/contas', methods=['POST'])
+def criar_conta():
+    dados = request.get_json() or {}
+    empresa = (dados.get('empresa') or '').strip()
+    email = (dados.get('email') or '').strip().lower()
+    senha = dados.get('senha') or ''
+
+    if not empresa or not email or not senha:
+        return jsonify({'erro': 'Empresa, e-mail e senha são obrigatórios'}), 400
+    if not email_corporativo_valido(email):
+        return jsonify({'erro': 'Use um e-mail corporativo; provedores de e-mail pessoal não são aceitos'}), 400
+    if len(senha) < 8:
+        return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute('SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1', (email,))
+        if cursor.fetchone():
+            return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
+
+        nome_empresa = obter_nome_empresa(email)
+        cursor.execute('''
+            INSERT INTO grupo_solucionadores (descricao, nome, email, cargo, status, senha)
+            VALUES (%s, %s, %s, 'Administrador', 'ATIVO', %s)
+        ''', (empresa, nome_empresa, email, generate_password_hash(senha)))
+        conn.commit()
+        return jsonify({
+            'id': cursor.lastrowid,
+            'nome': nome_empresa,
+            'email': email,
+            'empresaNome': nome_empresa
+        }), 201
+    except Error as error:
+        conn.rollback()
+        print(f'Erro ao criar conta: {error}')
+        return jsonify({'erro': 'Não foi possível criar a conta'}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @app.route('/api/login', methods=['POST'])
 def login():
     dados = request.get_json() or {}
@@ -641,7 +762,8 @@ def login():
         'id': usuario['id'],
         'nome': usuario['nome'],
         'email': usuario['email'],
-        'cargo': usuario['cargo']
+        'cargo': usuario['cargo'],
+        'empresaNome': obter_nome_empresa(usuario['email'])
     }), 200
 
 @app.route('/api/setores', methods=['GET'])
@@ -734,27 +856,43 @@ def get_relatorios():
         periodo = request.args.get('periodo', 'todos')
         filtro_data = ''
         if periodo == 'mes':
-            filtro_data = 'WHERE YEAR(data_agendada) = YEAR(CURDATE()) AND MONTH(data_agendada) = MONTH(CURDATE())'
+            filtro_data = 'WHERE YEAR(data_abertura) = YEAR(CURDATE()) AND MONTH(data_abertura) = MONTH(CURDATE())'
         elif periodo == 'dia':
-            filtro_data = 'WHERE data_agendada = CURDATE()'
+            filtro_data = 'WHERE DATE(data_abertura) = CURDATE()'
 
         cursor.execute("""
-            SELECT status, COUNT(*) as total 
+            SELECT UPPER(TRIM(status)) AS status, COUNT(*) AS total
             FROM chamado
             """ + filtro_data + """
             GROUP BY status;
         """)
         chamados_status = dict_fetchall(cursor)
-        
-        # Taxa de SLA
+
         cursor.execute("""
-            SELECT COUNT(*) as total_resolvidos 
-            FROM chamado
-            """ + (filtro_data + (' AND ' if filtro_data else ' WHERE ') + "status = 'RESOLVIDO'") + """;
+            SELECT COALESCE(
+                NULLIF(TRIM(tc.classificacao), ''),
+                NULLIF(TRIM(tc.nome), ''),
+                'Sem classificação'
+            ) AS classificacao,
+            COUNT(*) AS total
+            FROM chamado ch
+            LEFT JOIN tipo_chamado tc ON tc.id_tipo_chamado = ch.id_tipo_chamado
+            """ + filtro_data.replace('data_abertura', 'ch.data_abertura') + """
+            GROUP BY 1
+            ORDER BY total DESC, classificacao ASC;
         """)
-        total_resolvidos = cursor.fetchone()[0]
+        chamados_classificacao = dict_fetchall(cursor)
+
         total_chamados = sum(int(item['total']) for item in chamados_status)
-        contagens = {item['status']: int(item['total']) for item in chamados_status}
+        contagens = {}
+        for item in chamados_status:
+            status = item['status'] or 'SEM STATUS'
+            if status == 'EM ANDAMENTO':
+                status = 'ANDAMENTO'
+            elif status.startswith('AGUARDANDO'):
+                status = 'AGUARDANDO'
+            contagens[status] = contagens.get(status, 0) + int(item['total'])
+        total_resolvidos = contagens.get('RESOLVIDO', 0)
         
         cursor.close()
         conn.close()
@@ -764,7 +902,8 @@ def get_relatorios():
             'total_chamados': total_chamados,
             'total_resolvidos': total_resolvidos,
             'total_pendentes': total_chamados - total_resolvidos,
-            'status': contagens
+            'status': contagens,
+            'chamados_por_classificacao': chamados_classificacao
         }), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500

@@ -3,13 +3,13 @@ from mysql.connector import Error
 import os
 from dotenv import load_dotenv
 
-# Carregar variáveis de ambiente
-load_dotenv()
+# Carregar a configuração do backend independentemente do diretório de execução.
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 class Database:
     def __init__(self):
         self.host = os.getenv('DB_HOST', 'localhost')
-        self.database = os.getenv('DB_NAME', 'helpti')
+        self.database = os.getenv('DB_NAME', 'HelpTI')
         self.user = os.getenv('DB_USER', 'root')
         self.password = os.getenv('DB_PASSWORD', '')
         self.port = os.getenv('DB_PORT', '3306')
@@ -84,7 +84,7 @@ def get_db_connection():
     try:
         conn = mysql.connector.connect(
             host=os.getenv('DB_HOST', 'localhost'),
-            database=os.getenv('DB_NAME', 'helpti'),
+            database=os.getenv('DB_NAME', 'HelpTI'),
             user=os.getenv('DB_USER', 'root'),
             password=os.getenv('DB_PASSWORD', ''),
             port=os.getenv('DB_PORT', '3306')

@@ -13,6 +13,7 @@ if (!localStorage.getItem('grupoId') && !sessionStorage.getItem('grupoId')) {
 }
 
 function openModal(id) {
+  if (id === 'modal-cliente') resetarContatosCliente();
   document.getElementById(id)?.classList.add('active');
 }
 
@@ -27,6 +28,8 @@ function toggleProfileMenu(event) {
 
 function mostrarPerfil() {
   const nome = localStorage.getItem('workspaceName') || localStorage.getItem('perfilNome') || sessionStorage.getItem('perfilNome') || 'Usuário';
+  const empresa = localStorage.getItem('empresaNome') || sessionStorage.getItem('empresaNome') || 'HelpTI';
+  document.querySelectorAll('.brand-name').forEach((element) => element.textContent = empresa);
   document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
   document.querySelectorAll('.user-avatar img').forEach((image) => {
     image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`;
@@ -97,14 +100,51 @@ async function carregarClientes() {
 async function salvarCliente(event) {
   event.preventDefault();
   const form = event.target;
-  const dados = Object.fromEntries([...form.elements]
-    .filter((element) => element.name)
-    .map((element) => [element.name, element.value.trim()]));
+  const contatos = [...form.querySelectorAll('[data-contato-row]')].map((linha) => ({
+    email: linha.querySelector('[data-contato-email]').value.trim(),
+    nome: linha.querySelector('[data-contato-nome]').value.trim(),
+    telefone: linha.querySelector('[data-contato-telefone]').value.trim()
+  }));
+  const primeiroContato = contatos[0];
+  const dados = {
+    nome: form.elements.nome.value.trim(),
+    cnpj: form.elements.cnpj.value.trim(),
+    email: primeiroContato.email,
+    contato: primeiroContato.nome,
+    telefone: primeiroContato.telefone,
+    contatos
+  };
   try {
     const { criarCliente } = await import('./api.js');
     await criarCliente(dados);
-    closeModal('modal-cliente'); form.reset(); await carregarClientes(); alert('Cliente cadastrado com sucesso.');
+    closeModal('modal-cliente'); form.reset(); resetarContatosCliente(); await carregarClientes(); alert('Cliente cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
+}
+
+function atualizarBotoesRemoverContato() {
+  const linhas = [...document.querySelectorAll('#contatosCliente [data-contato-row]')];
+  linhas.forEach((linha) => {
+    linha.querySelector('[data-remover-contato]').disabled = linhas.length === 1;
+  });
+}
+
+function adicionarContatoCliente() {
+  const lista = document.querySelector('#contatosCliente');
+  const modelo = document.querySelector('#modeloContatoCliente');
+  if (!lista || !modelo) return;
+  lista.append(modelo.content.cloneNode(true));
+  const linhas = [...lista.querySelectorAll('[data-contato-row]')];
+  linhas.at(-1).querySelector('.form-group:nth-child(2) label').textContent = 'Nome do funcionário';
+  atualizarBotoesRemoverContato();
+  linhas.at(-1).querySelector('[data-contato-email]').focus();
+}
+
+function resetarContatosCliente() {
+  const lista = document.querySelector('#contatosCliente');
+  const modelo = document.querySelector('#modeloContatoCliente');
+  if (!lista || !modelo) return;
+  lista.replaceChildren(modelo.content.cloneNode(true));
+  atualizarBotoesRemoverContato();
 }
 
 async function carregarEquipe() {
@@ -432,10 +472,12 @@ function encerrarSessao(event) {
   localStorage.removeItem('usuarioId');
   localStorage.removeItem('grupoId');
   localStorage.removeItem('perfilNome');
+  localStorage.removeItem('empresaNome');
   localStorage.removeItem('loginExpiraEm');
   localStorage.removeItem('emailLembrado');
   sessionStorage.removeItem('grupoId');
   sessionStorage.removeItem('perfilNome');
+  sessionStorage.removeItem('empresaNome');
   window.location.href = 'login.html';
 }
 
@@ -482,6 +524,14 @@ document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarC
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
   configurarFiltroClientes();
+  resetarContatosCliente();
+  document.querySelector('#adicionarContatoCliente')?.addEventListener('click', adicionarContatoCliente);
+  document.querySelector('#contatosCliente')?.addEventListener('click', (event) => {
+    const botao = event.target.closest('[data-remover-contato]');
+    if (!botao || botao.disabled) return;
+    botao.closest('[data-contato-row]')?.remove();
+    atualizarBotoesRemoverContato();
+  });
 });
 
 document.addEventListener('DOMContentLoaded', async () => {

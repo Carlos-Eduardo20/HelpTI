@@ -148,15 +148,18 @@
         sessionStorage.removeItem('grupoId');
         localStorage.removeItem('perfilNome');
         localStorage.removeItem('grupoId');
+        localStorage.removeItem('empresaNome');
         localStorage.removeItem('loginExpiraEm');
         if (lembrar) {
           localStorage.setItem('perfilNome', dados.nome);
           localStorage.setItem('grupoId', dados.id);
+          localStorage.setItem('empresaNome', dados.empresaNome || 'HelpTI');
           localStorage.setItem('loginExpiraEm', String(Date.now() + DURACAO_LOGIN_DIAS * 24 * 60 * 60 * 1000));
           localStorage.setItem('emailLembrado', email);
         } else {
           sessionStorage.setItem('perfilNome', dados.nome);
           sessionStorage.setItem('grupoId', dados.id);
+          sessionStorage.setItem('empresaNome', dados.empresaNome || 'HelpTI');
           localStorage.removeItem('emailLembrado');
         }
         window.location.href = 'dashboard.html';

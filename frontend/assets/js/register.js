@@ -6,31 +6,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formRegister = document.getElementById('formRegister');
 
-    formRegister.addEventListener('submit', (e) => {
-        e.preventDefault();
+    formRegister.addEventListener('submit', async (event) => {
+        event.preventDefault();
 
         const empresa = document.getElementById('empresa').value.trim();
-        const email = document.getElementById('email').value.trim();
+        const email = document.getElementById('email').value.trim().toLowerCase();
         const senha = document.getElementById('senha').value;
         const confirmarSenha = document.getElementById('confirmarSenha').value;
+        const feedback = document.getElementById('registerFeedback');
+        const botao = formRegister.querySelector('button[type="submit"]');
 
-        // Validação de senhas iguais
+        feedback.textContent = '';
+        feedback.classList.remove('success');
         if (senha !== confirmarSenha) {
-            alert('As senhas não coincidem!');
+            feedback.textContent = 'As senhas não coincidem.';
             return;
         }
 
-        // Validação básica de e-mail corporativo (exemplo)
-        const dominiosProibidos = ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com'];
-        const dominioEmail = email.split('@')[1]?.toLowerCase();
-
-        if (dominiosProibidos.includes(dominioEmail)) {
-            alert('Por favor, utilize um e-mail corporativo para realizar a solicitação.');
+        const dominio = email.split('@').pop().toLowerCase();
+        const dominiosPessoais = new Set([
+            'aol.com', 'bol.com.br', 'email.com', 'fastmail.com', 'gmail.com',
+            'gmx.com', 'googlemail.com', 'hotmail.com', 'hotmail.com.br', 'icloud.com',
+            'ig.com.br', 'live.com', 'mail.com', 'me.com', 'msn.com', 'outlook.com',
+            'outlook.com.br', 'pm.me', 'proton.me', 'protonmail.com', 'terra.com.br',
+            'uol.com.br', 'yahoo.com', 'yahoo.com.br', 'yandex.com', 'zoho.com'
+        ]);
+        if ([...dominiosPessoais].some((pessoal) => dominio === pessoal || dominio.endsWith(`.${pessoal}`))) {
+            feedback.textContent = 'Use um e-mail corporativo. Provedores de e-mail pessoal não são aceitos.';
             return;
         }
 
-        // Envio do formulário para o seu Backend Python/API
-        console.log('Dados prontos para envio:', { empresa, email, senha });
-        alert('Solicitação enviada com sucesso!');
+        botao.disabled = true;
+        botao.textContent = 'Criando conta...';
+        try {
+            const response = await fetch('http://127.0.0.1:5000/api/contas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empresa, email, senha })
+            });
+            const dados = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(dados.erro || 'Não foi possível criar a conta.');
+
+            sessionStorage.setItem('grupoId', String(dados.id));
+            sessionStorage.setItem('perfilNome', dados.nome);
+            sessionStorage.setItem('empresaNome', dados.empresaNome);
+            window.location.href = 'dashboard.html';
+        } catch (error) {
+            feedback.textContent = error.message;
+            botao.disabled = false;
+            botao.textContent = 'Criar conta empresarial';
+        }
     });
 });

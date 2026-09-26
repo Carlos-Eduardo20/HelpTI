@@ -23,7 +23,7 @@ Isso vai instalar:
 
 ### 2. Configurar Variáveis de Ambiente
 
-Crie o arquivo `backend/.env` manualmente. Ele não deve ser enviado ao GitHub, pois contém a senha do banco:
+Copie `backend/.env.example` para `backend/.env` e ajuste o usuário e a senha usados na sua instalação local do MySQL. O arquivo `.env` não deve ser enviado ao GitHub, pois contém a senha do banco:
 
 ```
 DB_HOST=localhost

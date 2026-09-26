@@ -113,6 +113,97 @@
 .table-wrapper .data-table th:nth-child(4),
 .table-wrapper .data-table td:nth-child(4) { min-width: 150px; }
 
+.client-contact-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin: 4px 0 12px;
+}
+
+.client-contact-heading h3 {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-dark, #1E1B18);
+}
+
+.client-contact-heading p {
+	margin-top: 3px;
+	font-size: 12px;
+	color: var(--text-muted, #5C5650);
+}
+
+.client-contact-add,
+.client-contact-remove {
+	width: 36px;
+	height: 36px;
+	flex: 0 0 36px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--border-color, #D1D5DB);
+	border-radius: 6px;
+	background: #FFFFFF;
+	color: var(--text-secondary, #6B7280);
+	cursor: pointer;
+}
+
+.client-contact-add:hover {
+	border-color: var(--primary-color, #2563EB);
+	background: #EFF6FF;
+	color: var(--primary-color, #2563EB);
+}
+
+.client-contact-list {
+	display: grid;
+	gap: 12px;
+}
+
+.client-contact-row {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr)) 36px;
+	align-items: end;
+	gap: 12px;
+	padding: 12px;
+	border: 1px solid var(--border-color, #E5E7EB);
+	border-radius: 8px;
+	background: #FAFAF9;
+}
+
+.client-contact-row .form-group {
+	min-width: 0;
+	margin-bottom: 0;
+}
+
+.client-contact-remove {
+	margin-bottom: 16px;
+	color: #B91C1C;
+}
+
+.client-contact-remove:hover:not(:disabled) {
+	background: #FEF2F2;
+	border-color: #FCA5A5;
+}
+
+.client-contact-remove:disabled {
+	visibility: hidden;
+}
+
+@media (max-width: 760px) {
+	.client-contact-row {
+		grid-template-columns: repeat(2, minmax(0, 1fr)) 36px;
+	}
+
+	.client-contact-row .form-group:nth-child(3) {
+		grid-column: 1 / 3;
+	}
+
+	.client-contact-remove {
+		grid-column: 3;
+		grid-row: 1 / 3;
+	}
+}
+
 @media (max-width: 700px) {
 	.client-filters {
 		align-items: stretch;
@@ -121,5 +212,20 @@
 
 	.client-filters input {
 		width: min(250px, 100%) !important;
+	}
+}
+
+@media (max-width: 560px) {
+	.client-contact-row {
+		grid-template-columns: minmax(0, 1fr) 36px;
+	}
+
+	.client-contact-row .form-group:nth-child(3) {
+		grid-column: 1;
+	}
+
+	.client-contact-remove {
+		grid-column: 2;
+		grid-row: 1 / 4;
 	}
 }

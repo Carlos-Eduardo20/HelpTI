@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import Error
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 host = os.getenv('DB_HOST', 'localhost')
 user = os.getenv('DB_USER', 'root')

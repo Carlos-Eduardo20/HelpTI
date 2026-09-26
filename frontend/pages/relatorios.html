@@ -200,30 +200,14 @@
       <!-- Chamados por Classificação -->
       <div class="content-card">
         <h2>Chamados por Classificação</h2>
-        <div class="donut-chart-container">
-          <div class="donut-ring">
+        <div class="donut-chart-container" id="grafico-classificacao" aria-live="polite">
+          <div class="donut-ring" id="anel-classificacao">
             <div class="donut-center">
-              <strong>247</strong>
-              <span>Total</span>
+              <strong id="total-classificacao">0</strong>
+              <span>Chamados</span>
             </div>
           </div>
-          <div class="donut-legend">
-            <div class="legend-item">
-              <span class="dot dot-green"></span>
-              <span class="legend-title">Nível 1 - Interno</span>
-              <strong class="legend-val">45% <span class="sub-count">111 un</span></strong>
-            </div>
-            <div class="legend-item">
-              <span class="dot dot-blue"></span>
-              <span class="legend-title">Nível 2 - Terceirizado</span>
-              <strong class="legend-val">35% <span class="sub-count">86 un</span></strong>
-            </div>
-            <div class="legend-item">
-              <span class="dot dot-navy"></span>
-              <span class="legend-title">Nível 3 - Operadora</span>
-              <strong class="legend-val">20% <span class="sub-count">50 un</span></strong>
-            </div>
-          </div>
+          <div class="donut-legend" id="legenda-classificacao"></div>
         </div>
       </div>
 
@@ -264,11 +248,21 @@
 
           <div class="status-progress-item" data-status="AGUARDANDO">
             <div class="status-info">
-              <span>Aguardando terceiro</span>
+              <span>Aguardando</span>
               <strong><span class="status-percent">0%</span> <span class="count-text">0 chamados</span></strong>
             </div>
             <div class="progress-bar-bg">
               <div class="progress-bar-fill fill-red"></div>
+            </div>
+          </div>
+
+          <div class="status-progress-item" data-status="PAUSADO">
+            <div class="status-info">
+              <span>Pausados</span>
+              <strong><span class="status-percent">0%</span> <span class="count-text">0 chamados</span></strong>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill fill-gray"></div>
             </div>
           </div>
 

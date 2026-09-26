@@ -19,6 +19,16 @@ CREATE TABLE IF NOT EXISTS usuario (
     senha_hash VARCHAR(255)
 );
 
+CREATE TABLE IF NOT EXISTS cliente_contato (
+    id_cliente_contato INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    nome VARCHAR(200) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    telefone VARCHAR(50) NOT NULL,
+    CONSTRAINT fk_cliente_contato_usuario FOREIGN KEY (id_usuario)
+        REFERENCES usuario(id_usuario) ON DELETE CASCADE
+);
+
 -- Tabela de Tipos de Chamados
 CREATE TABLE IF NOT EXISTS tipo_chamado (
     id_tipo_chamado INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

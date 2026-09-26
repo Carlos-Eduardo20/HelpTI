@@ -47,11 +47,12 @@
                         <label for="email">E-mail corporativo</label>
                         <div class="input-icon-wrapper">
                             <i data-lucide="mail" class="input-icon"></i>
-                            <input 
-                                type="email" 
-                                id="email" 
-                                name="email" 
-                                placeholder="voce@suaempresa.com.br" 
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                placeholder="voce@suaempresa.com.br"
+                                autocomplete="email"
                                 required
                             >
                         </div>
@@ -65,11 +66,13 @@
                         <label for="senha">Senha</label>
                         <div class="input-icon-wrapper">
                             <i data-lucide="lock" class="input-icon"></i>
-                            <input 
-                                type="password" 
-                                id="senha" 
-                                name="senha" 
-                                placeholder="••••••••" 
+                            <input
+                                type="password"
+                                id="senha"
+                                name="senha"
+                                placeholder="Mínimo de 8 caracteres"
+                                minlength="8"
+                                autocomplete="new-password"
                                 required
                             >
                         </div>
@@ -80,18 +83,21 @@
                         <label for="confirmarSenha">Confirmar senha</label>
                         <div class="input-icon-wrapper">
                             <i data-lucide="lock" class="input-icon"></i>
-                            <input 
-                                type="password" 
-                                id="confirmarSenha" 
-                                name="confirmarSenha" 
-                                placeholder="••••••••" 
+                            <input
+                                type="password"
+                                id="confirmarSenha"
+                                name="confirmarSenha"
+                                placeholder="Repita sua senha"
+                                minlength="8"
+                                autocomplete="new-password"
                                 required
                             >
                         </div>
                     </div>
 
                     <!-- Botão de Ação -->
-                    <button type="submit" class="btn-primary-auth">Solicitar conta</button>
+                    <p class="form-message" id="registerFeedback" role="status" aria-live="polite"></p>
+                    <button type="submit" class="btn-primary-auth">Criar conta empresarial</button>
                 </form>
             </div>
 

@@ -520,7 +520,10 @@ document.addEventListener('click', async (event) => {
   const statusFilterButton = event.target.closest('#botaoStatusChamados');
   if (statusFilterButton) {
     const controle = statusFilterButton.closest('.status-filter-control');
-    const aberto = controle.classList.toggle('is-open');
+    const aberto = !controle.classList.contains('is-open');
+    document.querySelector('.chamados-filter-control.is-open')?.classList.remove('is-open');
+    document.querySelector('#botaoFiltroChamados')?.setAttribute('aria-expanded', 'false');
+    controle.classList.toggle('is-open', aberto);
     statusFilterButton.setAttribute('aria-expanded', String(aberto));
     return;
   }
@@ -528,15 +531,27 @@ document.addEventListener('click', async (event) => {
   const chamadosFilterButton = event.target.closest('#botaoFiltroChamados');
   if (chamadosFilterButton) {
     const controle = chamadosFilterButton.closest('.chamados-filter-control');
-    const aberto = controle.classList.toggle('is-open');
+    const aberto = !controle.classList.contains('is-open');
+    document.querySelector('.status-filter-control.is-open')?.classList.remove('is-open');
+    document.querySelector('#botaoStatusChamados')?.setAttribute('aria-expanded', 'false');
+    controle.classList.toggle('is-open', aberto);
     chamadosFilterButton.setAttribute('aria-expanded', String(aberto));
+    return;
+  }
+
+  const limparFiltroAbertura = event.target.closest('#limparFiltroAbertura');
+  if (limparFiltroAbertura) {
+    document.querySelectorAll('input[name="filtroAbertura"]').forEach((opcao) => { opcao.checked = false; });
+    paginaChamados = 1;
+    aplicarFiltrosChamados();
     return;
   }
 
   const filtroAbertura = event.target.closest('input[name="filtroAbertura"]');
   if (filtroAbertura) {
+    const selecionado = filtroAbertura.checked;
     document.querySelectorAll('input[name="filtroAbertura"]').forEach((opcao) => {
-      opcao.checked = opcao === filtroAbertura;
+      opcao.checked = opcao === filtroAbertura && selecionado;
     });
     paginaChamados = 1;
     aplicarFiltrosChamados();
@@ -608,7 +623,9 @@ document.addEventListener('click', async (event) => {
   document.querySelector('#botaoFiltroChamados')?.setAttribute('aria-expanded', 'false');
 
   const row = event.target.closest('.chamado-row');
-  if (row && !event.target.closest('[data-status-picker]')) window.location.href = `chamados-detalhe.html?id=${row.dataset.detalhes}`;
+  if (row && !event.target.closest('[data-status-picker]')) {
+    window.open(`chamados-detalhe.html?id=${encodeURIComponent(row.dataset.detalhes)}`, '_blank', 'noopener,noreferrer');
+  }
 });
 
 window.addEventListener('resize', () => {

@@ -90,6 +90,10 @@
   margin-bottom: 24px;
 }
 
+@media (max-width: 760px) {
+  .distributions-grid { grid-template-columns: 1fr; }
+}
+
 /* Donut Chart (Gráfico por Classificação) */
 .donut-chart-container {
   display: flex;
@@ -102,11 +106,7 @@
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: conic-gradient(
-    #10B981 0% 45%,
-    #2563EB 45% 80%,
-    #1E3A8A 80% 100%
-  );
+  background: conic-gradient(#E5E7EB 0% 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -203,3 +203,9 @@
 .fill-yellow { background: #F59E0B; }
 .fill-blue { background: #2563EB; }
 .fill-red { background: #EF4444; }
+.fill-gray { background: #6B7280; }
+
+@media (max-width: 560px) {
+  .donut-chart-container { align-items: flex-start; flex-direction: column; }
+  .report-periods { flex-wrap: wrap; }
+}
