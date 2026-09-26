@@ -152,7 +152,7 @@
         <!-- Filtros de Busca -->
         <section class="content-card" style="margin-bottom: 20px; padding: 16px 20px;">
             <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-                <input id="buscaChamados" type="text" placeholder="Buscar por ID, cliente ou assunto..."
+                <input id="buscaChamados" type="text" placeholder="Buscar por ID ou cliente..."
                     style="flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px;">
 
                 <div class="status-filter-control">
@@ -174,6 +174,8 @@
                             Andamento</button>
                         <button type="button" role="option" data-status-filter="AGUARDANDO"
                             aria-selected="false">Aguardando Terceiros</button>
+                        <button type="button" role="option" data-status-filter="PAUSADO"
+                            aria-selected="false">Pausado</button>
                         <button type="button" role="option" data-status-filter="RESOLVIDO"
                             aria-selected="false">Resolvido</button>
                     </div>
@@ -182,6 +184,7 @@
                         <option value="ABERTO">Aberto</option>
                         <option value="ANDAMENTO">Em Andamento</option>
                         <option value="AGUARDANDO">Aguardando Terceiros</option>
+                        <option value="PAUSADO">Pausado</option>
                         <option value="RESOLVIDO">Resolvido</option>
                     </select>
                 </div>
@@ -285,27 +288,17 @@
                         required readonly>
                 </div>
 
-                <div class="form-group">
-                    <label for="nomeFuncionario">Adicionar Funcionário</label>
-                    <div class="searchable-select" id="selectSetorWrapper">
-                        <input type="search" id="funcionarioSearchInput" placeholder="Busque o funcionário"
-                            autocomplete="off" required>
-                        <input type="hidden" id="funcionarioChamado" name="id_funcionario">
-                        <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16"
-                                height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="m9 18 6-6-6-6" />
-                            </svg></span>
-                        <ul class="select-dropdown-list hidden" id="funcionarioDropdownList">
-                            <li class="select-empty">Carregando funcionários...</li>
-                        </ul>
+                <div class="employee-contact-fields">
+                    <div class="form-group">
+                        <label for="funcionarioSearchInput">Adicionar Funcionário</label>
+                        <input type="text" id="funcionarioSearchInput" name="contato_cliente"
+                            placeholder="Nome do funcionário" autocomplete="name" required>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Telefone do Funcionário</label>
-                    <input type="tel" id="telefoneFuncionarioChamado" name="telefone_funcionario"
-                        placeholder="(00) 00000-0000" required readonly>
+                    <div class="form-group">
+                        <label for="telefoneFuncionarioChamado">Telefone do Funcionário</label>
+                        <input type="tel" id="telefoneFuncionarioChamado" name="telefone_contato"
+                            placeholder="(00) 00000-0000" autocomplete="tel" required>
+                    </div>
                 </div>
 
                 <div class="form-group">

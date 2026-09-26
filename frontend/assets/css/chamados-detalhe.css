@@ -10,7 +10,8 @@
 }
 
 .content-card h2 {
-    font-size: 22px;
+    font-family: var(--font-family-secondary, sans-serif);
+    font-size: 20px;
     font-weight: 700;
     color: var(--text-dark, #1E1B18);
     margin-bottom: 20px;
@@ -90,6 +91,72 @@
 
 .form-input:focus {
     border-color: var(--blue-600, #2563EB);
+    box-shadow: 0 0 0 3px var(--blue-100, #EFF6FF);
+}
+
+#data_agendada {
+    min-height: 46px;
+    border-radius: 6px;
+    background: var(--white, #FFFFFF);
+}
+
+.scheduler-panel {
+    display: grid;
+    gap: 13px;
+    align-content: start;
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-left: 3px solid var(--blue-600, #2563EB);
+    border-radius: 6px;
+    background: var(--bg-card-alt, #FDF8F3);
+}
+
+.scheduler-heading {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.scheduler-icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    border-radius: 6px;
+    background: var(--blue-100, #EFF6FF);
+    color: var(--blue-700, #1D4ED8);
+}
+
+.scheduler-icon svg,
+.scheduler-save-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.scheduler-heading label {
+    display: block;
+    color: var(--text-dark, #1E1B18);
+    font: 700 15px var(--font-family-secondary, sans-serif);
+}
+
+.scheduler-heading p {
+    margin-top: 3px;
+    color: var(--text-subtle, #8C847E);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.scheduler-save-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    justify-self: start;
+    min-height: 38px;
+    padding: 8px 13px;
+    font: 600 13px var(--font-family-primary, sans-serif);
 }
 
 /* Breadcrumb & Titulo */
@@ -101,7 +168,7 @@
 /* Layout da Página */
 .ticket-detail-grid { 
     display: grid; 
-    grid-template-columns: 1fr 320px; 
+    grid-template-columns: minmax(0, 1fr) 320px; 
     gap: 20px; 
 }
 
@@ -109,6 +176,13 @@
     display: flex; 
     flex-direction: column; 
     gap: 20px; 
+    min-width: 0;
+}
+
+.ticket-detail-grid > *,
+.ticket-details-columns > *,
+.employee-card-row > * {
+    min-width: 0;
 }
 
 /* Descrição e Histórico */
@@ -178,6 +252,137 @@
 .badge-blue { background: #EFF6FF; color: #1D4ED8; }
 .badge-red { background: #FEE2E2; color: #DC2626; }
 
+#tempoChamado {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 11px;
+    border: 1px solid var(--blue-200, #DBEAFE);
+    border-radius: 6px;
+    background: var(--blue-100, #EFF6FF);
+    color: var(--blue-700, #1D4ED8);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+#tempoChamado.is-warning {
+    border-color: var(--orange-main, #F59E0B);
+    background: var(--yellow-light, #FEF3C7);
+    color: var(--orange-dark, #D97706);
+}
+
+#tempoChamado.is-critical {
+    border-color: var(--red-border, #F87171);
+    background: var(--red-badge-bg, #FEE2E2);
+    color: var(--red-deep, #991B1B);
+}
+
+.workflow-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(30, 27, 24, 0.56);
+    backdrop-filter: blur(3px);
+}
+
+.workflow-modal.active {
+    display: flex;
+}
+
+.workflow-dialog {
+    display: grid;
+    gap: 18px;
+    width: min(100%, 520px);
+    max-height: min(90vh, 760px);
+    overflow-y: auto;
+    padding: 26px;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-radius: 10px;
+    background: var(--white, #FFFFFF);
+    box-shadow: 0 24px 64px rgba(30, 27, 24, 0.2);
+}
+
+.workflow-dialog-header,
+.workflow-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.workflow-dialog h2 {
+    margin: 5px 0 0;
+    color: var(--text-dark, #1E1B18);
+    font: 700 21px var(--font-family-secondary, sans-serif);
+}
+
+.workflow-field {
+    display: grid;
+    gap: 7px;
+    color: var(--text-dark, #1E1B18);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.workflow-field select,
+.workflow-field textarea {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-radius: 6px;
+    background: var(--white, #FFFFFF);
+    color: var(--text-dark, #1E1B18);
+    font: 400 14px var(--font-family-primary, sans-serif);
+}
+
+.workflow-field textarea {
+    min-height: 112px;
+    resize: vertical;
+}
+
+.workflow-field select:focus,
+.workflow-field textarea:focus {
+    outline: 2px solid var(--blue-200, #DBEAFE);
+    border-color: var(--blue-600, #2563EB);
+}
+
+.workflow-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    padding-top: 4px;
+}
+
+.resolution-time {
+    display: flex;
+    justify-content: space-between;
+    padding: 13px 15px;
+    border-radius: 6px;
+    background: var(--bg-beige-light, #FAF8F5);
+    color: var(--text-muted, #5C5650);
+    font-size: 14px;
+}
+
+.resolution-time strong {
+    color: var(--text-dark, #1E1B18);
+    font-variant-numeric: tabular-nums;
+}
+
+.workflow-note {
+    color: var(--text-subtle, #8C847E);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.action-buttons-group button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Botões */
 .action-buttons-group { 
     display: flex; 
@@ -225,7 +430,7 @@
     .open-and-scheduler-ticket,
     .ticket-details-columns,
     .employee-card-row { 
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         gap: 16px;
     } 
 }
@@ -233,7 +438,7 @@
 /* Layout Principal em 2 Colunas */
 .ticket-details-columns {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Colunas iguais lado a lado */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 32px;
 }
 
@@ -258,7 +463,7 @@
 /* Linha com Nome e Telefone lado a lado */
 .employee-card-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 16px;
     align-items: center;
 }

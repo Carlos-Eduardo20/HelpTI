@@ -109,10 +109,13 @@ import {
 const chamados = await buscarChamados();
 await criarChamado({
   cliente: 'Tech Corp',
-  assunto: 'Impressora não conecta',
+  email_cliente: 'suporte@techcorp.com.br',
+  telefone_cliente: '1133334444',
+  contato_cliente: 'Ana Souza',
+  telefone_contato: '11999998888',
+  id_setor: 1,
+  id_grupo_solucionadores: 1,
   descricao: 'Falha ao conectar na rede',
-  data_agendada: null,
-  hora_agendada: null
 });
 ```
 
@@ -132,14 +135,17 @@ await criarChamado({
   "id_grupo_solucionadores": null,
   "status": "ABERTO",
   "cliente": "Tech Corp",
-  "assunto": "Impressora não conecta",
+  "email_cliente": "suporte@techcorp.com.br",
+  "telefone_cliente": "1133334444",
+  "contato_cliente": "Ana Souza",
+  "telefone_contato": "11999998888",
   "descricao": "Falha ao conectar na rede",
   "data_agendada": null,
   "hora_agendada": null
 }
 ```
 
-Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `RESOLVIDO`
+Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `PAUSADO`, `RESOLVIDO`. Para resolver, use a ação de encerramento na tela do chamado; ela registra a descrição final e envia o e-mail ao cliente.
 
 ## Erros Comuns
 

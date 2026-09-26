@@ -82,6 +82,10 @@
 	background: #F97316;
 }
 
+.status-pausado .status-dot {
+	background: var(--orange-main, #F59E0B);
+}
+
 .status-resolvido .status-dot {
 	background: #10B981;
 }

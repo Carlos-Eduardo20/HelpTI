@@ -102,32 +102,40 @@
         </div>
 
         <div class="client-info-list">
-          <div class="info-item">
-            <span class="info-label">SETOR</span>
-            <span class="info-value" id="membro-setor" data-edit-field="id_setor"></span>
-          </div>
+          <div class="info-grid team-info-grid">
+            <div class="info-client">
+              <div class="info-item">
+                <span class="info-label">SETOR</span>
+                <span class="info-value" id="membro-setor" data-edit-field="id_setor"></span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">CARGO</span>
+                <span class="info-value" id="membro-cargo" data-edit-field="cargo"></span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">INÍCIO DO CONTRATO</span>
+                <span class="info-value" id="membro-admissao" data-edit-field="data_inicio"></span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">VALOR DA HORA</span>
+                <span class="info-value" id="membro-valor-hora" data-edit-field="valor_hora"></span>
+              </div>
+            </div>
 
-          <div class="info-item">
-            <span class="info-label">E-MAIL</span>
-            <span class="info-value" id="membro-email" data-edit-field="email"></span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">TELEFONE</span>
-            <span class="info-value" id="membro-telefone" data-edit-field="telefone"></span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">INÍCIO DO CONTRATO</span>
-            <span class="info-value" id="membro-admissao" data-edit-field="data_inicio"></span>
-          </div>
-
-          <div class="info-item">
-            <span class="info-label">VALOR DA HORA</span>
-            <span class="info-value" id="membro-valor-hora" data-edit-field="valor_hora"></span>
+            <div class="info-contato">
+              <div class="info-item">
+                <span class="info-label">E-MAIL</span>
+                <span class="info-value" id="membro-email" data-edit-field="email"></span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">TELEFONE</span>
+                <span class="info-value" id="membro-telefone" data-edit-field="telefone"></span>
+              </div>
+            </div>
           </div>
 
           <button type="button" class="detail-danger-button" id="desativarMembro">Desativar Técnico</button>
+        </div>
       </section>
 
       <!-- Coluna da Direita (Métricas & Especialidades) -->
@@ -172,7 +180,6 @@
         <thead>
           <tr>
             <th>ID</th>
-            <th>ASSUNTO</th>
             <th>STATUS</th>
             <th>DATA</th>
           </tr>
@@ -180,31 +187,26 @@
         <tbody>
           <tr>
             <td><strong>#TI-3829</strong></td>
-            <td>Sem conexão de internet no escritório</td>
             <td><span class="badge badge-yellow">Aguardando Operadora</span></td>
             <td>Hoje, 10:14</td>
           </tr>
           <tr>
             <td><strong>#TI-3750</strong></td>
-            <td>Configuração de novo AP corporativo</td>
             <td><span class="badge badge-blue">Resolvido</span></td>
             <td>Ontem, 16:30</td>
           </tr>
           <tr>
             <td><strong>#TI-3712</strong></td>
-            <td>Instalação de ramal IP na recepção</td>
             <td><span class="badge badge-blue">Resolvido</span></td>
             <td>24 Ago, 14:15</td>
           </tr>
           <tr>
             <td><strong>#TI-3690</strong></td>
-            <td>Lentidão extrema no switch core</td>
             <td><span class="badge badge-blue">Resolvido</span></td>
             <td>22 Ago, 09:10</td>
           </tr>
           <tr>
             <td><strong>#TI-3544</strong></td>
-            <td>Falha na VPN de parceiro externo</td>
             <td><span class="badge badge-red">SLA Estourado</span></td>
             <td>18 Ago, 11:20</td>
           </tr>

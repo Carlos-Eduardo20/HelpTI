@@ -7,7 +7,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-family-primary, sans-serif);
   background-color: var(--bg-main, #F8F6F0);
   color: var(--text-primary, #111827);
 }
@@ -431,6 +431,16 @@ body {
   gap: 16px;
 }
 
+.employee-contact-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.employee-contact-fields .form-group {
+  min-width: 0;
+}
+
 .modal-actions,
 .modal-footer,
 .form-actions {
@@ -448,5 +458,58 @@ body {
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .employee-contact-fields {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .top-navbar {
+    height: auto;
+    min-height: 64px;
+  }
+
+  .nav-container {
+    position: relative;
+    min-width: 0;
+    padding: 8px 12px;
+  }
+
+  .brand-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .navbar-brand {
+    min-width: 0;
+    padding-right: 80px;
+  }
+
+  .nav-tabs {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 2px;
+    padding-bottom: 3px;
+  }
+
+  .tab-item {
+    flex: 0 0 auto;
+    padding: 8px 9px;
+    font-size: 12px;
+  }
+
+  .user-profile-wrapper {
+    position: absolute;
+    top: 2px;
+    right: 12px;
+    min-height: 48px;
   }
 }

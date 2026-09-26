@@ -117,6 +117,26 @@
 	gap: 14px;
 }
 
+.team-info-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	justify-items: center;
+	align-items: start;
+	gap: 32px;
+	width: 100%;
+}
+
+.team-info-grid > div {
+	display: grid;
+	gap: 18px;
+	width: 100%;
+	max-width: 220px;
+}
+
+.team-info-grid .info-value {
+	overflow-wrap: anywhere;
+}
+
 .info-item {
 	display: flex;
 	flex-direction: column;
@@ -218,5 +238,16 @@
 
 	.team-stats-grid {
 		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 560px) {
+	.team-info-grid {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 22px;
+	}
+
+	.team-info-grid > div {
+		max-width: 320px;
 	}
 }

@@ -391,6 +391,7 @@
 .ticket-card-agenda.status-aguardando { border-left-color: #F97316; background-color: #FEF2F2; }
 .ticket-card-agenda.priority-high,
 .ticket-card-agenda.status-andamento { border-left-color: #F59E0B; background-color: #FEF3C7; }
+.ticket-card-agenda.status-pausado { border-left-color: var(--orange-main, #F59E0B); background-color: var(--yellow-light, #FEF3C7); }
 .ticket-card-agenda.priority-medium,
 .ticket-card-agenda.status-aberto { border-left-color: #3B82F6; background-color: #EFF6FF; }
 .ticket-card-agenda.priority-low,

@@ -5,6 +5,8 @@ import mysql.connector
 from mysql.connector import Error
 import os
 import json
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import webbrowser
@@ -64,7 +66,15 @@ def ensure_data_columns():
         "CREATE TABLE IF NOT EXISTS setor (id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL UNIQUE, descricao VARCHAR(500))",
         "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
         "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
+        "ALTER TABLE chamado MODIFY COLUMN assunto VARCHAR(255) NULL",
         "ALTER TABLE chamado ADD COLUMN descricao TEXT",
+        "ALTER TABLE chamado ADD COLUMN email_cliente VARCHAR(255)",
+        "ALTER TABLE chamado ADD COLUMN telefone_cliente VARCHAR(50)",
+        "ALTER TABLE chamado ADD COLUMN contato_cliente VARCHAR(200)",
+        "ALTER TABLE chamado ADD COLUMN telefone_contato VARCHAR(50)",
+        "ALTER TABLE chamado ADD COLUMN descricao_final TEXT",
+        "ALTER TABLE chamado ADD COLUMN tempo_decorrido_segundos INT NOT NULL DEFAULT 0",
+        "ALTER TABLE chamado ADD COLUMN tempo_inicio DATETIME NULL",
         "ALTER TABLE chamado ADD COLUMN data_abertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
         "ALTER TABLE chamado ADD COLUMN id_setor INT",
         "ALTER TABLE chamado ADD COLUMN data_agendada DATE",
@@ -77,7 +87,9 @@ def ensure_data_columns():
         "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
         "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN telefone VARCHAR(50)",
-        "ALTER TABLE setor ADD COLUMN niveis TEXT"
+        "ALTER TABLE setor ADD COLUMN niveis TEXT",
+        "ALTER TABLE escalonamento ADD COLUMN id_setor_destino INT",
+        "ALTER TABLE escalonamento ADD COLUMN id_grupo_destino INT"
     )
     for statement in statements:
         try:
@@ -204,13 +216,16 @@ def create_chamado():
         dados = request.get_json() or {}
         
         cliente = (dados.get('cliente') or '').strip()
-        assunto = (dados.get('assunto') or '').strip()
         descricao = (dados.get('descricao') or '').strip()
+        email_cliente = (dados.get('email_cliente') or '').strip()
+        telefone_cliente = (dados.get('telefone_cliente') or '').strip()
+        contato_cliente = (dados.get('contato_cliente') or '').strip()
+        telefone_contato = (dados.get('telefone_contato') or '').strip()
         id_setor = dados.get('id_setor')
         id_grupo_solucionadores = dados.get('id_grupo_solucionadores')
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
 
-        if not cliente or not dados.get('email_cliente') or not dados.get('telefone_cliente') or not assunto or not descricao or not id_setor or not id_grupo_solucionadores:
+        if not cliente or not email_cliente or not telefone_cliente or not contato_cliente or not telefone_contato or not descricao or not id_setor or not id_grupo_solucionadores:
             return jsonify({'erro': 'Todos os campos do chamado são obrigatórios'}), 400
 
         conn = get_db_connection()
@@ -231,10 +246,12 @@ def create_chamado():
         
         query = """
             INSERT INTO chamado
-                (id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, assunto, descricao)
-            VALUES (%s, %s, %s, 'ABERTO', %s, %s, %s);
+                (id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, descricao,
+                 email_cliente, telefone_cliente, contato_cliente, telefone_contato)
+            VALUES (%s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, assunto, descricao))
+        cursor.execute(query, (id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, descricao,
+                               email_cliente, telefone_cliente, contato_cliente, telefone_contato))
         conn.commit()
         
         novo_id = cursor.lastrowid
@@ -253,10 +270,8 @@ def create_chamado():
 @app.route('/api/chamados/<int:id>', methods=['PUT'])
 def update_chamado(id):
     try:
-        dados = request.get_json()
-        status = dados.get('status')
-        if status not in ('ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'):
-            return jsonify({'erro': 'Status inválido'}), 400
+        dados = request.get_json() or {}
+        acao = dados.get('acao')
 
         conn = get_db_connection()
         if not conn:
@@ -264,8 +279,92 @@ def update_chamado(id):
         
         cursor = conn.cursor()
         
-        query = "UPDATE chamado SET status = %s WHERE id_chamado = %s;"
-        cursor.execute(query, (status, id))
+        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s FOR UPDATE', (id,))
+        chamado = dict_fetchone(cursor)
+        if not chamado:
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Chamado não encontrado'}), 404
+
+        status = chamado.get('status') or 'ABERTO'
+        segundos = int(chamado.get('tempo_decorrido_segundos') or 0)
+        inicio = chamado.get('tempo_inicio')
+        if isinstance(inicio, str):
+            inicio = datetime.fromisoformat(inicio)
+        agora = datetime.now()
+
+        if acao == 'agendar':
+            agendamento = dados.get('data_agendada')
+            if not agendamento:
+                return jsonify({'erro': 'Informe a data e hora do agendamento'}), 400
+            data, hora = agendamento.split('T', 1)
+            cursor.execute('UPDATE chamado SET data_agendada = %s, hora_agendada = %s WHERE id_chamado = %s', (data, hora, id))
+        elif acao == 'iniciar':
+            if status not in ('ABERTO', 'PAUSADO', 'ANDAMENTO'):
+                return jsonify({'erro': 'Este chamado não pode ser iniciado'}), 400
+            cursor.execute("UPDATE chamado SET status = 'ANDAMENTO', tempo_inicio = COALESCE(tempo_inicio, %s) WHERE id_chamado = %s", (agora, id))
+        elif acao == 'pausar':
+            if status != 'ANDAMENTO' or not inicio:
+                return jsonify({'erro': 'Somente um chamado em andamento pode ser pausado'}), 400
+            segundos += max(0, int((agora - inicio).total_seconds()))
+            cursor.execute("UPDATE chamado SET status = 'PAUSADO', tempo_inicio = NULL, tempo_decorrido_segundos = %s WHERE id_chamado = %s", (segundos, id))
+        elif acao == 'escalonar':
+            id_setor = dados.get('id_setor')
+            id_tecnico = dados.get('id_grupo_solucionadores')
+            motivo = (dados.get('descricao') or '').strip()
+            if status != 'PAUSADO':
+                return jsonify({'erro': 'Pause o chamado antes de escaloná-lo'}), 400
+            if not id_setor or not id_tecnico or not motivo:
+                return jsonify({'erro': 'Informe o setor, o técnico e a descrição do escalonamento'}), 400
+            cursor.execute("SELECT nivel FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'", (id_tecnico, id_setor))
+            tecnico = cursor.fetchone()
+            if not tecnico:
+                return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
+            cursor.execute('UPDATE chamado SET id_setor = %s, id_grupo_solucionadores = %s WHERE id_chamado = %s', (id_setor, id_tecnico, id))
+            cursor.execute('INSERT INTO escalonamento (id_chamado, motivo, nivel, data_escalonamento, id_setor_destino, id_grupo_destino) VALUES (%s, %s, %s, %s, %s, %s)', (id, motivo, tecnico[0], agora.date(), id_setor, id_tecnico))
+        elif acao == 'encerrar':
+            descricao_final = (dados.get('descricao_final') or '').strip()
+            if status not in ('ANDAMENTO', 'PAUSADO') or not descricao_final:
+                return jsonify({'erro': 'Informe a descrição final após iniciar o atendimento'}), 400
+            if inicio:
+                segundos += max(0, int((agora - inicio).total_seconds()))
+            smtp_host = os.getenv('SMTP_HOST')
+            smtp_user = os.getenv('SMTP_USER')
+            smtp_password = os.getenv('SMTP_PASSWORD')
+            destinatario = chamado.get('email_cliente')
+            if not all((smtp_host, smtp_user, smtp_password, destinatario)):
+                return jsonify({'erro': 'Configure o SMTP e o e-mail do cliente antes de encerrar o chamado'}), 503
+            mensagem = EmailMessage()
+            mensagem['Subject'] = f'Chamado #{id} resolvido'
+            mensagem['From'] = os.getenv('SMTP_FROM') or smtp_user
+            mensagem['To'] = destinatario
+            mensagem.set_content(f"Olá, {chamado.get('cliente') or 'cliente'}.\n\nO chamado #{id} foi resolvido.\nTempo de atendimento: {segundos // 60} min.\n\nDescrição inicial:\n{chamado.get('descricao') or 'Não informada'}\n\nSolução aplicada:\n{descricao_final}")
+            try:
+                with smtplib.SMTP(smtp_host, int(os.getenv('SMTP_PORT', '587')), timeout=15) as servidor:
+                    servidor.starttls()
+                    servidor.login(smtp_user, smtp_password)
+                    servidor.send_message(mensagem)
+            except (OSError, smtplib.SMTPException, ValueError) as error:
+                cursor.close()
+                conn.close()
+                return jsonify({'erro': f'Não foi possível enviar o e-mail: {error}'}), 502
+            cursor.execute("UPDATE chamado SET status = 'RESOLVIDO', tempo_inicio = NULL, tempo_decorrido_segundos = %s, descricao_final = %s WHERE id_chamado = %s", (segundos, descricao_final, id))
+        elif 'status' in dados:
+            status_novo = dados.get('status')
+            if status_novo == 'RESOLVIDO':
+                return jsonify({'erro': 'Encerre o chamado pelo atendimento para enviar o e-mail de resolução'}), 400
+            if status_novo not in ('ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'PAUSADO'):
+                return jsonify({'erro': 'Status inválido'}), 400
+            if status_novo == 'PAUSADO' and status != 'ANDAMENTO':
+                return jsonify({'erro': 'Inicie o atendimento antes de pausá-lo'}), 400
+            if status == 'ANDAMENTO' and status_novo != 'ANDAMENTO' and inicio:
+                segundos += max(0, int((agora - inicio).total_seconds()))
+                inicio = None
+            if status_novo == 'ANDAMENTO' and status != 'ANDAMENTO':
+                inicio = agora
+            cursor.execute('UPDATE chamado SET status = %s, tempo_inicio = %s, tempo_decorrido_segundos = %s WHERE id_chamado = %s', (status_novo, inicio, segundos, id))
+        else:
+            return jsonify({'erro': 'Ação inválida'}), 400
         conn.commit()
         
         cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (id,))

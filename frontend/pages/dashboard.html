@@ -238,27 +238,7 @@
             <input type="checkbox" id="agendaTodasDatas" onchange="filtrarAgenda()">
             <span>Todas as datas</span>
           </label>
-          <div class="btn-group-sm">
-            <section class="btn-secondary-sm" onclick="mudarDia(-1)">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                stroke=" #000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-arrow-left-icon lucide-arrow-left">
-                <path d="m12 19-7-7 7-7" />
-                <path d="M19 12H5" />
-              </svg>
-            </section>
-            <button class="btn-secondary-sm" onclick="mudarDia(1)">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-arrow-right-icon lucide-arrow-right">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
-            </button>
-          </div>
         </div>
-      </div>
-
       <!-- Colunas da agenda agrupadas por data -->
       <div class="agenda-container">
         <div class="agenda-header-days" id="agendaCabecalho"></div>
@@ -307,27 +287,17 @@
             readonly>
         </div>
 
-        <div class="form-group">
-          <label for="nomeFuncionario">Adicionar Funcionário</label>
-          <div class="searchable-select" id="selectSetorWrapper">
-            <input type="search" id="funcionarioSearchInput" placeholder="Busque o funcionário" autocomplete="off"
-              required>
-            <input type="hidden" id="funcionarioChamado" name="id_funcionario">
-            <span class="select-arrow" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="m9 18 6-6-6-6" />
-              </svg></span>
-            <ul class="select-dropdown-list hidden" id="funcionarioDropdownList">
-              <li class="select-empty">Carregando funcionários...</li>
-            </ul>
+        <div class="employee-contact-fields">
+          <div class="form-group">
+            <label for="funcionarioSearchInput">Adicionar Funcionário</label>
+            <input type="text" id="funcionarioSearchInput" name="contato_cliente"
+              placeholder="Nome do funcionário" autocomplete="name" required>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label>Telefone do Funcionário</label>
-          <input type="tel" id="telefoneFuncionarioChamado" name="telefone_funcionario" placeholder="(00) 00000-0000"
-            required readonly>
+          <div class="form-group">
+            <label for="telefoneFuncionarioChamado">Telefone do Funcionário</label>
+            <input type="tel" id="telefoneFuncionarioChamado" name="telefone_contato"
+              placeholder="(00) 00000-0000" autocomplete="tel" required>
+          </div>
         </div>
 
         <div class="form-group">

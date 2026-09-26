@@ -57,7 +57,7 @@ function posicionarMenuStatus(picker) {
 
 function linhaChamado(chamado) {
   const status = chamado.status || 'ABERTO';
-  const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'];
+  const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'PAUSADO', 'RESOLVIDO'];
   return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
 }
 
@@ -177,7 +177,7 @@ function renderizarAgenda(chamados) {
   agenda.style.gridTemplateColumns = 'repeat(5, minmax(220px, 1fr))';
 
   cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header ${data === hoje ? 'active' : ''}">${formatarDataAgenda(data)}</div>`).join('');
-  const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', RESOLVIDO: 'badge-green' };
+  const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', PAUSADO: 'badge-yellow', RESOLVIDO: 'badge-green' };
   agenda.innerHTML = datas.map((data) => {
     const chamadosDoDia = chamadosComData.filter((item) => item.data_agendada === data);
     const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('');
@@ -313,6 +313,8 @@ function selecionarClienteChamado(cliente) {
   campoCliente.value = cliente.nome || '';
   if (campoEmail) campoEmail.value = cliente.email || '';
   if (campoTelefone) campoTelefone.value = cliente.telefone || '';
+  const campoContato = document.querySelector('#funcionarioSearchInput');
+  if (campoContato) campoContato.value = cliente.contato || '';
   document.querySelector('#clienteDropdownList')?.classList.add('hidden');
 }
 
@@ -438,6 +440,8 @@ function configurarBuscaClienteChamado() {
       campoCliente.value = '';
       document.querySelector('#emailClienteChamado').value = '';
       document.querySelector('#telefoneClienteChamado').value = '';
+      document.querySelector('#funcionarioSearchInput').value = '';
+      document.querySelector('#telefoneFuncionarioChamado').value = '';
     }
     abrirLista();
   });
@@ -484,7 +488,7 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.id_setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
+  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.contato_cliente.value.trim() || !campos.telefone_contato.value.trim() || !campos.id_setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
     form.reportValidity();
     return;
   }
@@ -493,6 +497,8 @@ async function salvarChamado(event) {
       cliente: campos.cliente.value.trim(),
       email_cliente: campos.email_cliente.value.trim(),
       telefone_cliente: campos.telefone_cliente.value.trim(),
+      contato_cliente: campos.contato_cliente.value.trim(),
+      telefone_contato: campos.telefone_contato.value.trim(),
       id_setor: campos.id_setor.value,
       id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
       descricao: campos.descricao.value.trim()

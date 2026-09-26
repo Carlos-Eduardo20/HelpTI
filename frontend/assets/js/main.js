@@ -1,4 +1,4 @@
-import { buscarChamados, buscarClientes, atualizarCliente, excluirCliente, excluirChamado, atualizarMembro, excluirMembro } from './api.js';
+import { buscarChamados, buscarClientes, atualizarCliente, excluirCliente, atualizarMembro, excluirMembro } from './api.js';
 
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
@@ -135,7 +135,9 @@ async function carregarSetores() {
 function iconeNivel(icone) {
   const caminhos = icone === 'plus'
     ? '<path d="M5 12h14"/><path d="M12 5v14" />'
-    : '<path d="m9 18 6-6-6-6" />';
+    : icone === 'chevron-down'
+      ? '<path d="m6 9 6 6 6-6" />'
+      : '<path d="m9 18 6-6-6-6" />';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${caminhos}</svg>`;
 }
 
@@ -143,7 +145,7 @@ function renderizarSetor(setor) {
   const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
   const niveis = (setor.niveis || []).map((nivel, indice) => {
     const membrosDoNivelAtual = participantes.filter((membro) => Number(membro.nivel) === indice + 1);
-    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
+    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}" target="_blank" rel="noopener noreferrer"><strong>${membro.nome || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
     return `<div class="sector-level-row"><div class="level-summary"><strong>${nivel}</strong><small>${membrosDoNivelAtual.length} funcionário(s) alocado(s)</small></div><div class="level-actions"><button type="button" class="level-action" title="Mostrar funcionários de ${nivel}" aria-label="Mostrar funcionários de ${nivel}" aria-expanded="false" data-level-action="details" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar técnico em ${nivel}" aria-label="Adicionar técnico em ${nivel}" data-level-action="add" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div><div class="level-members-inline" hidden>${membrosHtml}</div></div>`;
   }).join('');
   return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.niveis?.length ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${setor.id_setor}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${niveis ? `<div class="sector-levels">${niveis}</div>` : '<div class="sector-levels"><span class="empty-row">Nenhum nível cadastrado.</span></div>'}</details></td></tr>`;
@@ -207,6 +209,9 @@ function alternarMembrosNivel(botao) {
   const aberto = lista.hidden;
   lista.hidden = !aberto;
   botao.setAttribute('aria-expanded', String(aberto));
+  botao.innerHTML = iconeNivel(aberto ? 'chevron-down' : 'chevron');
+  botao.title = `${aberto ? 'Ocultar' : 'Mostrar'} funcionários`;
+  botao.setAttribute('aria-label', `${aberto ? 'Ocultar' : 'Mostrar'} funcionários do nível`);
 }
 
 const equipamentosPadrao = [
@@ -592,35 +597,140 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     if (path.includes('chamados-detalhe.html')) {
-      const { buscarChamadoPorId, buscarClientes, buscarEquipe } = await import('./api.js');
-      const [chamado, clientes, equipe] = await Promise.all([buscarChamadoPorId(id), buscarClientes(), buscarEquipe()]);
+      const { buscarChamadoPorId, buscarClientes, buscarEquipe, buscarSetores, atualizarChamado } = await import('./api.js');
+      let [chamado, clientes, equipe, setores] = await Promise.all([buscarChamadoPorId(id), buscarClientes(), buscarEquipe(), buscarSetores()]);
       const cliente = clientes.find((item) => item.nome === chamado.cliente);
-      const responsavel = equipe.find((item) => item.id_grupo_solucionadores == chamado.id_grupo_solucionadores);
-      setDetailText('chamado-titulo', `#${chamado.id_chamado}`);
-      setDetailText('chamado-breadcrumb-cliente', chamado.cliente);
-      setDetailText('chamado-cliente', chamado.cliente);
-      setDetailText('chamado-contato', cliente?.contato || 'Não informado');
-      setDetailText('chamado-telefone', cliente?.telefone || 'Não informado');
-      setDetailText('chamado-email', chamado.email_cliente || cliente?.email || 'Não informado');
-      setDetailText('chamado-data', detailDate(chamado.data_agendada));
-      setDetailText('chamado-nivel', `Tipo ${chamado.id_tipo_chamado || 'não informado'}`);
-      setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
-      const sidebarValues = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');
-      if (sidebarValues.length >= 4) {
-        sidebarValues[0].textContent = responsavel?.nome || 'Não atribuído';
-        sidebarValues[1].textContent = responsavel?.setor_nome || 'Não informado';
-        sidebarValues[2].textContent = 'Não informado';
-        sidebarValues[3].textContent = chamado.status || 'ABERTO';
+      const setorSelect = document.querySelector('#setorDestino');
+      const tecnicoSelect = document.querySelector('#tecnicoDestino');
+      const modalEscalonar = document.querySelector('#modalEscalonar');
+      const modalEncerrar = document.querySelector('#modalEncerrar');
+      const botaoIniciar = document.querySelector('#iniciarChamado');
+      const botaoPausar = document.querySelector('#pausarChamado');
+      const botaoEscalonar = document.querySelector('#escalonarChamado');
+      const botaoEncerrar = document.querySelector('#encerrarChamado');
+      const campoAgendamento = document.querySelector('#data_agendada');
+      let timerChamado;
+
+      const segundosAtendimento = () => {
+        const acumulado = Number(chamado.tempo_decorrido_segundos || 0);
+        const inicio = chamado.tempo_inicio ? new Date(chamado.tempo_inicio).getTime() : 0;
+        return acumulado + (inicio && chamado.status === 'ANDAMENTO' ? Math.max(0, Math.floor((Date.now() - inicio) / 1000)) : 0);
+      };
+
+      const formatarTempo = (segundos) => `${String(Math.floor(segundos / 60)).padStart(2, '0')}:${String(segundos % 60).padStart(2, '0')}`;
+
+      function atualizarTelaChamado() {
+        const responsavel = equipe.find((item) => item.id_grupo_solucionadores == chamado.id_grupo_solucionadores);
+        const status = chamado.status || 'ABERTO';
+        const restantes = Math.max(0, 25 * 60 - segundosAtendimento());
+        const badgeTempo = document.querySelector('#tempoChamado');
+        setDetailText('chamado-titulo', `#${chamado.id_chamado}`);
+        setDetailText('chamado-breadcrumb-cliente', chamado.cliente);
+        setDetailText('chamado-cliente', chamado.cliente);
+        setDetailText('chamado-contato-nome', chamado.contato_cliente || cliente?.contato || 'Não informado');
+        setDetailText('chamado-contato-tel', chamado.telefone_contato || 'Não informado');
+        setDetailText('chamado-telefone', chamado.telefone_cliente || cliente?.telefone || 'Não informado');
+        setDetailText('chamado-email', chamado.email_cliente || cliente?.email || 'Não informado');
+        setDetailText('chamado-data', detailDate(chamado.data_abertura));
+        setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
+        setDetailText('statusChamado', status);
+        const valoresSidebar = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');
+        if (valoresSidebar.length >= 2) {
+          valoresSidebar[0].textContent = responsavel?.nome || 'Não atribuído';
+          valoresSidebar[1].textContent = chamado.setor_nome || responsavel?.setor_nome || 'Não informado';
+        }
+        if (badgeTempo) {
+          badgeTempo.textContent = `Tempo: ${formatarTempo(restantes)}`;
+          badgeTempo.classList.toggle('is-warning', restantes <= 10 * 60 && restantes > 5 * 60);
+          badgeTempo.classList.toggle('is-critical', restantes <= 5 * 60);
+        }
+        if (campoAgendamento && chamado.data_agendada) {
+          campoAgendamento.value = `${chamado.data_agendada.slice(0, 10)}T${(chamado.hora_agendada || '09:00:00').slice(0, 5)}`;
+        }
+        const encerrado = status === 'RESOLVIDO';
+        if (botaoIniciar) { botaoIniciar.disabled = encerrado || status === 'ANDAMENTO'; botaoIniciar.textContent = status === 'PAUSADO' ? 'Retomar chamado' : 'Iniciar chamado'; }
+        if (botaoPausar) botaoPausar.disabled = status !== 'ANDAMENTO';
+        if (botaoEscalonar) botaoEscalonar.disabled = status !== 'PAUSADO';
+        if (botaoEncerrar) botaoEncerrar.disabled = encerrado || !['ANDAMENTO', 'PAUSADO'].includes(status);
+        setDetailText('tempoFinalChamado', formatarTempo(segundosAtendimento()));
       }
+
+      async function recarregarChamado() {
+        chamado = await buscarChamadoPorId(id);
+        atualizarTelaChamado();
+      }
+
+      async function executarAcao(dados, sucesso) {
+        try {
+          chamado = await atualizarChamado(id, dados);
+          atualizarTelaChamado();
+          if (sucesso) alert(sucesso);
+          return true;
+        } catch (error) {
+          alert(`Não foi possível atualizar o chamado: ${error.message}`);
+          return false;
+        }
+      }
+
+      if (setorSelect && tecnicoSelect) {
+        setorSelect.innerHTML = setores.map((setor) => `<option value="${detailEscape(setor.id_setor)}">${detailEscape(setor.nome)}</option>`).join('');
+        setorSelect.value = String(chamado.id_setor || '');
+        const atualizarTecnicosDestino = () => {
+          const tecnicos = equipe.filter((membro) => String(membro.id_setor) === setorSelect.value && (membro.status || 'ATIVO') === 'ATIVO');
+          tecnicoSelect.innerHTML = tecnicos.map((membro) => `<option value="${detailEscape(membro.id_grupo_solucionadores)}">${detailEscape(membro.nome || membro.descricao || 'Técnico')}</option>`).join('');
+          tecnicoSelect.disabled = tecnicos.length === 0;
+        };
+        setorSelect.addEventListener('change', atualizarTecnicosDestino);
+        atualizarTecnicosDestino();
+      }
+
+      document.querySelectorAll('[data-fechar-modal]').forEach((botao) => botao.addEventListener('click', () => {
+        modalEscalonar?.classList.remove('active');
+        modalEncerrar?.classList.remove('active');
+      }));
+      [modalEscalonar, modalEncerrar].forEach((modal) => modal?.addEventListener('click', (event) => {
+        if (event.target === modal) modal.classList.remove('active');
+      }));
+      botaoIniciar?.addEventListener('click', () => executarAcao({ acao: 'iniciar' }, 'Atendimento iniciado.'));
+      botaoPausar?.addEventListener('click', () => executarAcao({ acao: 'pausar' }, 'Atendimento pausado.'));
+      botaoEscalonar?.addEventListener('click', () => {
+        if (chamado.status === 'PAUSADO') modalEscalonar?.classList.add('active');
+      });
+      botaoEncerrar?.addEventListener('click', () => {
+        setDetailText('tempoFinalChamado', formatarTempo(segundosAtendimento()));
+        modalEncerrar?.classList.add('active');
+      });
+      document.querySelector('#formEscalonar')?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const dados = Object.fromEntries(new FormData(event.currentTarget));
+        if (await executarAcao({ acao: 'escalonar', ...dados }, 'Chamado escalonado.')) modalEscalonar?.classList.remove('active');
+      });
+      document.querySelector('#formEncerrar')?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const botaoSubmit = event.currentTarget.querySelector('[type="submit"]');
+        botaoSubmit.disabled = true;
+        try {
+          chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: new FormData(event.currentTarget).get('descricao_final') });
+          atualizarTelaChamado();
+          modalEncerrar?.classList.remove('active');
+          event.currentTarget.reset();
+          alert('Chamado resolvido e e-mail enviado ao cliente.');
+        } catch (error) {
+          alert(`Não foi possível encerrar o chamado: ${error.message}`);
+        } finally {
+          botaoSubmit.disabled = false;
+        }
+      });
+      document.querySelector('#salvarAgendamento')?.addEventListener('click', async () => {
+        if (!campoAgendamento?.value) { campoAgendamento?.reportValidity(); return; }
+        await executarAcao({ acao: 'agendar', data_agendada: campoAgendamento.value }, 'Agendamento salvo.');
+      });
+      timerChamado = window.setInterval(() => {
+        if (chamado.status === 'ANDAMENTO') atualizarTelaChamado();
+      }, 1000);
+      atualizarTelaChamado();
       const history = document.querySelector('.timeline-list');
       if (history) history.innerHTML = `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>Chamado ${detailEscape(chamado.status || 'ABERTO').toLowerCase()}</strong><span class="timeline-time">${detailEscape(detailDate(chamado.data_agendada))}</span></div><p>Registro criado no sistema.</p></div></div>`;
-      document.querySelector('#encerrarChamado')?.addEventListener('click', async () => {
-        if (!window.confirm('Tem certeza de que deseja encerrar e apagar este chamado?')) return;
-        try {
-          await excluirChamado(chamado.id_chamado);
-          window.location.href = 'chamados.html';
-        } catch (error) { alert(`Não foi possível encerrar o chamado: ${error.message}`); }
-      });
     }
 
     if (path.includes('cliente-detalhe.html')) {
@@ -645,7 +755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
       const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
-      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td><td>${detailEscape(chamado.classificacao)}</td></tr>`).join('') || '<tr><td colspan="6">Nenhum chamado encontrado para este cliente.</td></tr>';
+      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td><td>${detailEscape(chamado.classificacao)}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
 
     if (path.includes('equipe-detalhe.html')) {
@@ -659,7 +769,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDetailText('membro-setor', membro.setor_nome || 'Sem setor');
       setDetailText('membro-cargo', membro.cargo || 'Não informado');
       setDetailText('membro-email', membro.email);
-      setDetailText('membro-telefone', 'Não informado');
+      setDetailText('membro-telefone', membro.telefone || 'Não informado');
       setDetailText('membro-admissao', detailDate(membro.data_inicio));
       setDetailText('membro-valor-hora', membro.valor_hora ? `R$ ${Number(membro.valor_hora).toFixed(2).replace('.', ',')}` : 'Não informado');
       configurarDetalheEditavel('equipe', membro);
@@ -673,7 +783,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (skills) skills.textContent = 'Nenhuma especialidade cadastrada.';
       const table = document.querySelector('#tabela-chamados-tecnico tbody');
       const tickets = chamados.filter((chamado) => chamado.id_grupo_solucionadores == membro.id_grupo_solucionadores);
-      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado atribuído a este membro.</td></tr>';
+      if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado atribuído a este membro.</td></tr>';
     }
   } catch (error) {
     console.error('Não foi possível carregar os detalhes:', error);

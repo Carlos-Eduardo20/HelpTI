@@ -212,9 +212,26 @@
                   <span class="date-hour-open" id="chamado-data">21/09/2026 10:30</span>
                 </div>
 
-                <div class="form-group">
-                  <label class="info-label" for="data_agendada">AGENDAR CHAMADO</label>
+                <div class="scheduler-panel">
+                  <div class="scheduler-heading">
+                    <span class="scheduler-icon" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="5" width="18" height="16" rx="2" />
+                        <path d="M16 3v4M8 3v4M3 11h18" />
+                      </svg>
+                    </span>
+                    <div>
+                      <label for="data_agendada">Agendar chamado</label>
+                      <p>Escolha a data e o horário do atendimento.</p>
+                    </div>
+                  </div>
                   <input id="data_agendada" name="data_agendada" type="datetime-local" class="form-input" required>
+                  <button class="btn-primary scheduler-save-button" id="salvarAgendamento" type="button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    Salvar agendamento
+                  </button>
                 </div>
               </div>
 
@@ -279,8 +296,12 @@
             <div class="info-item">
               <span class="info-label">STATUS DO SLA</span>
               <div>
-                <span class="badge badge-yellow">Tempo decorrido: 1h 46m</span>
+                <span class="badge badge-blue" id="tempoChamado">Tempo: 25:00</span>
               </div>
+            </div>
+            <div class="info-item">
+              <span class="info-label">STATUS</span>
+              <span class="info-value" id="statusChamado">ABERTO</span>
             </div>
           </div>
         </section>
@@ -288,9 +309,9 @@
         <!-- Ações do Chamado -->
         <section class="content-card">
           <div class="action-buttons-group">
-            <button class="btn-primary btn-full">Iniciar Chamado</button>
-            <button class="btn-secondary btn-full">Escalonar Chamado</button>
-            <button class="btn-outline-warning btn-full">Pausar Chamado</button>
+            <button class="btn-primary btn-full" id="iniciarChamado" type="button">Iniciar Chamado</button>
+            <button class="btn-secondary btn-full" id="escalonarChamado" type="button">Escalonar Chamado</button>
+            <button class="btn-outline-warning btn-full" id="pausarChamado" type="button">Pausar Chamado</button>
             <button class="btn-outline-danger btn-full" id="encerrarChamado" type="button">Encerrar Chamado</button>
           </div>
         </section>
@@ -300,6 +321,32 @@
     </div>
 
   </main>
+
+  <div class="workflow-modal" id="modalEscalonar" role="dialog" aria-modal="true" aria-labelledby="tituloEscalonar">
+    <form class="workflow-dialog" id="formEscalonar">
+      <div class="workflow-dialog-header">
+        <div><span class="info-label">CHAMADO PAUSADO</span><h2 id="tituloEscalonar">Escalonar chamado</h2></div>
+        <button class="btn-close" type="button" data-fechar-modal aria-label="Fechar">&times;</button>
+      </div>
+      <label class="workflow-field">Setor de destino<select name="id_setor" id="setorDestino" required></select></label>
+      <label class="workflow-field">Técnico responsável<select name="id_grupo_solucionadores" id="tecnicoDestino" required></select></label>
+      <label class="workflow-field">Descrição do escalonamento<textarea name="descricao" rows="4" required placeholder="Explique por que o chamado está sendo escalonado"></textarea></label>
+      <div class="workflow-actions"><button class="btn-secondary" type="button" data-fechar-modal>Cancelar</button><button class="btn-primary" type="submit">Confirmar escalonamento</button></div>
+    </form>
+  </div>
+
+  <div class="workflow-modal" id="modalEncerrar" role="dialog" aria-modal="true" aria-labelledby="tituloEncerrar">
+    <form class="workflow-dialog" id="formEncerrar">
+      <div class="workflow-dialog-header">
+        <div><span class="info-label">FINALIZAR ATENDIMENTO</span><h2 id="tituloEncerrar">Encerrar chamado</h2></div>
+        <button class="btn-close" type="button" data-fechar-modal aria-label="Fechar">&times;</button>
+      </div>
+      <p class="resolution-time">Tempo de atendimento <strong id="tempoFinalChamado">00:00</strong></p>
+      <label class="workflow-field">Descrição final<textarea name="descricao_final" rows="5" required placeholder="Registre a solução aplicada"></textarea></label>
+      <p class="workflow-note">A confirmação envia o resumo para o e-mail cadastrado do cliente e move o chamado para Resolvidos.</p>
+      <div class="workflow-actions"><button class="btn-secondary" type="button" data-fechar-modal>Cancelar</button><button class="btn-primary" type="submit">Enviar e encerrar</button></div>
+    </form>
+  </div>
 
   <script type="module" src="../assets/js/main.js"></script>
 </body>
