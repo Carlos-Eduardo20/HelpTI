@@ -432,7 +432,7 @@ def update_chamado(id):
                 segundos += max(0, int((agora - inicio).total_seconds()))
             smtp_host = os.getenv('SMTP_HOST')
             smtp_user = os.getenv('SMTP_USER')
-            smtp_password = os.getenv('SMTP_PASSWORD')
+            smtp_password = ''.join((os.getenv('SMTP_PASSWORD') or '').split())
             destinatario = chamado.get('email_cliente')
             if all((smtp_host, smtp_user, smtp_password, destinatario)):
                 mensagem = EmailMessage()
