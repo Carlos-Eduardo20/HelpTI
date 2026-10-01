@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     senha_hash TEXT
 );
 
-CREATE TABLE IF NOT EXISTS cliente_contato (
-    id_cliente_contato INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS cliente (
+    id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
     id_usuario INTEGER NOT NULL,
     nome TEXT NOT NULL,
     email TEXT NOT NULL,
@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     contato_cliente TEXT,
     telefone_contato TEXT,
     descricao_final TEXT,
+    documentacao TEXT,
     tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0,
     tempo_inicio TEXT,
     data_abertura TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -78,6 +79,15 @@ CREATE TABLE IF NOT EXISTS chamado (
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
     FOREIGN KEY (id_setor) REFERENCES setor(id_setor) ON DELETE SET NULL,
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS historico_chamado (
+    id_historico INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_chamado INTEGER NOT NULL,
+    evento TEXT NOT NULL,
+    descricao TEXT NOT NULL,
+    data_evento TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS escalonamento (
@@ -93,27 +103,18 @@ CREATE TABLE IF NOT EXISTS escalonamento (
     FOREIGN KEY (id_grupo_destino) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS documentacao (
-    id_documentacao INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_grupo_solucionadores INTEGER,
-    titulo TEXT,
-    conteudo TEXT,
-    data_criacao TEXT,
-    data_atualizacao TEXT,
-    FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
-);
-
 CREATE TABLE IF NOT EXISTS configuracao (
     id_configuracao INTEGER PRIMARY KEY,
     workspace_name TEXT NOT NULL,
     support_email TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_cliente_contato_usuario ON cliente_contato(id_usuario);
+CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor ON grupo_solucionadores(id_setor);
 CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado(status, data_abertura);
 CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado(id_setor);
 CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado ON escalonamento(id_chamado);
+CREATE INDEX IF NOT EXISTS idx_historico_chamado_data ON historico_chamado(id_chamado, data_evento);
 
 INSERT OR IGNORE INTO configuracao (id_configuracao, workspace_name, support_email)
 VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br');

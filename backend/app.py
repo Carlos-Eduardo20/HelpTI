@@ -52,6 +52,14 @@ def dict_fetchone(cursor):
         return normalize_record(dict(zip(columns, row)))
     return None
 
+
+def registrar_historico(cursor, id_chamado, evento, descricao):
+    cursor.execute(
+        'INSERT INTO historico_chamado (id_chamado, evento, descricao) VALUES (%s, %s, %s)',
+        (id_chamado, evento, descricao)
+    )
+
+
 def normalize_record(record):
     for key, value in record.items():
         if isinstance(value, timedelta):
@@ -106,6 +114,14 @@ def get_chamado(id):
             WHERE chamado.id_chamado = %s;
         ''', (id,))
         chamado = dict_fetchone(cursor)
+        if chamado:
+            cursor.execute('''
+                SELECT evento, descricao, data_evento
+                FROM historico_chamado
+                WHERE id_chamado = %s
+                ORDER BY data_evento, id_historico
+            ''', (id,))
+            chamado['historico'] = dict_fetchall(cursor)
         
         cursor.close()
         conn.close()
@@ -160,10 +176,10 @@ def create_chamado():
         """
         cursor.execute(query, (id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, descricao,
                                email_cliente, telefone_cliente, contato_cliente, telefone_contato))
-        conn.commit()
-        
         novo_id = cursor.lastrowid
-        
+        registrar_historico(cursor, novo_id, 'aberto', 'Chamado criado no sistema.')
+        conn.commit()
+
         cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (novo_id,))
         novo_chamado = dict_fetchone(cursor)
         
@@ -197,6 +213,10 @@ def update_chamado(id):
         status = chamado.get('status') or 'ABERTO'
         segundos = int(chamado.get('tempo_decorrido_segundos') or 0)
         inicio = chamado.get('tempo_inicio')
+        evento_historico = None
+        descricao_historico = None
+        email_enviado = None
+        aviso_email = None
         if isinstance(inicio, str):
             inicio = datetime.fromisoformat(inicio)
         agora = datetime.now()
@@ -207,21 +227,29 @@ def update_chamado(id):
                 return jsonify({'erro': 'Informe a data e hora do agendamento'}), 400
             data, hora = agendamento.split('T', 1)
             cursor.execute('UPDATE chamado SET data_agendada = %s, hora_agendada = %s WHERE id_chamado = %s', (data, hora, id))
+            evento_historico = 'agendado'
+            descricao_historico = f'Atendimento agendado para {data} às {hora}.'
         elif acao == 'atualizar_contato':
             contato = (dados.get('contato_cliente') or '').strip()
             telefone = (dados.get('telefone_contato') or '').strip()
             if not contato:
                 return jsonify({'erro': 'Selecione um contato válido'}), 400
             cursor.execute('UPDATE chamado SET contato_cliente = %s, telefone_contato = %s WHERE id_chamado = %s', (contato, telefone, id))
+            evento_historico = 'contato_atualizado'
+            descricao_historico = f'Contato do chamado alterado para {contato}.'
         elif acao == 'iniciar':
             if status not in ('ABERTO', 'PAUSADO', 'ANDAMENTO'):
                 return jsonify({'erro': 'Este chamado não pode ser iniciado'}), 400
             cursor.execute("UPDATE chamado SET status = 'ANDAMENTO', tempo_inicio = COALESCE(tempo_inicio, %s) WHERE id_chamado = %s", (agora, id))
+            evento_historico = 'iniciado'
+            descricao_historico = 'Atendimento iniciado ou retomado.'
         elif acao == 'pausar':
             if status != 'ANDAMENTO' or not inicio:
                 return jsonify({'erro': 'Somente um chamado em andamento pode ser pausado'}), 400
             segundos += max(0, int((agora - inicio).total_seconds()))
             cursor.execute("UPDATE chamado SET status = 'PAUSADO', tempo_inicio = NULL, tempo_decorrido_segundos = %s WHERE id_chamado = %s", (segundos, id))
+            evento_historico = 'pausado'
+            descricao_historico = f'Atendimento pausado após {segundos // 60:02d}:{segundos % 60:02d} de trabalho.'
         elif acao == 'escalonar':
             id_setor = dados.get('id_setor')
             id_tecnico = dados.get('id_grupo_solucionadores')
@@ -230,12 +258,16 @@ def update_chamado(id):
                 return jsonify({'erro': 'Pause o chamado antes de escaloná-lo'}), 400
             if not id_setor or not id_tecnico or not motivo:
                 return jsonify({'erro': 'Informe o setor, o técnico e a descrição do escalonamento'}), 400
-            cursor.execute("SELECT nivel FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'", (id_tecnico, id_setor))
+            cursor.execute("SELECT nivel, nome FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'", (id_tecnico, id_setor))
             tecnico = cursor.fetchone()
             if not tecnico:
                 return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
             cursor.execute('UPDATE chamado SET id_setor = %s, id_grupo_solucionadores = %s WHERE id_chamado = %s', (id_setor, id_tecnico, id))
             cursor.execute('INSERT INTO escalonamento (id_chamado, motivo, nivel, data_escalonamento, id_setor_destino, id_grupo_destino) VALUES (%s, %s, %s, %s, %s, %s)', (id, motivo, tecnico[0], agora.date(), id_setor, id_tecnico))
+            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s', (id_setor,))
+            setor = cursor.fetchone()
+            evento_historico = 'escalonado'
+            descricao_historico = f'Escalonado para {setor[0] if setor else "setor"} / {tecnico[1] or "técnico"}. Motivo: {motivo}'
         elif acao == 'encerrar':
             descricao_final = (dados.get('descricao_final') or '').strip()
             if status not in ('ANDAMENTO', 'PAUSADO') or not descricao_final:
@@ -246,23 +278,27 @@ def update_chamado(id):
             smtp_user = os.getenv('SMTP_USER')
             smtp_password = os.getenv('SMTP_PASSWORD')
             destinatario = chamado.get('email_cliente')
-            if not all((smtp_host, smtp_user, smtp_password, destinatario)):
-                return jsonify({'erro': 'Configure o SMTP e o e-mail do cliente antes de encerrar o chamado'}), 503
-            mensagem = EmailMessage()
-            mensagem['Subject'] = f'Chamado #{id} resolvido'
-            mensagem['From'] = os.getenv('SMTP_FROM') or smtp_user
-            mensagem['To'] = destinatario
-            mensagem.set_content(f"Olá, {chamado.get('cliente') or 'cliente'}.\n\nO chamado #{id} foi resolvido.\nTempo de atendimento: {segundos // 60} min.\n\nDescrição inicial:\n{chamado.get('descricao') or 'Não informada'}\n\nSolução aplicada:\n{descricao_final}")
-            try:
-                with smtplib.SMTP(smtp_host, int(os.getenv('SMTP_PORT', '587')), timeout=15) as servidor:
-                    servidor.starttls()
-                    servidor.login(smtp_user, smtp_password)
-                    servidor.send_message(mensagem)
-            except (OSError, smtplib.SMTPException, ValueError) as error:
-                cursor.close()
-                conn.close()
-                return jsonify({'erro': f'Não foi possível enviar o e-mail: {error}'}), 502
+            if all((smtp_host, smtp_user, smtp_password, destinatario)):
+                mensagem = EmailMessage()
+                mensagem['Subject'] = f'Chamado #{id} resolvido'
+                mensagem['From'] = os.getenv('SMTP_FROM') or smtp_user
+                mensagem['To'] = destinatario
+                mensagem.set_content(f"Olá, {chamado.get('cliente') or 'cliente'}.\n\nO chamado #{id} foi resolvido.\nTempo de atendimento: {segundos // 60} min.\n\nDescrição inicial:\n{chamado.get('descricao') or 'Não informada'}\n\nSolução aplicada:\n{descricao_final}")
+                try:
+                    with smtplib.SMTP(smtp_host, int(os.getenv('SMTP_PORT', '587')), timeout=15) as servidor:
+                        servidor.starttls()
+                        servidor.login(smtp_user, smtp_password)
+                        servidor.send_message(mensagem)
+                    email_enviado = True
+                except (OSError, smtplib.SMTPException, ValueError) as error:
+                    email_enviado = False
+                    aviso_email = f'Chamado encerrado; o e-mail não foi enviado: {error}'
+            else:
+                email_enviado = False
+                aviso_email = 'Chamado encerrado; SMTP ou e-mail do cliente não está configurado.'
             cursor.execute("UPDATE chamado SET status = 'RESOLVIDO', tempo_inicio = NULL, tempo_decorrido_segundos = %s, descricao_final = %s WHERE id_chamado = %s", (segundos, descricao_final, id))
+            evento_historico = 'encerrado'
+            descricao_historico = f'Chamado encerrado. Solução: {descricao_final}'
         elif 'status' in dados:
             status_novo = dados.get('status')
             if status_novo == 'RESOLVIDO':
@@ -277,12 +313,27 @@ def update_chamado(id):
             if status_novo == 'ANDAMENTO' and status != 'ANDAMENTO':
                 inicio = agora
             cursor.execute('UPDATE chamado SET status = %s, tempo_inicio = %s, tempo_decorrido_segundos = %s WHERE id_chamado = %s', (status_novo, inicio, segundos, id))
+            evento_historico = 'status_alterado'
+            descricao_historico = f'Status alterado de {status} para {status_novo}.'
         else:
             return jsonify({'erro': 'Ação inválida'}), 400
+        if evento_historico:
+            registrar_historico(cursor, id, evento_historico, descricao_historico)
         conn.commit()
         
         cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (id,))
         chamado_atualizado = dict_fetchone(cursor)
+        cursor.execute('''
+            SELECT evento, descricao, data_evento
+            FROM historico_chamado
+            WHERE id_chamado = %s
+            ORDER BY data_evento, id_historico
+        ''', (id,))
+        chamado_atualizado['historico'] = dict_fetchall(cursor)
+        if email_enviado is not None:
+            chamado_atualizado['email_enviado'] = email_enviado
+            if aviso_email:
+                chamado_atualizado['aviso_email'] = aviso_email
         
         cursor.close()
         conn.close()
@@ -329,7 +380,7 @@ def get_clientes():
         if clientes:
             ids = [cliente['id_usuario'] for cliente in clientes]
             placeholders = ', '.join(['%s'] * len(ids))
-            cursor.execute(f'SELECT id_usuario, nome, email, telefone FROM cliente_contato WHERE id_usuario IN ({placeholders}) ORDER BY id_cliente_contato', ids)
+            cursor.execute(f'SELECT id_usuario, nome, email, telefone FROM cliente WHERE id_usuario IN ({placeholders}) ORDER BY id_cliente', ids)
             contatos_por_cliente = {}
             for contato in dict_fetchall(cursor):
                 contatos_por_cliente.setdefault(contato['id_usuario'], []).append({
@@ -391,7 +442,7 @@ def create_cliente():
         cursor.execute(query, (nome, cnpj, telefone_empresa, endereco, primeiro_contato['email'], primeiro_contato['telefone'], primeiro_contato['nome']))
         novo_id = cursor.lastrowid
         cursor.executemany(
-            'INSERT INTO cliente_contato (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
+            'INSERT INTO cliente (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
             [(novo_id, contato['nome'], contato['email'], contato['telefone']) for contato in contatos]
         )
         conn.commit()

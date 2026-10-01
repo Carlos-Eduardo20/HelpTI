@@ -475,6 +475,15 @@
 	min-width: 100%;
 }
 
+.sla-countdown {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.sla-countdown.is-expired {
+	color: #B42318;
+	font-weight: 700;
+}
 
 .searchable-select {
 	position: relative;

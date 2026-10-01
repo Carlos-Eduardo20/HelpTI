@@ -60,12 +60,61 @@ def get_db_connection():
 
 
 def initialize_database():
-    """Cria as tabelas e os dados iniciais sem sobrescrever registros."""
+    """Migra bancos antigos e cria tabelas/dados iniciais sem sobrescrever registros."""
     schema_path = Path(__file__).with_name('schema.sql')
     connection = get_db_connection()
     try:
+        _migrate_legacy_schema(connection)
         connection.executescript(schema_path.read_text(encoding='utf-8'))
+        connection.execute('''
+            INSERT INTO historico_chamado (id_chamado, evento, descricao, data_evento)
+            SELECT chamado.id_chamado, 'aberto', 'Chamado criado no sistema.', chamado.data_abertura
+            FROM chamado
+            WHERE NOT EXISTS (
+                SELECT 1 FROM historico_chamado
+                WHERE historico_chamado.id_chamado = chamado.id_chamado
+            )
+        ''')
         connection.commit()
     finally:
         connection.close()
+
+
+def _migrate_legacy_schema(connection):
+    tables = {
+        row['name']
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+
+    if 'cliente_contato' in tables and 'cliente' not in tables:
+        connection.execute('ALTER TABLE cliente_contato RENAME TO cliente')
+        columns = {
+            row['name'] for row in connection.execute('PRAGMA table_info(cliente)')
+        }
+        if 'id_cliente_contato' in columns:
+            connection.execute(
+                'ALTER TABLE cliente RENAME COLUMN id_cliente_contato TO id_cliente'
+            )
+        connection.execute('DROP INDEX IF EXISTS idx_cliente_contato_usuario')
+
+    if 'documentacao' in tables:
+        total = connection.execute('SELECT COUNT(*) FROM documentacao').fetchone()[0]
+        if total:
+            suffix = 1
+            archive_name = 'documentacao_legado'
+            while archive_name in tables:
+                suffix += 1
+                archive_name = f'documentacao_legado_{suffix}'
+            connection.execute(
+                f'ALTER TABLE documentacao RENAME TO {archive_name}'
+            )
+        else:
+            connection.execute('DROP TABLE documentacao')
+
+    if 'chamado' in tables:
+        columns = {
+            row['name'] for row in connection.execute('PRAGMA table_info(chamado)')
+        }
+        if 'documentacao' not in columns:
+            connection.execute('ALTER TABLE chamado ADD COLUMN documentacao TEXT')
 

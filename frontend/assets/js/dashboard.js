@@ -5,6 +5,33 @@ let agendaPagina = 0;
 let agendaModoAnterior = false;
 let paginaChamados = 1;
 const chamadosPorPagina = 5;
+const SLA_LIMITE_SEGUNDOS = 25 * 60;
+
+function segundosSlaRestantes(chamado, agora = Date.now()) {
+  let consumidos = Number(chamado.tempo_decorrido_segundos || 0);
+  if (chamado.status === 'ANDAMENTO' && chamado.tempo_inicio) {
+    const inicioTexto = String(chamado.tempo_inicio).replace(' ', 'T');
+    const inicio = new Date(inicioTexto).getTime();
+    if (!Number.isNaN(inicio)) consumidos += Math.max(0, Math.floor((agora - inicio) / 1000));
+  }
+  return SLA_LIMITE_SEGUNDOS - consumidos;
+}
+
+function formatarSlaRestante(segundos) {
+  const absoluto = Math.abs(segundos);
+  const tempo = `${String(Math.floor(absoluto / 60)).padStart(2, '0')}:${String(absoluto % 60).padStart(2, '0')}`;
+  return segundos < 0 ? `+${tempo} (estourado)` : tempo;
+}
+
+function atualizarSlasVisiveis() {
+  document.querySelectorAll('[data-sla-id]').forEach((elemento) => {
+    const chamado = chamadosEmMemoria.find((item) => String(item.id_chamado) === elemento.dataset.slaId);
+    if (!chamado) return;
+    const restante = segundosSlaRestantes(chamado);
+    elemento.textContent = formatarSlaRestante(restante);
+    elemento.classList.toggle('is-expired', restante < 0);
+  });
+}
 
 async function atualizarPerfil() {
   let nome = localStorage.getItem('workspaceName') || localStorage.getItem('perfilNome') || sessionStorage.getItem('perfilNome') || 'Usuário';
@@ -58,7 +85,8 @@ function posicionarMenuStatus(picker) {
 function linhaChamado(chamado) {
   const status = chamado.status || 'ABERTO';
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'PAUSADO', 'RESOLVIDO'];
-  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td>${chamado.data_agendada || '-'}</td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
+  const slaRestante = segundosSlaRestantes(chamado);
+  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td><span class="sla-countdown${slaRestante < 0 ? ' is-expired' : ''}" data-sla-id="${chamado.id_chamado}">${formatarSlaRestante(slaRestante)}</span></td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
 }
 
 function dataAberturaDoChamado(chamado) {
@@ -97,6 +125,7 @@ function aplicarFiltrosChamados() {
   const chamadosDaPagina = chamadosFiltrados.slice(inicio, inicio + chamadosPorPagina);
   const tabela = document.querySelector('#tabelaChamados');
   if (tabela) tabela.innerHTML = chamadosDaPagina.map(linhaChamado).join('') || '<tr><td colspan="6">Nenhum chamado encontrado.</td></tr>';
+  atualizarSlasVisiveis();
   renderizarPaginacao(chamadosFiltrados.length, totalPaginas);
 }
 
@@ -691,4 +720,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tabela) tabela.innerHTML = `<tr><td colspan="6">Não foi possível carregar: ${error.message}</td></tr>`;
     if (agenda) agenda.innerHTML = `<p>Não foi possível carregar a agenda: ${error.message}</p>`;
   });
+  window.setInterval(atualizarSlasVisiveis, 1000);
 });

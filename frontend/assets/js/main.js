@@ -639,6 +639,33 @@ function detailEscape(value) {
   return String(value ?? '-').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 }
 
+function renderizarHistoricoChamado(eventos = []) {
+  const timeline = document.querySelector('.timeline-list');
+  if (!timeline) return;
+  const titulos = {
+    aberto: 'Chamado criado',
+    iniciado: 'Atendimento iniciado',
+    pausado: 'Atendimento pausado',
+    escalonado: 'Chamado escalonado',
+    encerrado: 'Chamado encerrado',
+    agendado: 'Atendimento agendado',
+    contato_atualizado: 'Contato atualizado',
+    status_alterado: 'Status alterado'
+  };
+  if (!eventos.length) {
+    timeline.innerHTML = '<p class="timeline-empty">Nenhuma atualização registrada.</p>';
+    return;
+  }
+  timeline.innerHTML = eventos.map((evento) => {
+    const data = new Date(String(evento.data_evento || '').replace(' ', 'T'));
+    const horario = Number.isNaN(data.getTime())
+      ? detailEscape(evento.data_evento)
+      : detailEscape(data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }));
+    const titulo = titulos[evento.evento] || 'Atualização';
+    return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>${titulo}</strong><span class="timeline-time">${horario}</span></div><p>${detailEscape(evento.descricao)}</p></div></div>`;
+  }).join('');
+}
+
 const mesesAgendamento = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 function dataLocalAgendamento(data = new Date()) {
@@ -797,6 +824,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setDetailText('chamado-data', detailDate(chamado.data_abertura));
         setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
         setDetailText('statusChamado', status);
+        renderizarHistoricoChamado(chamado.historico || []);
         const valoresSidebar = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');
         if (valoresSidebar.length >= 2) {
           valoresSidebar[0].textContent = responsavel?.nome || 'Não atribuído';
@@ -948,7 +976,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           atualizarTelaChamado();
           modalEncerrar?.classList.remove('active');
           event.currentTarget.reset();
-          alert('Chamado resolvido e e-mail enviado ao cliente.');
+          alert(chamado.email_enviado
+            ? 'Chamado resolvido e e-mail enviado ao cliente.'
+            : (chamado.aviso_email || 'Chamado resolvido. O e-mail não foi enviado.'));
         } catch (error) {
           alert(`Não foi possível encerrar o chamado: ${error.message}`);
         } finally {
@@ -965,8 +995,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chamado.status === 'ANDAMENTO') atualizarTelaChamado();
       }, 1000);
       atualizarTelaChamado();
-      const history = document.querySelector('.timeline-list');
-      if (history) history.innerHTML = `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>Chamado ${detailEscape(chamado.status || 'ABERTO').toLowerCase()}</strong><span class="timeline-time">${detailEscape(detailDate(chamado.data_agendada))}</span></div><p>Registro criado no sistema.</p></div></div>`;
     }
 
     if (path.includes('cliente-detalhe.html')) {

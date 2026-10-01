@@ -246,6 +246,11 @@
     color: var(--text-muted, #5C5650); 
 }
 
+.timeline-empty {
+    color: var(--text-subtle, #8C847E);
+    font-size: 13px;
+}
+
 /* Badges */
 .badge-green { background: #DCFCE7; color: #15803D; }
 .badge-yellow { background: #FEF3C7; color: #D97706; }

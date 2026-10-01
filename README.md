@@ -42,27 +42,137 @@ Os tipos abaixo são os tipos lógicos do SQLite: `INTEGER`, `TEXT` e `NUMERIC`.
 | Tabela | Atributos |
 | --- | --- |
 | `usuario` | `id_usuario INTEGER` (PK); `nome`, `contato`, `email`, `telefone`, `telefone_empresa`, `endereco`, `cnpj`, `plano`, `acoes`, `senha_hash TEXT`; `status TEXT NOT NULL DEFAULT 'ATIVO'`. Representa a empresa cliente. |
-| `cliente_contato` | `id_cliente_contato INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK); `nome`, `email`, `telefone TEXT NOT NULL`. Contatos associados a uma empresa. |
+| `cliente` | `id_cliente INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK); `nome`, `email`, `telefone TEXT NOT NULL`. Contatos associados a uma empresa. |
 | `tipo_chamado` | `id_tipo_chamado INTEGER` (PK); `nome TEXT NOT NULL`; `classificacao`, `descricao TEXT`. Os tipos iniciais são Suporte Geral, Hardware, Software e Rede. |
 | `setor` | `id_setor INTEGER` (PK); `nome TEXT NOT NULL UNIQUE`; `descricao TEXT`; `niveis TEXT` (JSON). |
 | `grupo_solucionadores` | `id_grupo_solucionadores INTEGER` (PK); `descricao`, `nome`, `email`, `cargo`, `telefone TEXT`; `nivel INTEGER`; `data_inicio`, `data_fim TEXT`; `valor_hora NUMERIC`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `senha TEXT NOT NULL DEFAULT ''`; `id_setor INTEGER` (FK opcional). Apesar do nome legado, representa membros da equipe técnica e administradores. |
-| `chamado` | `id_chamado INTEGER` (PK); `id_tipo_chamado INTEGER NOT NULL` (FK); `id_setor`, `id_grupo_solucionadores INTEGER` (FKs opcionais); `status TEXT NOT NULL DEFAULT 'ABERTO'`; `cliente TEXT NOT NULL`; `assunto`, `descricao`, `email_cliente`, `telefone_cliente`, `contato_cliente`, `telefone_contato`, `descricao_final`, `tempo_inicio`, `data_agendada`, `hora_agendada`, `classificacao TEXT`; `tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0`; `data_abertura TEXT NOT NULL` (data/hora local). |
+| `chamado` | `id_chamado INTEGER` (PK); `id_tipo_chamado INTEGER NOT NULL` (FK); `id_setor`, `id_grupo_solucionadores INTEGER` (FKs opcionais); `status TEXT NOT NULL DEFAULT 'ABERTO'`; `cliente TEXT NOT NULL`; `assunto`, `descricao`, `email_cliente`, `telefone_cliente`, `contato_cliente`, `telefone_contato`, `descricao_final`, `documentacao`, `tempo_inicio`, `data_agendada`, `hora_agendada`, `classificacao TEXT`; `tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0`; `data_abertura TEXT NOT NULL` (data/hora local). |
 | `escalonamento` | `id_escalonamento INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `motivo TEXT`; `nivel INTEGER`; `id_setor_destino`, `id_grupo_destino INTEGER` (FKs opcionais); `data_escalonamento TEXT`. |
-| `documentacao` | `id_documentacao INTEGER` (PK); `id_grupo_solucionadores INTEGER` (FK opcional); `titulo`, `conteudo`, `data_criacao`, `data_atualizacao TEXT`. |
+| `historico_chamado` | `id_historico INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `evento`, `descricao`, `data_evento TEXT NOT NULL`. Mantém a timeline de abertura, início, pausa, escalonamento, encerramento e alterações. |
 | `configuracao` | `id_configuracao INTEGER` (PK); `workspace_name`, `support_email TEXT NOT NULL`. Guarda as configurações gerais do workspace. |
+
+### Diagrama entidade-relacionamento
+
+```mermaid
+erDiagram
+	USUARIO ||--o{ CLIENTE : possui_contatos
+	TIPO_CHAMADO ||--o{ CHAMADO : classifica
+	SETOR o|--o{ GRUPO_SOLUCIONADORES : organiza
+	SETOR o|--o{ CHAMADO : recebe
+	GRUPO_SOLUCIONADORES o|--o{ CHAMADO : atende
+	CHAMADO ||--o{ ESCALONAMENTO : registra
+	SETOR o|--o{ ESCALONAMENTO : destino
+	GRUPO_SOLUCIONADORES o|--o{ ESCALONAMENTO : responsavel_destino
+	CHAMADO ||--o{ HISTORICO_CHAMADO : possui_eventos
+
+	USUARIO {
+		INTEGER id_usuario PK
+		TEXT nome
+		TEXT contato
+		TEXT email
+		TEXT telefone
+		TEXT telefone_empresa
+		TEXT endereco
+		TEXT status
+		TEXT cnpj
+		TEXT plano
+		TEXT acoes
+		TEXT senha_hash
+	}
+	CLIENTE {
+		INTEGER id_cliente PK
+		INTEGER id_usuario FK
+		TEXT nome
+		TEXT email
+		TEXT telefone
+	}
+	TIPO_CHAMADO {
+		INTEGER id_tipo_chamado PK
+		TEXT nome
+		TEXT classificacao
+		TEXT descricao
+	}
+	SETOR {
+		INTEGER id_setor PK
+		TEXT nome UK
+		TEXT descricao
+		TEXT niveis
+	}
+	GRUPO_SOLUCIONADORES {
+		INTEGER id_grupo_solucionadores PK
+		TEXT descricao
+		INTEGER nivel
+		TEXT data_inicio
+		TEXT data_fim
+		TEXT nome
+		TEXT email
+		TEXT cargo
+		NUMERIC valor_hora
+		TEXT telefone
+		TEXT status
+		TEXT senha
+		INTEGER id_setor FK
+	}
+	CHAMADO {
+		INTEGER id_chamado PK
+		INTEGER id_tipo_chamado FK
+		INTEGER id_setor FK
+		INTEGER id_grupo_solucionadores FK
+		TEXT status
+		TEXT cliente
+		TEXT assunto
+		TEXT descricao
+		TEXT email_cliente
+		TEXT telefone_cliente
+		TEXT contato_cliente
+		TEXT telefone_contato
+		TEXT descricao_final
+		TEXT documentacao
+		INTEGER tempo_decorrido_segundos
+		TEXT tempo_inicio
+		TEXT data_abertura
+		TEXT data_agendada
+		TEXT hora_agendada
+		TEXT classificacao
+	}
+	ESCALONAMENTO {
+		INTEGER id_escalonamento PK
+		INTEGER id_chamado FK
+		TEXT motivo
+		INTEGER nivel
+		INTEGER id_setor_destino FK
+		INTEGER id_grupo_destino FK
+		TEXT data_escalonamento
+	}
+	HISTORICO_CHAMADO {
+		INTEGER id_historico PK
+		INTEGER id_chamado FK
+		TEXT evento
+		TEXT descricao
+		TEXT data_evento
+	}
+	CONFIGURACAO {
+		INTEGER id_configuracao PK
+		TEXT workspace_name
+		TEXT support_email
+	}
+```
 
 ### Relacionamentos
 
-- `usuario` 1:N `cliente_contato`; excluir uma empresa exclui seus contatos.
+- `usuario` 1:N `cliente`; excluir uma empresa exclui seus contatos.
 - `tipo_chamado` 1:N `chamado`.
 - `setor` 1:N `grupo_solucionadores` e `chamado`; ao excluir um setor, a referência é removida dos registros relacionados.
-- `grupo_solucionadores` 1:N `chamado` e `documentacao`; os vínculos opcionais ficam nulos quando o membro é removido.
+- `grupo_solucionadores` 1:N `chamado`; o vínculo fica nulo quando o membro é removido.
 - `chamado` 1:N `escalonamento`; excluir o chamado exclui seu histórico de escalonamentos.
+- `chamado` 1:N `historico_chamado`; excluir o chamado exclui seus eventos da timeline.
 - `setor` e `grupo_solucionadores` também podem ser o destino de vários escalonamentos.
 - `chamado` guarda os dados de cliente como texto e **não possui FK para `usuario`**; alterar o cadastro da empresa não altera chamados antigos.
 - `configuracao` é independente das demais tabelas.
 
 As chaves estrangeiras são habilitadas em cada conexão. O schema cria índices para contatos por empresa, equipe por setor, chamados por status/data e escalonamentos por chamado.
+
+Ao migrar uma base antiga, a tabela `cliente_contato` é renomeada para `cliente` mantendo os registros. A antiga tabela `documentacao`, cujas linhas não apontavam para chamados, é arquivada como `documentacao_legado` (ou com sufixo numérico) se contiver dados; em instalações novas ela não é criada. O histórico inicial dos chamados existentes é preenchido usando `data_abertura`.
 
 ## API
 
