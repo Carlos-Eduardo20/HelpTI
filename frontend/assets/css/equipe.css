@@ -57,6 +57,9 @@
 .level-remove:hover { background: var(--red-light); }
 .sector-level { display: inline-block; margin-right: 6px; padding: 3px 7px; border-radius: 4px; background: var(--blue-100); color: var(--blue-700); font-size: 11px; }
 .sector-levels { display: grid; gap: 8px; margin-top: 10px; padding: 0 14px 14px 42px; }
+.sector-no-levels { gap: 6px; }
+.sector-no-levels-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-muted); font-size: 12px; }
+.sector-no-levels .level-members-inline { margin-top: 0; padding-top: 8px; }
 .sector-level-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: #FAFCFF; }
 .sector-level-row { flex-wrap: wrap; }
 .level-summary { min-width: 0; }

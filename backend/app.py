@@ -92,11 +92,15 @@ def ensure_data_columns():
         "ALTER TABLE grupo_solucionadores ADD COLUMN nome VARCHAR(200)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN email VARCHAR(255)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN cargo VARCHAR(100)",
+        "ALTER TABLE grupo_solucionadores ADD COLUMN data_inicio DATE",
         "ALTER TABLE grupo_solucionadores ADD COLUMN valor_hora DECIMAL(10, 2)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN id_setor INT",
         "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
         "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)",
         "ALTER TABLE grupo_solucionadores ADD COLUMN telefone VARCHAR(50)",
+        "ALTER TABLE usuario ADD COLUMN telefone_empresa VARCHAR(50)",
+        "ALTER TABLE usuario ADD COLUMN endereco VARCHAR(500)",
+        "ALTER TABLE usuario ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'ATIVO'",
         "ALTER TABLE setor ADD COLUMN niveis TEXT",
         "ALTER TABLE escalonamento ADD COLUMN id_setor_destino INT",
         "ALTER TABLE escalonamento ADD COLUMN id_grupo_destino INT"
@@ -309,6 +313,12 @@ def update_chamado(id):
                 return jsonify({'erro': 'Informe a data e hora do agendamento'}), 400
             data, hora = agendamento.split('T', 1)
             cursor.execute('UPDATE chamado SET data_agendada = %s, hora_agendada = %s WHERE id_chamado = %s', (data, hora, id))
+        elif acao == 'atualizar_contato':
+            contato = (dados.get('contato_cliente') or '').strip()
+            telefone = (dados.get('telefone_contato') or '').strip()
+            if not contato:
+                return jsonify({'erro': 'Selecione um contato válido'}), 400
+            cursor.execute('UPDATE chamado SET contato_cliente = %s, telefone_contato = %s WHERE id_chamado = %s', (contato, telefone, id))
         elif acao == 'iniciar':
             if status not in ('ABERTO', 'PAUSADO', 'ANDAMENTO'):
                 return jsonify({'erro': 'Este chamado não pode ser iniciado'}), 400
@@ -478,11 +488,13 @@ def create_cliente():
         cursor = conn.cursor()
         
         query = """
-            INSERT INTO usuario (nome, cnpj, email, telefone, contato)
-            VALUES (%s, %s, %s, %s, %s);
+            INSERT INTO usuario (nome, cnpj, telefone_empresa, endereco, email, telefone, contato, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO');
         """
         cnpj = (dados.get('cnpj') or '').strip() or None
-        cursor.execute(query, (nome, cnpj, primeiro_contato['email'], primeiro_contato['telefone'], primeiro_contato['nome']))
+        telefone_empresa = (dados.get('telefone_empresa') or '').strip() or None
+        endereco = (dados.get('endereco') or '').strip() or None
+        cursor.execute(query, (nome, cnpj, telefone_empresa, endereco, primeiro_contato['email'], primeiro_contato['telefone'], primeiro_contato['nome']))
         novo_id = cursor.lastrowid
         cursor.executemany(
             'INSERT INTO cliente_contato (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
@@ -508,7 +520,7 @@ def create_cliente():
 @app.route('/api/clientes/<int:id>', methods=['PUT'])
 def update_cliente(id):
     dados = request.get_json() or {}
-    campos = {campo: dados[campo] for campo in ('cnpj', 'email', 'telefone', 'contato') if campo in dados}
+    campos = {campo: dados[campo] for campo in ('cnpj', 'email', 'telefone', 'telefone_empresa', 'endereco', 'status', 'contato') if campo in dados}
     if not campos:
         return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
     try:
@@ -586,6 +598,7 @@ def create_equipe():
         valor_hora = dados.get('valor_hora') or None
         id_setor = dados.get('id_setor') or None
         telefone = dados.get('telefone') or None
+        data_inicio = dados.get('data_inicio') or datetime.now().date()
         if not nome or not email or not senha:
             return jsonify({'erro': 'Nome, e-mail e senha são obrigatórios'}), 400
 
@@ -595,9 +608,9 @@ def create_equipe():
         cursor = conn.cursor()
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, status, senha, telefone)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s)""",
-            (nome, nivel, nome, email, cargo, valor_hora, id_setor, senha, telefone)
+            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio, status, senha, telefone)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s)""",
+            (nome, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio, senha, telefone)
         )
         conn.commit()
         novo_id = cursor.lastrowid
@@ -613,7 +626,7 @@ def create_equipe():
 @app.route('/api/equipe/<int:id>', methods=['PUT'])
 def update_equipe(id):
     dados = request.get_json() or {}
-    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'nivel') if campo in dados}
+    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'nivel', 'status') if campo in dados}
     if not campos:
         return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
     try:

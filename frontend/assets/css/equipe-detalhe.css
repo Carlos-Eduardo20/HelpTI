@@ -66,6 +66,15 @@
 	background: #B91C1C;
 }
 
+.detail-danger-button.is-activate {
+	background: #15803D;
+	border-color: #166534;
+}
+
+.detail-danger-button.is-activate:hover {
+	background: #166534;
+}
+
 .info-value.detail-editing {
 	width: 100%;
 	min-height: 32px;

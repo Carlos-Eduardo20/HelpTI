@@ -275,6 +275,15 @@
 	background: #B91C1C;
 }
 
+.detail-danger-button.is-activate {
+	background: #15803D;
+	border-color: #166534;
+}
+
+.detail-danger-button.is-activate:hover {
+	background: #166534;
+}
+
 .info-value.detail-editing {
 	width: 100%;
 	min-height: 32px;
@@ -299,6 +308,35 @@
 	display: grid;
 	align-content: start;
 	gap: 14px;
+}
+
+.client-contact-details-list {
+	display: grid;
+	gap: 10px;
+}
+
+.client-contact-detail {
+	display: grid;
+	gap: 3px;
+	padding-bottom: 9px;
+	border-bottom: 1px solid var(--border-color, #E2DCD0);
+}
+
+.client-contact-detail:last-child {
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.client-contact-detail strong {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--text-dark, #1E1B18);
+}
+
+.client-contact-detail span {
+	font-size: 12px;
+	color: var(--text-muted, #5C5650);
+	overflow-wrap: anywhere;
 }
 
 .info-value {

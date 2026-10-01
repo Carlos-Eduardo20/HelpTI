@@ -521,3 +521,110 @@
     box-sizing: border-box;
     transition: border-color 0.15s ease;
 }
+
+.employee-contact-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.employee-contact-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color, #D1D5DB);
+    border-radius: 6px;
+    background: #FFFFFF;
+    color: var(--text-dark, #1E1B18);
+    font: 600 12px var(--font-family-primary, sans-serif);
+    cursor: pointer;
+}
+
+.employee-contact-toggle:hover,
+.employee-contact-toggle[aria-expanded="true"] {
+    border-color: var(--blue-600, #2563EB);
+    background: var(--blue-100, #EFF6FF);
+    color: var(--blue-700, #1D4ED8);
+}
+
+.employee-contact-toggle svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 160ms ease;
+}
+
+.employee-contact-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+
+.employee-contact-menu {
+    display: grid;
+    gap: 2px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid var(--border-color, #D1D5DB);
+    border-radius: 6px;
+    background: #FFFFFF;
+    box-shadow: 0 8px 18px rgba(30, 41, 59, 0.12);
+}
+
+.employee-contact-menu[hidden] { display: none; }
+
+.employee-contact-option {
+    display: grid;
+    gap: 3px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dark, #1E1B18);
+    text-align: left;
+    cursor: pointer;
+}
+
+.employee-contact-option:hover,
+.employee-contact-option[aria-selected="true"] { background: #EFF6FF; }
+.employee-contact-option strong { font-size: 13px; }
+.employee-contact-option span { color: var(--text-muted, #5C5650); font-size: 12px; }
+
+.ticket-agenda-picker { width: 100%; min-height: 42px; }
+
+.agenda-calendar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(30, 27, 24, 0.42);
+    backdrop-filter: blur(2px);
+}
+
+.agenda-calendar-overlay[hidden] { display: none; }
+.ticket-agenda-modal { width: min(100%, 410px); }
+.agenda-calendar-header { display: flex; justify-content: space-between; padding: 22px 24px 20px; background: var(--bg-beige-main); border-bottom: 1px solid var(--border-color); }
+.agenda-calendar-header > div { display: grid; gap: 7px; }
+.agenda-calendar-eyebrow { color: var(--blue-700); font-size: 10px; font-weight: 700; }
+.agenda-calendar-header strong { font-family: var(--font-family-secondary); font-size: 21px; }
+.agenda-calendar-close, .agenda-calendar-toolbar button { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+.agenda-calendar-close { font-size: 26px; line-height: 20px; }
+.agenda-calendar-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px 10px; }
+.agenda-calendar-toolbar strong { font-family: var(--font-family-secondary); font-size: 15px; text-transform: capitalize; }
+.agenda-calendar-toolbar button { width: 30px; height: 30px; border-radius: 6px; font-size: 24px; }
+.agenda-calendar-toolbar button:hover { background: var(--bg-beige-light); color: var(--blue-700); }
+.agenda-calendar-weekdays, .agenda-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 0 18px; }
+.agenda-calendar-weekdays { padding-bottom: 8px; color: var(--text-subtle); font-size: 11px; font-weight: 700; text-align: center; }
+.agenda-calendar-grid { padding-bottom: 12px; }
+.agenda-calendar-day { width: 100%; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid transparent; border-radius: 50%; background: transparent; color: var(--text-dark); cursor: pointer; font: 500 13px var(--font-family-primary); }
+.agenda-calendar-day:hover { border-color: var(--blue-600); background: var(--blue-100); color: var(--blue-700); }
+.agenda-calendar-day.is-other-month { color: var(--text-subtle); }
+.agenda-calendar-day.is-today { border-color: var(--blue-600); }
+.agenda-calendar-day.is-selected { border-color: var(--blue-600); background: var(--blue-600); color: #FFFFFF; font-weight: 700; }
+.ticket-agenda-time-field { display: grid; gap: 6px; padding: 0 22px 14px; }
+.ticket-agenda-time-field label { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
+.ticket-agenda-time-field input { min-height: 38px; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-dark); font: 500 14px var(--font-family-primary); }
+.agenda-calendar-footer { display: flex; justify-content: space-between; padding: 13px 20px; border-top: 1px solid var(--border-color); background: var(--bg-beige-light); }
+.agenda-calendar-today, .agenda-calendar-confirm { border: 0; background: transparent; cursor: pointer; font: 700 12px var(--font-family-primary); }
+.agenda-calendar-today { color: var(--blue-700); }
+.agenda-calendar-confirm { color: var(--blue-700); }

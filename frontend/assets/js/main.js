@@ -1,4 +1,4 @@
-import { buscarChamados, buscarClientes, atualizarCliente, excluirCliente, atualizarMembro, excluirMembro } from './api.js';
+import { buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
 
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
@@ -37,20 +37,32 @@ function mostrarPerfil() {
 }
 
 let clientesEmMemoria = [];
+let chamadosEmMemoria = [];
+let filtroClientesSelecionado = 'todos';
 
 function renderizarClientes(clientes) {
   const tabela = document.querySelector('#tabelaClientes');
   if (!tabela) return;
-  tabela.innerHTML = clientes.map((cliente) => `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}</td><td>${cliente.contato || '-'}</td><td>${cliente.telefone || '-'}</td><td><span class="status-badge status-success">${cliente.status || 'Ativo'}</span></td></tr>`).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
+  tabela.innerHTML = clientes.map((cliente) => {
+    const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
+    return `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}</td><td>${cliente.contato || '-'}</td><td>${cliente.telefone_empresa || cliente.telefone || '-'}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${cliente.id_usuario}" aria-label="Excluir cliente ${cliente.nome || ''}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
+  }).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
 }
 
 function filtrarClientes() {
   const termo = document.querySelector('#buscaClientes')?.value.trim().toLowerCase() || '';
-  const camposMarcados = [...document.querySelectorAll('#menuFiltroClientes input[type="checkbox"]:checked')]
-    .map((checkbox) => checkbox.value);
-  const camposBusca = camposMarcados.length ? camposMarcados : ['nome', 'cnpj', 'contato', 'email', 'telefone', 'plano', 'status'];
-  const clientesFiltrados = clientesEmMemoria.filter((cliente) => camposBusca
-    .some((campoCliente) => normalizarTexto(campoCliente === 'status' ? (cliente.status || 'Ativo') : cliente[campoCliente] || '').includes(normalizarTexto(termo))));
+  const clientesFiltrados = clientesEmMemoria.filter((cliente) => {
+    const statusCliente = (cliente.status || 'ATIVO').toUpperCase();
+    if (filtroClientesSelecionado === 'cliente:ATIVO' && statusCliente !== 'ATIVO') return false;
+    if (filtroClientesSelecionado === 'cliente:INATIVO' && !['INATIVO', 'DESATIVADO'].includes(statusCliente)) return false;
+    if (filtroClientesSelecionado.startsWith('chamado:')) {
+      const statusChamado = filtroClientesSelecionado.split(':')[1];
+      const possuiChamado = chamadosEmMemoria.some((chamado) => chamado.cliente === cliente.nome && chamado.status === statusChamado);
+      if (!possuiChamado) return false;
+    }
+    const dadosBusca = [cliente.nome, cliente.cnpj, cliente.contato, cliente.email, cliente.telefone_empresa, cliente.telefone, cliente.endereco, cliente.plano, ...(cliente.contatos || []).flatMap((contato) => [contato.nome, contato.email, contato.telefone])];
+    return !termo || dadosBusca.some((valor) => normalizarTexto(valor).includes(normalizarTexto(termo)));
+  });
   renderizarClientes(clientesFiltrados);
 }
 
@@ -62,7 +74,7 @@ function normalizarTexto(valor) {
 }
 
 function configurarFiltroClientes() {
-  const controle = document.querySelector('.client-filter-control');
+  const controle = document.querySelector('.client-status-filter-control');
   const botao = document.querySelector('#botaoFiltroClientes');
   const menu = document.querySelector('#menuFiltroClientes');
   if (!controle || !botao || !menu) return;
@@ -73,16 +85,14 @@ function configurarFiltroClientes() {
     botao.setAttribute('aria-expanded', String(aberto));
   });
 
-  menu.addEventListener('change', (event) => {
-    if (!event.target.matches('input[type="checkbox"]')) return;
-    filtrarClientes();
-  });
-
-  document.querySelector('#filtroClientes')?.addEventListener('change', (event) => {
-    const campo = event.target.value;
-    if (!campo) return;
-    const checkbox = menu.querySelector(`input[value="${campo}"]`);
-    if (checkbox) checkbox.checked = true;
+  menu.addEventListener('click', (event) => {
+    const opcao = event.target.closest('[data-client-filter]');
+    if (!opcao) return;
+    filtroClientesSelecionado = opcao.dataset.clientFilter;
+    document.querySelector('#filtroClientesLabel').textContent = opcao.textContent.trim();
+    menu.querySelectorAll('[data-client-filter]').forEach((item) => item.setAttribute('aria-selected', String(item === opcao)));
+    controle.classList.remove('is-open');
+    botao.setAttribute('aria-expanded', 'false');
     filtrarClientes();
   });
 }
@@ -91,9 +101,9 @@ async function carregarClientes() {
   const tabela = document.querySelector('#tabelaClientes');
   if (!tabela) return;
   try {
-    const { buscarClientes } = await import('./api.js');
-    clientesEmMemoria = await buscarClientes();
-    renderizarClientes(clientesEmMemoria);
+    const { buscarClientes, buscarChamados } = await import('./api.js');
+    [clientesEmMemoria, chamadosEmMemoria] = await Promise.all([buscarClientes(), buscarChamados()]);
+    filtrarClientes();
   } catch (error) { tabela.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; }
 }
 
@@ -109,6 +119,8 @@ async function salvarCliente(event) {
   const dados = {
     nome: form.elements.nome.value.trim(),
     cnpj: form.elements.cnpj.value.trim(),
+    telefone_empresa: form.elements.telefone_empresa.value.trim(),
+    endereco: form.elements.endereco.value.trim(),
     email: primeiroContato.email,
     contato: primeiroContato.nome,
     telefone: primeiroContato.telefone,
@@ -145,6 +157,16 @@ function resetarContatosCliente() {
   if (!lista || !modelo) return;
   lista.replaceChildren(modelo.content.cloneNode(true));
   atualizarBotoesRemoverContato();
+}
+
+function formatarTelefoneEmpresa(valor) {
+  const digitos = valor.replace(/\D/g, '').slice(0, 11);
+  if (digitos.length <= 2) return digitos ? `(${digitos}` : '';
+  const ddd = `(${digitos.slice(0, 2)}) `;
+  const tamanhoPrefixo = digitos[2] === '9' ? 5 : 4;
+  const numero = digitos.slice(2);
+  if (numero.length <= tamanhoPrefixo) return ddd + numero;
+  return `${ddd}${numero.slice(0, tamanhoPrefixo)}-${numero.slice(tamanhoPrefixo)}`;
 }
 
 async function carregarEquipe() {
@@ -185,10 +207,16 @@ function renderizarSetor(setor) {
   const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
   const niveis = (setor.niveis || []).map((nivel, indice) => {
     const membrosDoNivelAtual = participantes.filter((membro) => Number(membro.nivel) === indice + 1);
-    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}" target="_blank" rel="noopener noreferrer"><strong>${membro.nome || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
+    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
     return `<div class="sector-level-row"><div class="level-summary"><strong>${nivel}</strong><small>${membrosDoNivelAtual.length} funcionário(s) alocado(s)</small></div><div class="level-actions"><button type="button" class="level-action" title="Mostrar funcionários de ${nivel}" aria-label="Mostrar funcionários de ${nivel}" aria-expanded="false" data-level-action="details" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar técnico em ${nivel}" aria-label="Adicionar técnico em ${nivel}" data-level-action="add" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div><div class="level-members-inline" hidden>${membrosHtml}</div></div>`;
   }).join('');
-  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${setor.niveis?.length ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${setor.id_setor}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${niveis ? `<div class="sector-levels">${niveis}</div>` : '<div class="sector-levels"><span class="empty-row">Nenhum nível cadastrado.</span></div>'}</details></td></tr>`;
+  const possuiNiveis = Boolean(setor.niveis?.length);
+  const membrosSemNivel = participantes.filter((membro) => !membro.nivel);
+  const semNivelHtml = membrosSemNivel.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || membro.descricao || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste setor.</span>';
+  const conteudoNiveis = possuiNiveis
+    ? `<div class="sector-levels">${niveis}</div>`
+    : `<div class="sector-levels sector-no-levels"><div class="sector-no-levels-header"><span>${membrosSemNivel.length} funcionário(s)</span><button type="button" class="level-action" title="Adicionar funcionário sem nível" aria-label="Adicionar funcionário ao setor ${setor.nome}" data-level-action="add" data-setor-id="${setor.id_setor}">${iconeNivel('plus')}</button></div><div class="level-members-inline">${semNivelHtml}</div></div>`;
+  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${possuiNiveis ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${setor.id_setor}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${conteudoNiveis}</details></td></tr>`;
 }
 
 function obterNivelAtual() {
@@ -238,8 +266,12 @@ function abrirNovoFuncionario(setorId, nivel) {
   if (!setor || !form || !campoSetor || !campoNivel) return;
   form.reset();
   campoSetor.value = setor.nome;
-  campoNivel.innerHTML = (setor.niveis || []).map((nome, indice) => `<option value="${indice + 1}">${nome}</option>`).join('') || '<option value="">Sem níveis cadastrados</option>';
-  campoNivel.value = String(nivel);
+  const niveis = setor.niveis || [];
+  campoNivel.required = niveis.length > 0;
+  campoNivel.innerHTML = niveis.length
+    ? `<option value="">Selecione um nível</option>${opcoesDeNiveis(setor)}`
+    : '<option value="">Sem nível</option>';
+  campoNivel.value = nivel ? String(nivel) : '';
   openModal('modal-equipe');
 }
 
@@ -254,21 +286,12 @@ function alternarMembrosNivel(botao) {
   botao.setAttribute('aria-label', `${aberto ? 'Ocultar' : 'Mostrar'} funcionários do nível`);
 }
 
-const equipamentosPadrao = [
-  { nome: 'Servidores AD/Files', quantidade: 2 },
-  { nome: 'Firewall Fortinet', quantidade: 1 },
-  { nome: 'Switches Core', quantidade: 2 },
-  { nome: 'Access Points', quantidade: 6 },
-  { nome: 'Workstations', quantidade: 20 },
-  { nome: 'Printers IP', quantidade: 3 }
-];
-
 function equipamentosDoCliente(id) {
   const chave = `helpti-equipamentos-${id}`;
   const salvos = JSON.parse(localStorage.getItem(chave) || 'null');
   if (Array.isArray(salvos)) return salvos;
-  localStorage.setItem(chave, JSON.stringify(equipamentosPadrao));
-  return [...equipamentosPadrao];
+  localStorage.setItem(chave, JSON.stringify([]));
+  return [];
 }
 
 function renderizarEquipamentos(id) {
@@ -502,7 +525,7 @@ document.addEventListener('click', (event) => {
   const setorId = action.dataset.setorId;
   const nivel = Number(action.dataset.levelIndex);
   if (action.dataset.levelAction === 'details') alternarMembrosNivel(action);
-  if (action.dataset.levelAction === 'add') abrirNovoFuncionario(setorId, nivel);
+  if (action.dataset.levelAction === 'add') abrirNovoFuncionario(setorId, Number.isInteger(nivel) && nivel > 0 ? nivel : null);
 });
 document.addEventListener('click', (event) => {
   const botao = event.target.closest('[data-delete-sector]');
@@ -513,7 +536,7 @@ document.addEventListener('click', (event) => {
 });
 document.querySelector('#confirmar-adicao-nivel')?.addEventListener('click', adicionarFuncionariosSelecionados);
 document.addEventListener('click', (event) => {
-  const controle = document.querySelector('.client-filter-control');
+  const controle = document.querySelector('.client-status-filter-control');
   if (controle && !controle.contains(event.target)) {
     controle.classList.remove('is-open');
     document.querySelector('#botaoFiltroClientes')?.setAttribute('aria-expanded', 'false');
@@ -523,9 +546,26 @@ document.querySelector('a[href="login.html"]')?.addEventListener('click', encerr
 document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); configurarModalSetor(); });
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
+  document.querySelector('#tabelaClientes')?.addEventListener('click', async (event) => {
+    const botao = event.target.closest('[data-excluir-cliente]');
+    if (!botao) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!window.confirm('Você tem certeza que quer apagar o cliente.')) return;
+    try {
+      const { excluirCliente } = await import('./api.js');
+      await excluirCliente(botao.dataset.excluirCliente);
+      await carregarClientes();
+    } catch (error) {
+      alert(`Não foi possível excluir o cliente: ${error.message}`);
+    }
+  });
   configurarFiltroClientes();
   resetarContatosCliente();
   document.querySelector('#adicionarContatoCliente')?.addEventListener('click', adicionarContatoCliente);
+  document.querySelector('[name="telefone_empresa"]')?.addEventListener('input', (event) => {
+    event.target.value = formatarTelefoneEmpresa(event.target.value);
+  });
   document.querySelector('#contatosCliente')?.addEventListener('click', (event) => {
     const botao = event.target.closest('[data-remover-contato]');
     if (!botao || botao.disabled) return;
@@ -597,6 +637,79 @@ function detailDate(value) {
 
 function detailEscape(value) {
   return String(value ?? '-').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
+}
+
+const mesesAgendamento = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+function dataLocalAgendamento(data = new Date()) {
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
+}
+
+function atualizarRotuloAgendamento() {
+  const valor = document.querySelector('#data_agendada')?.value || '';
+  const [data, hora] = valor.split('T');
+  const rotulo = document.querySelector('#agendamentoDataLabel');
+  if (!rotulo) return;
+  if (!data) { rotulo.textContent = 'Selecionar data e horário'; return; }
+  const [ano, mes, dia] = data.split('-');
+  rotulo.textContent = `${dia}/${mes}/${ano} · ${hora || '09:00'}`;
+}
+
+function renderizarCalendarioAgendamento() {
+  const modal = document.querySelector('#modalCalendarioAgendamento');
+  const grade = document.querySelector('#calendarioAgendamentoDias');
+  const titulo = document.querySelector('#mesAnoAgendamento');
+  if (!modal || !grade || !titulo) return;
+  const mes = Number(modal.dataset.mes);
+  const ano = Number(modal.dataset.ano);
+  titulo.textContent = `${mesesAgendamento[mes]} de ${ano}`;
+  const inicioMes = new Date(ano, mes, 1);
+  const inicioSemana = (inicioMes.getDay() + 6) % 7;
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+  const diasMesAnterior = new Date(ano, mes, 0).getDate();
+  const selecionada = document.querySelector('#data_agendada')?.value.split('T')[0];
+  const hoje = dataLocalAgendamento();
+  const dias = [];
+  for (let indice = 0; indice < 42; indice += 1) {
+    const numeroDia = indice - inicioSemana + 1;
+    let dia = numeroDia;
+    let mesDia = mes;
+    let anoDia = ano;
+    let classe = '';
+    if (numeroDia < 1) { dia = diasMesAnterior + numeroDia; mesDia -= 1; classe = ' is-other-month'; }
+    if (numeroDia > ultimoDia) { dia = numeroDia - ultimoDia; mesDia += 1; classe = ' is-other-month'; }
+    if (mesDia < 0) { mesDia = 11; anoDia -= 1; }
+    if (mesDia > 11) { mesDia = 0; anoDia += 1; }
+    const valor = `${anoDia}-${String(mesDia + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    if (valor === hoje) classe += ' is-today';
+    if (valor === selecionada) classe += ' is-selected';
+    dias.push(`<button type="button" class="agenda-calendar-day${classe}" data-agendamento-data="${valor}">${dia}</button>`);
+  }
+  grade.innerHTML = dias.join('');
+}
+
+function abrirCalendarioAgendamento() {
+  const modal = document.querySelector('#modalCalendarioAgendamento');
+  const campo = document.querySelector('#data_agendada');
+  const hora = document.querySelector('#horaAgendamento');
+  if (!modal || !campo || !hora) return;
+  if (!campo.value) campo.value = `${dataLocalAgendamento()}T09:00`;
+  hora.value = campo.value.split('T')[1] || '09:00';
+  const selecionada = new Date(`${campo.value.split('T')[0]}T12:00:00`);
+  modal.dataset.mes = String(selecionada.getMonth());
+  modal.dataset.ano = String(selecionada.getFullYear());
+  modal.hidden = false;
+  renderizarCalendarioAgendamento();
+  atualizarRotuloAgendamento();
+}
+
+function selecionarDataAgendamento(data) {
+  const campo = document.querySelector('#data_agendada');
+  const hora = document.querySelector('#horaAgendamento');
+  if (!campo || !hora) return;
+  campo.value = `${data}T${hora.value || '09:00'}`;
+  renderizarCalendarioAgendamento();
+  atualizarRotuloAgendamento();
 }
 
 function iniciarEdicaoDetalhe(scope, registro) {
@@ -694,8 +807,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           badgeTempo.classList.toggle('is-warning', restantes <= 10 * 60 && restantes > 5 * 60);
           badgeTempo.classList.toggle('is-critical', restantes <= 5 * 60);
         }
-        if (campoAgendamento && chamado.data_agendada) {
-          campoAgendamento.value = `${chamado.data_agendada.slice(0, 10)}T${(chamado.hora_agendada || '09:00:00').slice(0, 5)}`;
+        if (campoAgendamento) {
+          if (chamado.data_agendada) campoAgendamento.value = `${chamado.data_agendada.slice(0, 10)}T${(chamado.hora_agendada || '09:00:00').slice(0, 5)}`;
+          else if (!campoAgendamento.value) campoAgendamento.value = `${dataLocalAgendamento()}T09:00`;
+          const horaAgendamento = document.querySelector('#horaAgendamento');
+          if (horaAgendamento) horaAgendamento.value = campoAgendamento.value.split('T')[1] || '09:00';
+          atualizarRotuloAgendamento();
         }
         const encerrado = status === 'RESOLVIDO';
         if (botaoIniciar) { botaoIniciar.disabled = encerrado || status === 'ANDAMENTO'; botaoIniciar.textContent = status === 'PAUSADO' ? 'Retomar chamado' : 'Iniciar chamado'; }
@@ -721,6 +838,73 @@ document.addEventListener('DOMContentLoaded', async () => {
           return false;
         }
       }
+
+      const botaoContatos = document.querySelector('#abrirContatosChamado');
+      const menuContatos = document.querySelector('#menuContatosChamado');
+      const contatosCliente = cliente?.contatos?.length
+        ? cliente.contatos
+        : cliente?.contato ? [{ nome: cliente.contato, telefone: cliente.telefone }] : [];
+      const renderizarContatosChamado = () => {
+        if (!menuContatos) return;
+        menuContatos.innerHTML = contatosCliente.length
+          ? contatosCliente.map((contato, indice) => {
+            const selecionado = contato.nome === chamado.contato_cliente && contato.telefone === chamado.telefone_contato;
+            return `<button type="button" role="option" class="employee-contact-option" data-contato-indice="${indice}" aria-selected="${selecionado}"><strong>${detailEscape(contato.nome || 'Contato')}</strong><span>${detailEscape(contato.telefone || 'Telefone não informado')}</span></button>`;
+          }).join('')
+          : '<span class="employee-contact-option">Nenhum contato cadastrado para este cliente.</span>';
+      };
+      renderizarContatosChamado();
+      botaoContatos?.addEventListener('click', () => {
+        const aberto = menuContatos.hidden;
+        menuContatos.hidden = !aberto;
+        botaoContatos.setAttribute('aria-expanded', String(aberto));
+      });
+      menuContatos?.addEventListener('click', async (event) => {
+        const opcao = event.target.closest('[data-contato-indice]');
+        if (!opcao) return;
+        const contato = contatosCliente[Number(opcao.dataset.contatoIndice)];
+        if (!contato) return;
+        try {
+          chamado = await atualizarChamado(id, {
+            acao: 'atualizar_contato',
+            contato_cliente: contato.nome,
+            telefone_contato: contato.telefone
+          });
+          atualizarTelaChamado();
+          renderizarContatosChamado();
+          menuContatos.hidden = true;
+          botaoContatos?.setAttribute('aria-expanded', 'false');
+        } catch (error) { alert(`Não foi possível alterar o contato: ${error.message}`); }
+      });
+
+      const modalCalendario = document.querySelector('#modalCalendarioAgendamento');
+      const alterarMesCalendario = (delta) => {
+        if (!modalCalendario) return;
+        let mes = Number(modalCalendario.dataset.mes) + delta;
+        let ano = Number(modalCalendario.dataset.ano);
+        if (mes < 0) { mes = 11; ano -= 1; }
+        if (mes > 11) { mes = 0; ano += 1; }
+        modalCalendario.dataset.mes = String(mes);
+        modalCalendario.dataset.ano = String(ano);
+        renderizarCalendarioAgendamento();
+      };
+      document.querySelector('#abrirCalendarioAgendamento')?.addEventListener('click', abrirCalendarioAgendamento);
+      document.querySelector('#fecharCalendarioAgendamento')?.addEventListener('click', () => { if (modalCalendario) modalCalendario.hidden = true; });
+      document.querySelector('#mesAnteriorAgendamento')?.addEventListener('click', () => alterarMesCalendario(-1));
+      document.querySelector('#mesProximoAgendamento')?.addEventListener('click', () => alterarMesCalendario(1));
+      document.querySelector('#calendarioAgendamentoDias')?.addEventListener('click', (event) => {
+        const dia = event.target.closest('[data-agendamento-data]');
+        if (dia) selecionarDataAgendamento(dia.dataset.agendamentoData);
+      });
+      document.querySelector('#horaAgendamento')?.addEventListener('change', (event) => {
+        const data = campoAgendamento?.value.split('T')[0] || dataLocalAgendamento();
+        if (campoAgendamento) campoAgendamento.value = `${data}T${event.target.value}`;
+        atualizarRotuloAgendamento();
+      });
+      document.querySelector('#hojeCalendarioAgendamento')?.addEventListener('click', () => selecionarDataAgendamento(dataLocalAgendamento()));
+      modalCalendario?.addEventListener('click', (event) => {
+        if (event.target === modalCalendario) modalCalendario.hidden = true;
+      });
 
       if (setorSelect && tecnicoSelect) {
         setorSelect.innerHTML = setores.map((setor) => `<option value="${detailEscape(setor.id_setor)}">${detailEscape(setor.nome)}</option>`).join('');
@@ -772,8 +956,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
       document.querySelector('#salvarAgendamento')?.addEventListener('click', async () => {
-        if (!campoAgendamento?.value) { campoAgendamento?.reportValidity(); return; }
-        await executarAcao({ acao: 'agendar', data_agendada: campoAgendamento.value }, 'Agendamento salvo.');
+        const data = campoAgendamento?.value.split('T')[0];
+        const hora = document.querySelector('#horaAgendamento')?.value;
+        if (!data || !hora) { document.querySelector('#horaAgendamento')?.reportValidity(); return; }
+        if (await executarAcao({ acao: 'agendar', data_agendada: `${data}T${hora}` }, 'Agendamento salvo.')) modalCalendario.hidden = true;
       });
       timerChamado = window.setInterval(() => {
         if (chamado.status === 'ANDAMENTO') atualizarTelaChamado();
@@ -786,22 +972,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (path.includes('cliente-detalhe.html')) {
       const { buscarClientes, buscarChamados } = await import('./api.js');
       const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
-      const cliente = clientes.find((item) => item.id_usuario == id);
+      let cliente = clientes.find((item) => item.id_usuario == id);
       if (!cliente) throw new Error('Cliente não encontrado.');
       setDetailText('cli-nome', cliente.nome);
       setDetailText('cli-breadcrumb', cliente.nome);
       setDetailText('cli-avatar', detailInitials(cliente.nome));
       setDetailText('cli-cnpj', cliente.cnpj);
       setDetailText('cli-email', cliente.email);
-      setDetailText('cli-telefone', cliente.telefone);
-      setDetailText('cli-endereco', cliente.contato);
+      setDetailText('cli-telefone', cliente.telefone_empresa || cliente.telefone);
+      setDetailText('cli-endereco', cliente.endereco);
       setDetailText('cli-fatura', cliente.plano);
       setDetailText('cli-contrato', cliente.acoes);
+      const contatos = cliente.contatos?.length ? cliente.contatos : [{ nome: cliente.contato, email: cliente.email, telefone: cliente.telefone }];
+      const listaContatos = document.querySelector('#cli-contatos');
+      if (listaContatos) {
+        listaContatos.innerHTML = contatos.map((contato) => `<div class="client-contact-detail"><strong>${detailEscape(contato.nome || 'Contato')}</strong><span>${detailEscape(contato.email || 'E-mail não informado')}</span><span>${detailEscape(contato.telefone || 'Telefone não informado')}</span></div>`).join('') || '<span class="info-value">Nenhum contato cadastrado.</span>';
+      }
       configurarDetalheEditavel('cliente', cliente);
       configurarEquipamentos(id);
-      document.querySelector('#desativarCliente')?.addEventListener('click', async () => {
-        if (!window.confirm('Tem certeza de que deseja apagar este cliente?')) return;
-        try { await excluirCliente(cliente.id_usuario); window.location.href = 'clientes.html'; } catch (error) { alert(`Não foi possível apagar: ${error.message}`); }
+      const botaoStatusCliente = document.querySelector('#desativarCliente');
+      const atualizarStatusCliente = () => {
+        const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
+        const badge = document.querySelector('#cli-status');
+        if (badge) {
+          badge.textContent = ativo ? 'Cliente Ativo' : 'Cliente Desativado';
+          badge.classList.toggle('badge-green', ativo);
+          badge.classList.toggle('badge-red', !ativo);
+        }
+        if (botaoStatusCliente) {
+          botaoStatusCliente.textContent = ativo ? 'Desativar Cliente' : 'Ativar Cliente';
+          botaoStatusCliente.classList.toggle('is-activate', !ativo);
+        }
+      };
+      atualizarStatusCliente();
+      botaoStatusCliente?.addEventListener('click', async () => {
+        const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
+        const novoStatus = ativo ? 'INATIVO' : 'ATIVO';
+        if (!window.confirm(`Deseja ${ativo ? 'desativar' : 'ativar'} este cliente?`)) return;
+        try {
+          cliente = await atualizarCliente(cliente.id_usuario, { status: novoStatus });
+          atualizarStatusCliente();
+        } catch (error) { alert(`Não foi possível atualizar o status: ${error.message}`); }
       });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
       const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
@@ -809,23 +1020,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (path.includes('equipe-detalhe.html')) {
-      const { buscarEquipe, buscarChamados } = await import('./api.js');
-      const [equipe, chamados] = await Promise.all([buscarEquipe(), buscarChamados()]);
+      const { buscarEquipe, buscarChamados, buscarSetores } = await import('./api.js');
+      const [equipe, chamados, setores] = await Promise.all([buscarEquipe(), buscarChamados(), buscarSetores()]);
       const membro = equipe.find((item) => item.id_grupo_solucionadores == id);
       if (!membro) throw new Error('Membro da equipe não encontrado.');
+      const setorMembro = setores.find((item) => item.id_setor == membro.id_setor);
+      const nomeNivel = membro.nivel && setorMembro?.niveis?.[Number(membro.nivel) - 1]
+        ? setorMembro.niveis[Number(membro.nivel) - 1]
+        : membro.nivel ? `Nível ${membro.nivel}` : 'Sem nível';
       setDetailText('membro-nome', membro.nome);
       setDetailText('membro-breadcrumb', membro.nome);
       setDetailText('membro-avatar', detailInitials(membro.nome));
       setDetailText('membro-setor', membro.setor_nome || 'Sem setor');
-      setDetailText('membro-cargo', membro.cargo || 'Não informado');
+      setDetailText('membro-nivel', nomeNivel);
       setDetailText('membro-email', membro.email);
       setDetailText('membro-telefone', membro.telefone || 'Não informado');
       setDetailText('membro-admissao', detailDate(membro.data_inicio));
       setDetailText('membro-valor-hora', membro.valor_hora ? `R$ ${Number(membro.valor_hora).toFixed(2).replace('.', ',')}` : 'Não informado');
       configurarDetalheEditavel('equipe', membro);
-      document.querySelector('#desativarMembro')?.addEventListener('click', async () => {
-        if (!window.confirm('Tem certeza de que deseja apagar este técnico?')) return;
-        try { await excluirMembro(membro.id_grupo_solucionadores); window.location.href = 'equipe.html'; } catch (error) { alert(`Não foi possível apagar: ${error.message}`); }
+      const botaoStatusMembro = document.querySelector('#desativarMembro');
+      const atualizarStatusMembro = () => {
+        const ativo = (membro.status || 'ATIVO').toUpperCase() === 'ATIVO';
+        const badge = document.querySelector('#membro-status');
+        if (badge) {
+          badge.textContent = ativo ? 'Ativo' : 'Desativado';
+          badge.classList.toggle('badge-green', ativo);
+          badge.classList.toggle('badge-red', !ativo);
+        }
+        if (botaoStatusMembro) {
+          botaoStatusMembro.textContent = ativo ? 'Desativar Técnico' : 'Ativar Técnico';
+          botaoStatusMembro.classList.toggle('is-activate', !ativo);
+        }
+      };
+      atualizarStatusMembro();
+      botaoStatusMembro?.addEventListener('click', async () => {
+        const ativo = (membro.status || 'ATIVO').toUpperCase() === 'ATIVO';
+        const novoStatus = ativo ? 'INATIVO' : 'ATIVO';
+        if (!window.confirm(`Deseja ${ativo ? 'desativar' : 'ativar'} este técnico?`)) return;
+        try {
+          const atualizado = await atualizarMembro(membro.id_grupo_solucionadores, { status: novoStatus });
+          membro.status = atualizado.status;
+          atualizarStatusMembro();
+        } catch (error) { alert(`Não foi possível atualizar o status: ${error.message}`); }
       });
       setDetailText('membro-certificacoes', 'Não informado');
       document.querySelectorAll('.team-stats-grid .stat-box-number').forEach((element) => { element.textContent = '—'; });

@@ -173,8 +173,9 @@ function renderizarAgenda(chamados) {
   }
   const hoje = new Date().toISOString().slice(0, 10);
 
-  cabecalho.style.gridTemplateColumns = 'repeat(5, minmax(220px, 1fr))';
-  agenda.style.gridTemplateColumns = 'repeat(5, minmax(220px, 1fr))';
+  const colunas = `repeat(${Math.max(datas.length, 1)}, minmax(0, 1fr))`;
+  cabecalho.style.gridTemplateColumns = colunas;
+  agenda.style.gridTemplateColumns = colunas;
 
   cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header ${data === hoje ? 'active' : ''}">${formatarDataAgenda(data)}</div>`).join('');
   const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', PAUSADO: 'badge-yellow', RESOLVIDO: 'badge-green' };
@@ -624,7 +625,7 @@ document.addEventListener('click', async (event) => {
 
   const row = event.target.closest('.chamado-row');
   if (row && !event.target.closest('[data-status-picker]')) {
-    window.open(`chamados-detalhe.html?id=${encodeURIComponent(row.dataset.detalhes)}`, '_blank', 'noopener,noreferrer');
+    window.location.href = `chamados-detalhe.html?id=${encodeURIComponent(row.dataset.detalhes)}`;
   }
 });
 

@@ -326,7 +326,8 @@
 .agenda-header-days,
 .agenda-body {
   display: grid;
-  min-width: 220px;
+  min-width: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .agenda-header-days {
@@ -408,6 +409,13 @@
 
 @media (max-width: 560px) {
   .stats-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .agenda-header-days,
+  .agenda-body {
+    min-width: 1100px;
+  }
 }
 
 

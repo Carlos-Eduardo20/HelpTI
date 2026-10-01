@@ -93,7 +93,7 @@
             <div class="client-avatar-badge" id="cli-avatar">--</div>
             <div>
               <h2 id="cli-nome">Carregando...</h2>
-              <span class="badge badge-green">Cliente Ativo</span>
+              <span class="badge badge-green" id="cli-status">Carregando...</span>
             </div>
           </div>
           <button type="button" class="detail-edit-button" data-edit-scope="cliente" aria-label="Editar dados do cliente">
@@ -111,7 +111,7 @@
 
               <div class="info-item">
                 <span class="info-label">TELEFONE EMPRESARIAL</span>
-                <span class="info-value" id="cli-telefone" data-edit-field="telefone"></span>
+                <span class="info-value" id="cli-telefone" data-edit-field="telefone_empresa"></span>
               </div>
 
               <div class="info-item">
@@ -121,20 +121,13 @@
 
               <div class="info-item">
                 <span class="info-label">ENDEREÇO</span>
-                <span class="info-value" id="cli-endereco" data-edit-field="contato"></span>
+                <span class="info-value" id="cli-endereco" data-edit-field="endereco"></span>
               </div>
             </div>
 
-            <div class="info-contato">
-              <div class="info-item">
-                <span class="info-label">Funcionários</span>
-                <span class="info-value" id="cli-Funcionario" data-edit-field="contato"></span>
-              </div>
-
-              <div class="info-item">
-                <span class="info-label">Tel</span>
-                <span class="info-value" id="cli-telefone2" data-edit-field="telefone"></span>
-              </div>
+            <div class="info-contato client-contact-details">
+              <span class="info-label">Funcionários / contatos</span>
+              <div id="cli-contatos" class="client-contact-details-list"></div>
             </div>
           </div>
           <button type="button" class="detail-danger-button" id="desativarCliente">Desativar Cliente</button>
