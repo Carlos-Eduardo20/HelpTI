@@ -1,8 +1,7 @@
 from flask import Flask, request, jsonify, redirect, send_from_directory
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_cors import CORS
-import mysql.connector
-from mysql.connector import Error
+from sqlite3 import Error
 import os
 import json
 import re
@@ -12,6 +11,11 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import webbrowser
 from threading import Timer
+
+try:
+    from .database import get_db_connection, initialize_database
+except ImportError:
+    from database import get_db_connection, initialize_database
 
 BASE_DIR = os.path.dirname(__file__)
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -33,116 +37,6 @@ def frontend_entrypoint():
 @app.route('/frontend/<path:filename>')
 def frontend_files(filename):
     return send_from_directory(FRONTEND_DIR, filename)
-
-# Conexão com o banco de dados MySQL
-def get_db_connection():
-    try:
-        conn = mysql.connector.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', ''),
-            database=os.getenv('DB_NAME', 'HelpTI'),
-            port=int(os.getenv('DB_PORT', '3306'))
-        )
-        return conn
-    except Error as e:
-        print(f"Erro ao conectar: {e}")
-        return None
-
-def ensure_data_columns():
-    """Mantém bancos antigos compatíveis com os campos usados pela aplicação."""
-    conn = get_db_connection()
-    if not conn:
-        return
-    cursor = conn.cursor()
-    cursor.execute("""CREATE TABLE IF NOT EXISTS configuracao (
-        id_configuracao INT NOT NULL PRIMARY KEY,
-        workspace_name VARCHAR(200) NOT NULL,
-        support_email VARCHAR(255) NOT NULL
-    )""")
-    cursor.execute("""INSERT IGNORE INTO configuracao
-        (id_configuracao, workspace_name, support_email)
-        VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br')""")
-    cursor.execute("""CREATE TABLE IF NOT EXISTS cliente_contato (
-        id_cliente_contato INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        id_usuario INT NOT NULL,
-        nome VARCHAR(200) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        telefone VARCHAR(50) NOT NULL,
-        CONSTRAINT fk_cliente_contato_usuario FOREIGN KEY (id_usuario)
-            REFERENCES usuario(id_usuario) ON DELETE CASCADE
-    )""")
-    statements = (
-        "CREATE TABLE IF NOT EXISTS setor (id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(200) NOT NULL UNIQUE, descricao VARCHAR(500))",
-        "ALTER TABLE chamado ADD COLUMN cliente VARCHAR(200)",
-        "ALTER TABLE chamado ADD COLUMN assunto VARCHAR(255)",
-        "ALTER TABLE chamado MODIFY COLUMN assunto VARCHAR(255) NULL",
-        "ALTER TABLE chamado ADD COLUMN descricao TEXT",
-        "ALTER TABLE chamado ADD COLUMN email_cliente VARCHAR(255)",
-        "ALTER TABLE chamado ADD COLUMN telefone_cliente VARCHAR(50)",
-        "ALTER TABLE chamado ADD COLUMN contato_cliente VARCHAR(200)",
-        "ALTER TABLE chamado ADD COLUMN telefone_contato VARCHAR(50)",
-        "ALTER TABLE chamado ADD COLUMN descricao_final TEXT",
-        "ALTER TABLE chamado ADD COLUMN tempo_decorrido_segundos INT NOT NULL DEFAULT 0",
-        "ALTER TABLE chamado ADD COLUMN tempo_inicio DATETIME NULL",
-        "ALTER TABLE chamado ADD COLUMN data_abertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
-        "ALTER TABLE chamado ADD COLUMN id_setor INT",
-        "ALTER TABLE chamado ADD COLUMN data_agendada DATE",
-        "ALTER TABLE chamado ADD COLUMN hora_agendada TIME",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN nome VARCHAR(200)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN email VARCHAR(255)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN cargo VARCHAR(100)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN data_inicio DATE",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN valor_hora DECIMAL(10, 2)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN id_setor INT",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO'",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255)",
-        "ALTER TABLE grupo_solucionadores ADD COLUMN telefone VARCHAR(50)",
-        "ALTER TABLE usuario ADD COLUMN telefone_empresa VARCHAR(50)",
-        "ALTER TABLE usuario ADD COLUMN endereco VARCHAR(500)",
-        "ALTER TABLE usuario ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'ATIVO'",
-        "ALTER TABLE setor ADD COLUMN niveis TEXT",
-        "ALTER TABLE escalonamento ADD COLUMN id_setor_destino INT",
-        "ALTER TABLE escalonamento ADD COLUMN id_grupo_destino INT"
-    )
-    for statement in statements:
-        try:
-            cursor.execute(statement)
-        except Error as error:
-            if error.errno not in (1060, 1146):
-                print(f"Aviso na compatibilidade do banco: {error}")
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
-def apply_schema_if_missing():
-    """Aplica o arquivo schema.sql no servidor MySQL para criar o banco e tabelas se necessário."""
-    schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
-    if not os.path.exists(schema_path):
-        print(f"Arquivo de schema não encontrado: {schema_path}")
-        return
-
-    with open(schema_path, 'r', encoding='utf-8') as f:
-        schema_sql = f.read()
-
-    try:
-        # Conectar sem selecionar database para poder criar o DB
-        conn = mysql.connector.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', ''),
-            port=int(os.getenv('DB_PORT', '3306'))
-        )
-        cursor = conn.cursor()
-        for result in cursor.execute(schema_sql, multi=True):
-            pass
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print('Schema aplicado/atualizado com sucesso.')
-    except Error as e:
-        print(f'Erro ao aplicar schema: {e}')
 
 # Helper para converter resultado em dicionário
 def dict_fetchall(cursor):
@@ -768,7 +662,7 @@ def login():
     )), None)
     if not usuario:
         return jsonify({'erro': 'E-mail ou senha inválidos'}), 401
-    if usuario.get('status') not in (None, 'ATIVO'):
+    if usuario['status'] not in (None, 'ATIVO'):
         return jsonify({'erro': 'Esta conta está inativa'}), 403
 
     return jsonify({
@@ -869,9 +763,9 @@ def get_relatorios():
         periodo = request.args.get('periodo', 'todos')
         filtro_data = ''
         if periodo == 'mes':
-            filtro_data = 'WHERE YEAR(data_abertura) = YEAR(CURDATE()) AND MONTH(data_abertura) = MONTH(CURDATE())'
+            filtro_data = "WHERE strftime('%Y-%m', data_abertura) = strftime('%Y-%m', 'now', 'localtime')"
         elif periodo == 'dia':
-            filtro_data = 'WHERE DATE(data_abertura) = CURDATE()'
+            filtro_data = "WHERE date(data_abertura) = date('now', 'localtime')"
 
         cursor.execute("""
             SELECT UPPER(TRIM(status)) AS status, COUNT(*) AS total
@@ -958,7 +852,9 @@ def update_configuracoes():
         cursor = conn.cursor()
         cursor.execute("""INSERT INTO configuracao
             (id_configuracao, workspace_name, support_email) VALUES (1, %s, %s)
-            ON DUPLICATE KEY UPDATE workspace_name = VALUES(workspace_name), support_email = VALUES(support_email)""",
+            ON CONFLICT(id_configuracao) DO UPDATE SET
+                workspace_name = excluded.workspace_name,
+                support_email = excluded.support_email""",
             (workspace_name, support_email))
         conn.commit()
         cursor.close()
@@ -974,8 +870,7 @@ def health_check():
     return jsonify({'status': 'API rodando corretamente'}), 200
 
 if __name__ == '__main__':
-    apply_schema_if_missing()
-    ensure_data_columns()
+    initialize_database()
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         Timer(1, lambda: webbrowser.open('http://127.0.0.1:5000/')).start()
     app.run(debug=True, port=5000)

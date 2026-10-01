@@ -2,7 +2,7 @@
 
 ## Estrutura da Integração
 
-Esta aplicação HelpTI possui integração entre frontend (HTML/CSS/JS) e backend (Python/Flask) com banco de dados MySQL.
+Esta aplicação HelpTI integra frontend (HTML/CSS/JavaScript), backend (Python/Flask) e banco SQLite local.
 
 ### Componentes
 
@@ -14,9 +14,9 @@ As páginas ficam na pasta `frontend`. O Flask as entrega pelas rotas `/frontend
 
 O arquivo `backend/app.py` inicia a API e também serve o frontend. A rota `/` redireciona para a tela de login. O endereço base do sistema é `http://127.0.0.1:5000/`.
 
-#### Database
+#### Banco de dados
 
-O MySQL armazena chamados, clientes, equipe e configurações. Cada integrante deve usar seu próprio arquivo `backend/.env` com as credenciais do MySQL instalado em sua máquina.
+O SQLite armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações no arquivo local `instance/helpti.sqlite3`. A aplicação cria o arquivo e aplica o schema automaticamente. Não é necessário instalar MySQL, abrir Workbench ou cadastrar credenciais de banco no `.env`. Cada integrante tem sua própria base local; `git pull` não sincroniza dados.
 
 ## Endpoints da API
 
@@ -60,30 +60,17 @@ GET    /api/health                - Verifica se a API está rodando
 
 ### Instalação do Backend
 
-1. Navegue até a pasta backend:
+1. Na raiz do repositório, instale as dependências:
 ```bash
-cd backend
+python -m pip install -r backend/requirements.txt
 ```
 
-2. Instale as dependências:
-```bash
-pip install -r requirements.txt
-```
-
-3. Configure as variáveis de ambiente (crie um `.env`):
-```
-DB_HOST=localhost
-DB_NAME=HelpTI
-DB_USER=root
-DB_PASSWORD=sua_senha
-```
-
-4. Execute o servidor:
+2. Execute o servidor na raiz:
 ```bash
 python app.py
 ```
 
-O servidor rodará em `http://127.0.0.1:5000`
+O primeiro start cria o banco e as tabelas. O servidor rodará em `http://127.0.0.1:5000`. Para e-mail de resolução de chamados, configure `SMTP_*` em `backend/.env`; essa configuração é opcional para os outros fluxos.
 
 ### Frontend
 
@@ -162,9 +149,10 @@ Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `PAUSADO`, `RESOLVIDO`. 
 
 ### "Module not found"
 
-### Erro de tabela ou coluna no MySQL
-- Execute `backend/schema.sql` no MySQL Workbench.
-- Confira o banco ativo com `SELECT DATABASE();`.
+### Erro de tabela ou coluna no SQLite
+- Confirme que o usuário tem permissão de escrita na pasta do projeto.
+- Confira se `instance/helpti.sqlite3` existe e se o schema em `backend/schema.sql` contém a tabela/coluna esperada.
+- Não apague o banco local para tentar corrigir o erro sem antes fazer backup: ele contém os dados daquela máquina.
 
 ## Teste rápido
 
@@ -176,9 +164,9 @@ Depois, abra `http://127.0.0.1:5000/`. Digite um e-mail, entre no dashboard, cri
 
 Escolha uma tarefa, faça uma branch com um nome claro e mantenha as alterações focadas. Antes de abrir um pull request:
 
-1. Inicie o MySQL e confirme as tabelas com `SHOW TABLES`.
-2. Inicie o sistema com `python app.py` dentro de `backend`.
-3. Teste o fluxo relacionado à alteração e descreva os passos no pull request.
+1. Inicie o sistema com `python app.py` na raiz; o SQLite é inicializado automaticamente.
+2. Teste a API e o fluxo relacionado à alteração.
+3. Descreva os passos de teste no pull request. Não versione `instance/helpti.sqlite3`.
 
 ## Próximas Melhorias
 

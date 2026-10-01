@@ -1,96 +1,71 @@
-import mysql.connector
-from mysql.connector import Error
 import os
-from dotenv import load_dotenv
+import re
+import sqlite3
+from datetime import date, datetime
+from pathlib import Path
 
-# Carregar a configuração do backend independentemente do diretório de execução.
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+DATABASE_PATH = Path(os.getenv(
+    'HELPTI_DB_PATH', PROJECT_DIR / 'instance' / 'helpti.sqlite3'
+)).expanduser()
 
-class Database:
-    def __init__(self):
-        self.host = os.getenv('DB_HOST', 'localhost')
-        self.database = os.getenv('DB_NAME', 'HelpTI')
-        self.user = os.getenv('DB_USER', 'root')
-        self.password = os.getenv('DB_PASSWORD', '')
-        self.port = os.getenv('DB_PORT', '3306')
-        self.conn = None
-        self.cursor = None
 
-    def connect(self):
-        """Conecta ao banco de dados"""
-        try:
-            self.conn = mysql.connector.connect(
-                host=self.host,
-                database=self.database,
-                user=self.user,
-                password=self.password,
-                port=self.port
-            )
-            self.cursor = self.conn.cursor(dictionary=True)
-            print("Conexão com o banco de dados MySQL estabelecida com sucesso!")
-            return True
-        except Error as e:
-            print(f"Erro ao conectar ao banco de dados: {e}")
-            return False
+class SQLiteCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
 
-    def disconnect(self):
-        """Desconecta do banco de dados"""
-        if self.cursor:
-            self.cursor.close()
-        if self.conn:
-            self.conn.close()
-        print("Desconectado do banco de dados")
+    def execute(self, query, params=()):
+        query = re.sub(r'\s+FOR UPDATE\b', '', query, flags=re.IGNORECASE)
+        query = query.replace('%s', '?')
+        self._cursor.execute(query, tuple(_adapt_parameter(value) for value in (params or ())))
+        return self
 
-    def execute_query(self, query, params=None):
-        """Executa uma query SELECT"""
-        try:
-            if params:
-                self.cursor.execute(query, params)
-            else:
-                self.cursor.execute(query)
-            return self.cursor.fetchall()
-        except Error as e:
-            print(f"Erro ao executar query: {e}")
-            return None
+    def executemany(self, query, parameters):
+        query = query.replace('%s', '?')
+        adapted = [tuple(_adapt_parameter(value) for value in row) for row in parameters]
+        self._cursor.executemany(query, adapted)
+        return self
 
-    def execute_update(self, query, params):
-        """Executa INSERT, UPDATE ou DELETE"""
-        try:
-            self.cursor.execute(query, params)
-            self.conn.commit()
-            return True
-        except Error as e:
-            self.conn.rollback()
-            print(f"Erro ao executar update: {e}")
-            return False
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
 
-    def execute_insert(self, query, params):
-        """Executa INSERT e retorna o ID gerado"""
-        try:
-            self.cursor.execute(query, params)
-            self.conn.commit()
-            return self.cursor.lastrowid
-        except Error as e:
-            self.conn.rollback()
-            print(f"Erro ao executar insert: {e}")
-            return None
 
-# Instância global do banco de dados
-db = Database()
+class SQLiteConnection:
+    def __init__(self, connection):
+        self._connection = connection
 
-# Função helper para obter conexão
+    def cursor(self, dictionary=False):
+        return SQLiteCursor(self._connection.cursor())
+
+    def __getattr__(self, name):
+        return getattr(self._connection, name)
+
+
+def _adapt_parameter(value):
+    if isinstance(value, datetime):
+        return value.isoformat(sep=' ')
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
 def get_db_connection():
-    """Retorna uma nova conexão com o banco de dados MySQL"""
+    """Abre o banco SQLite local e aplica as opções necessárias à conexão."""
+    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DATABASE_PATH, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute('PRAGMA foreign_keys = ON')
+    connection.execute('PRAGMA busy_timeout = 10000')
+    return SQLiteConnection(connection)
+
+
+def initialize_database():
+    """Cria as tabelas e os dados iniciais sem sobrescrever registros."""
+    schema_path = Path(__file__).with_name('schema.sql')
+    connection = get_db_connection()
     try:
-        conn = mysql.connector.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            database=os.getenv('DB_NAME', 'HelpTI'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', ''),
-            port=os.getenv('DB_PORT', '3306')
-        )
-        return conn
-    except Error as e:
-        print(f"Erro ao conectar: {e}")
-        return None
+        connection.executescript(schema_path.read_text(encoding='utf-8'))
+        connection.commit()
+    finally:
+        connection.close()
 

@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# HelpTI local data and generated files
+instance/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.log
+logs/
+node_modules/
+*.dump
+*.sql.gz
+*_dump.sql
+*_backup.sql
+
+# Local environment overrides
+.env.*
+!.env.example

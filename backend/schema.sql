@@ -1,138 +1,125 @@
--- ============ BANCO DE DADOS HELPTI - MYSQL ============
--- Schema para aplicação HelpTI - Sistema de Gestão de Chamados
--- Compatível com MySQL 5.7+
+PRAGMA foreign_keys = ON;
 
--- Criar banco de dados
-CREATE DATABASE IF NOT EXISTS HelpTI;
-USE HelpTI;
-
--- Tabela de Usuários (Clientes)
 CREATE TABLE IF NOT EXISTS usuario (
-    id_usuario INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(200),
-    contato VARCHAR(50),
-    email VARCHAR(255),
-    telefone VARCHAR(50),
-    telefone_empresa VARCHAR(50),
-    endereco VARCHAR(500),
-    status VARCHAR(30) NOT NULL DEFAULT 'ATIVO',
-    cnpj VARCHAR(30),
-    plano VARCHAR(100),
-    acoes VARCHAR(500),
-    senha_hash VARCHAR(255)
+    id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    contato TEXT,
+    email TEXT,
+    telefone TEXT,
+    telefone_empresa TEXT,
+    endereco TEXT,
+    status TEXT NOT NULL DEFAULT 'ATIVO',
+    cnpj TEXT,
+    plano TEXT,
+    acoes TEXT,
+    senha_hash TEXT
 );
 
 CREATE TABLE IF NOT EXISTS cliente_contato (
-    id_cliente_contato INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    nome VARCHAR(200) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    telefone VARCHAR(50) NOT NULL,
-    CONSTRAINT fk_cliente_contato_usuario FOREIGN KEY (id_usuario)
-        REFERENCES usuario(id_usuario) ON DELETE CASCADE
+    id_cliente_contato INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_usuario INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    email TEXT NOT NULL,
+    telefone TEXT NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
 );
 
--- Tabela de Tipos de Chamados
 CREATE TABLE IF NOT EXISTS tipo_chamado (
-    id_tipo_chamado INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(200) NOT NULL,
-    classificacao VARCHAR(100),
-    descricao VARCHAR(500)
+    id_tipo_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    classificacao TEXT,
+    descricao TEXT
 );
 
--- Tabela de Setores e níveis de alocação
 CREATE TABLE IF NOT EXISTS setor (
-    id_setor INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(200) NOT NULL UNIQUE,
-    descricao VARCHAR(500),
+    id_setor INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL UNIQUE,
+    descricao TEXT,
     niveis TEXT
 );
 
--- Tabela de Grupos de Solucionadores
 CREATE TABLE IF NOT EXISTS grupo_solucionadores (
-    id_grupo_solucionadores INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    descricao VARCHAR(500),
-    nivel INT,
-    data_inicio DATE,
-    data_fim DATE,
-    nome VARCHAR(200),
-    email VARCHAR(255),
-    cargo VARCHAR(100),
-    valor_hora DECIMAL(10, 2),
-    telefone VARCHAR(50),
-    status VARCHAR(50) DEFAULT 'ATIVO',
-    senha VARCHAR(255) NOT NULL
-);
-
--- Tabela de Chamados
-CREATE TABLE IF NOT EXISTS chamado (
-    id_chamado MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id_tipo_chamado INT NOT NULL,
-    id_setor INT,
-    id_grupo_solucionadores INT,
-    status VARCHAR(50) DEFAULT 'ABERTO',
-    cliente VARCHAR(200) NOT NULL,
-    assunto VARCHAR(255) NULL,
+    id_grupo_solucionadores INTEGER PRIMARY KEY AUTOINCREMENT,
     descricao TEXT,
-    email_cliente VARCHAR(255),
-    telefone_cliente VARCHAR(50),
-    contato_cliente VARCHAR(200),
-    telefone_contato VARCHAR(50),
-    descricao_final TEXT,
-    tempo_decorrido_segundos INT NOT NULL DEFAULT 0,
-    tempo_inicio DATETIME NULL,
-    data_abertura DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_agendada DATE,
-    hora_agendada TIME,
-    classificacao TEXT(255) NULL,
-    FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
-    FOREIGN KEY (id_setor) REFERENCES setor(id_setor),
-    FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
-) AUTO_INCREMENT = 100000;
-
--- Tabela de Escalonamento
-CREATE TABLE IF NOT EXISTS escalonamento (
-    id_escalonamento INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id_chamado MEDIUMINT UNSIGNED NOT NULL,
-    motivo VARCHAR(500),
-    nivel INT,
-    id_setor_destino INT,
-    id_grupo_destino INT,
-    data_escalonamento DATE,
-    FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado)
+    nivel INTEGER,
+    data_inicio TEXT,
+    data_fim TEXT,
+    nome TEXT,
+    email TEXT,
+    cargo TEXT,
+    valor_hora NUMERIC,
+    telefone TEXT,
+    status TEXT NOT NULL DEFAULT 'ATIVO',
+    senha TEXT NOT NULL DEFAULT '',
+    id_setor INTEGER,
+    FOREIGN KEY (id_setor) REFERENCES setor(id_setor) ON DELETE SET NULL
 );
 
--- Tabela de Documentação
+CREATE TABLE IF NOT EXISTS chamado (
+    id_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_tipo_chamado INTEGER NOT NULL DEFAULT 1,
+    id_setor INTEGER,
+    id_grupo_solucionadores INTEGER,
+    status TEXT NOT NULL DEFAULT 'ABERTO',
+    cliente TEXT NOT NULL,
+    assunto TEXT,
+    descricao TEXT,
+    email_cliente TEXT,
+    telefone_cliente TEXT,
+    contato_cliente TEXT,
+    telefone_contato TEXT,
+    descricao_final TEXT,
+    tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0,
+    tempo_inicio TEXT,
+    data_abertura TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    data_agendada TEXT,
+    hora_agendada TEXT,
+    classificacao TEXT,
+    FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
+    FOREIGN KEY (id_setor) REFERENCES setor(id_setor) ON DELETE SET NULL,
+    FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS escalonamento (
+    id_escalonamento INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_chamado INTEGER NOT NULL,
+    motivo TEXT,
+    nivel INTEGER,
+    id_setor_destino INTEGER,
+    id_grupo_destino INTEGER,
+    data_escalonamento TEXT,
+    FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE,
+    FOREIGN KEY (id_setor_destino) REFERENCES setor(id_setor) ON DELETE SET NULL,
+    FOREIGN KEY (id_grupo_destino) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS documentacao (
-    id_documentacao INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id_grupo_solucionadores INT,
-    titulo VARCHAR(255),
+    id_documentacao INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_grupo_solucionadores INTEGER,
+    titulo TEXT,
     conteudo TEXT,
-    data_criacao DATE,
-    data_atualizacao DATE,
-    FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores)
+    data_criacao TEXT,
+    data_atualizacao TEXT,
+    FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS configuracao (
-    id_configuracao INT NOT NULL PRIMARY KEY,
-    workspace_name VARCHAR(200) NOT NULL,
-    support_email VARCHAR(255) NOT NULL
+    id_configuracao INTEGER PRIMARY KEY,
+    workspace_name TEXT NOT NULL,
+    support_email TEXT NOT NULL
 );
 
-INSERT IGNORE INTO configuracao (id_configuracao, workspace_name, support_email)
+CREATE INDEX IF NOT EXISTS idx_cliente_contato_usuario ON cliente_contato(id_usuario);
+CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor ON grupo_solucionadores(id_setor);
+CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado(status, data_abertura);
+CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado(id_setor);
+CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado ON escalonamento(id_chamado);
+
+INSERT OR IGNORE INTO configuracao (id_configuracao, workspace_name, support_email)
 VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br');
 
--- ============ DADOS INICIAIS (OPCIONAL) ============
-
--- Inserir tipos de chamados
-INSERT IGNORE INTO tipo_chamado (nome, classificacao, descricao) VALUES
-('Suporte Geral', 'Suporte', 'Chamados gerais de suporte'),
-('Hardware', 'Técnico', 'Problemas com hardware'),
-('Software', 'Técnico', 'Problemas com software'),
-('Rede', 'Infraestrutura', 'Problemas de rede');
-
--- Inserir grupos de solucionadores
-INSERT IGNORE INTO grupo_solucionadores (descricao, nivel) VALUES
-('Grupo Nível 1', 1),
-('Grupo Nível 2', 2),
-('Grupo Nível 3', 3);
+INSERT OR IGNORE INTO tipo_chamado (id_tipo_chamado, nome, classificacao, descricao) VALUES
+(1, 'Suporte Geral', 'Suporte', 'Chamados gerais de suporte'),
+(2, 'Hardware', 'Técnico', 'Problemas com hardware'),
+(3, 'Software', 'Técnico', 'Problemas com software'),
+(4, 'Rede', 'Infraestrutura', 'Problemas de rede');

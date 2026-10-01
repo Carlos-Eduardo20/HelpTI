@@ -1,32 +1,16 @@
-import os
-from dotenv import load_dotenv
-import mysql.connector
-from mysql.connector import Error
+from database import get_db_connection, initialize_database
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
-host = os.getenv('DB_HOST', 'localhost')
-user = os.getenv('DB_USER', 'root')
-password = os.getenv('DB_PASSWORD', '')
-database = os.getenv('DB_NAME', 'HelpTI')
+initialize_database()
+connection = get_db_connection()
 try:
-    port = int(os.getenv('DB_PORT', '3306'))
-except (TypeError, ValueError):
-    port = 3306
-
-print(f"Tentando conectar em {user}@{host}:{port}/{database}")
-try:
-    conn = mysql.connector.connect(host=host, user=user, password=password, database=database, port=port)
-    if conn.is_connected():
-        print("Conectado ao MySQL — versão:", conn.get_server_info())
-        cursor = conn.cursor()
-        cursor.execute("SHOW DATABASES;")
-        print("Databases:", [row[0] for row in cursor.fetchall()])
-        cursor.execute("SHOW TABLES;")
-        print("Tables:", [row[0] for row in cursor.fetchall()])
-        cursor.close()
-        conn.close()
-    else:
-        print("Não foi possível conectar (conn.is_connected() retornou False)")
-except Error as e:
-    print("Erro ao conectar:", e)
+    cursor = connection.cursor()
+    cursor.execute('SELECT COUNT(*) FROM tipo_chamado')
+    total_tipos = cursor.fetchone()[0]
+    cursor.execute('PRAGMA foreign_key_check')
+    problemas_relacionais = cursor.fetchall()
+    if total_tipos < 1 or problemas_relacionais:
+        raise RuntimeError('O banco não passou na verificação de integridade.')
+    print(f'Banco SQLite pronto; {total_tipos} tipos de chamado disponíveis.')
+finally:
+    connection.close()

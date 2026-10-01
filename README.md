@@ -4,9 +4,9 @@ Sistema web de gestão operacional para suporte técnico, com foco em acompanhar
 
 ## Visão geral
 
-O HelpTI está em desenvolvimento como uma interface administrativa para empresas de suporte técnico. A estrutura atual do projeto está voltada para a apresentação visual e navegação do sistema, com páginas para login, dashboard, chamados, clientes, equipe e relatórios.
-Atualmente, o projeto está em uma fase de protótipo/front-end, com foco em layout, experiência do usuário e organização das funcionalidades principais. O backend ainda está inicial e não está integrado de forma completa ao fluxo da aplicação.
-O HelpTI está em desenvolvimento como uma aplicação administrativa para empresas de suporte técnico. O frontend em HTML, CSS e JavaScript se comunica com uma API Flask, que persiste os dados em MySQL.
+O HelpTI é uma aplicação web para gestão de suporte técnico. O frontend usa HTML, CSS e JavaScript; o backend usa Flask e expõe uma API REST. Os dados são persistidos em SQLite, criado automaticamente na primeira inicialização.
+
+O projeto reúne telas de login, dashboard, chamados, clientes, equipe, setores, relatórios, configurações, educação e planos. O Flask serve as páginas e a API no mesmo endereço.
 
 ---
 
@@ -23,14 +23,65 @@ O frontend já conta com a estrutura principal do sistema em HTML, CSS e JavaScr
 - Navegação entre páginas do painel
 
 ### Backend
-O backend já possui rotas funcionais para os principais cadastros.
 
-- [backend/app.py](backend/app.py): API Flask e rotas de chamados, clientes, equipe, relatórios e configurações
-- [backend/schema.sql](backend/schema.sql): criação do banco e das tabelas MySQL
-- [backend/database.py](backend/database.py): utilitários de conexão com o banco
-- [backend/requirements.txt](backend/requirements.txt): dependências Python
+- [backend/app.py](backend/app.py): aplicação Flask, páginas e endpoints da API
+- [backend/database.py](backend/database.py): conexão SQLite e inicialização automática
+- [backend/schema.sql](backend/schema.sql): tabelas, relacionamentos, índices e dados iniciais
+- [backend/requirements.txt](backend/requirements.txt): dependências Python da aplicação
 
-Os registros de chamados, clientes e equipe são salvos no MySQL e permanecem após atualizar o navegador.
+Chamados, clientes, contatos, equipe, setores e configurações permanecem salvos no banco local após reiniciar o servidor.
+
+## Banco de dados
+
+O banco padrão é SQLite. Na primeira inicialização, o sistema cria `instance/helpti.sqlite3` e aplica `backend/schema.sql`. Não é necessário instalar MySQL, usar Workbench ou configurar credenciais de banco no `.env`. Cada clone mantém seu próprio arquivo de dados, que não deve ser enviado ao Git.
+
+### Tabelas e atributos
+
+Os tipos abaixo são os tipos lógicos do SQLite: `INTEGER`, `TEXT` e `NUMERIC`.
+
+| Tabela | Atributos |
+| --- | --- |
+| `usuario` | `id_usuario INTEGER` (PK); `nome`, `contato`, `email`, `telefone`, `telefone_empresa`, `endereco`, `cnpj`, `plano`, `acoes`, `senha_hash TEXT`; `status TEXT NOT NULL DEFAULT 'ATIVO'`. Representa a empresa cliente. |
+| `cliente_contato` | `id_cliente_contato INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK); `nome`, `email`, `telefone TEXT NOT NULL`. Contatos associados a uma empresa. |
+| `tipo_chamado` | `id_tipo_chamado INTEGER` (PK); `nome TEXT NOT NULL`; `classificacao`, `descricao TEXT`. Os tipos iniciais são Suporte Geral, Hardware, Software e Rede. |
+| `setor` | `id_setor INTEGER` (PK); `nome TEXT NOT NULL UNIQUE`; `descricao TEXT`; `niveis TEXT` (JSON). |
+| `grupo_solucionadores` | `id_grupo_solucionadores INTEGER` (PK); `descricao`, `nome`, `email`, `cargo`, `telefone TEXT`; `nivel INTEGER`; `data_inicio`, `data_fim TEXT`; `valor_hora NUMERIC`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `senha TEXT NOT NULL DEFAULT ''`; `id_setor INTEGER` (FK opcional). Apesar do nome legado, representa membros da equipe técnica e administradores. |
+| `chamado` | `id_chamado INTEGER` (PK); `id_tipo_chamado INTEGER NOT NULL` (FK); `id_setor`, `id_grupo_solucionadores INTEGER` (FKs opcionais); `status TEXT NOT NULL DEFAULT 'ABERTO'`; `cliente TEXT NOT NULL`; `assunto`, `descricao`, `email_cliente`, `telefone_cliente`, `contato_cliente`, `telefone_contato`, `descricao_final`, `tempo_inicio`, `data_agendada`, `hora_agendada`, `classificacao TEXT`; `tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0`; `data_abertura TEXT NOT NULL` (data/hora local). |
+| `escalonamento` | `id_escalonamento INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `motivo TEXT`; `nivel INTEGER`; `id_setor_destino`, `id_grupo_destino INTEGER` (FKs opcionais); `data_escalonamento TEXT`. |
+| `documentacao` | `id_documentacao INTEGER` (PK); `id_grupo_solucionadores INTEGER` (FK opcional); `titulo`, `conteudo`, `data_criacao`, `data_atualizacao TEXT`. |
+| `configuracao` | `id_configuracao INTEGER` (PK); `workspace_name`, `support_email TEXT NOT NULL`. Guarda as configurações gerais do workspace. |
+
+### Relacionamentos
+
+- `usuario` 1:N `cliente_contato`; excluir uma empresa exclui seus contatos.
+- `tipo_chamado` 1:N `chamado`.
+- `setor` 1:N `grupo_solucionadores` e `chamado`; ao excluir um setor, a referência é removida dos registros relacionados.
+- `grupo_solucionadores` 1:N `chamado` e `documentacao`; os vínculos opcionais ficam nulos quando o membro é removido.
+- `chamado` 1:N `escalonamento`; excluir o chamado exclui seu histórico de escalonamentos.
+- `setor` e `grupo_solucionadores` também podem ser o destino de vários escalonamentos.
+- `chamado` guarda os dados de cliente como texto e **não possui FK para `usuario`**; alterar o cadastro da empresa não altera chamados antigos.
+- `configuracao` é independente das demais tabelas.
+
+As chaves estrangeiras são habilitadas em cada conexão. O schema cria índices para contatos por empresa, equipe por setor, chamados por status/data e escalonamentos por chamado.
+
+## API
+
+Todos os endpoints usam o prefixo `/api` e são servidos pelo mesmo processo Flask.
+
+| Recurso | Endpoints |
+| --- | --- |
+| Saúde | `GET /api/health` |
+| Chamados | `GET/POST /api/chamados`, `GET/PUT/DELETE /api/chamados/<id>` |
+| Clientes | `GET/POST /api/clientes`, `PUT/DELETE /api/clientes/<id>` |
+| Equipe | `GET/POST /api/equipe`, `PUT/DELETE /api/equipe/<id>` |
+| Setores | `GET/POST /api/setores`, `DELETE /api/setores/<id>` |
+| Contas e sessão | `POST /api/contas`, `POST /api/login` |
+| Relatórios | `GET /api/relatorios?periodo=todos|mes|dia` |
+| Configurações | `GET/PUT /api/configuracoes` |
+
+### Persistência e compartilhamento
+
+O banco é local a cada computador: clonar ou atualizar o repositório não compartilha registros entre integrantes. Para backup local, pare o servidor e copie `instance/helpti.sqlite3`. Para uma base realmente compartilhada entre usuários, será necessário hospedar um banco central (por exemplo, PostgreSQL ou MySQL) e configurar o acesso seguro à rede; não coloque o arquivo SQLite no Git como mecanismo de sincronização.
 
 ---
 
@@ -123,7 +174,7 @@ O projeto roda com um único processo. O Flask serve as páginas do frontend, di
 
 ### Primeira configuração
 
-1. Instale Python 3.8 ou superior e MySQL Server.
+1. Instale Python 3.8 ou superior.
 2. Clone ou copie o projeto para o computador.
 3. Abra o projeto no VS Code e abra um terminal na raiz da pasta `HelpTI`.
 4. Crie e ative um ambiente virtual:
@@ -139,21 +190,19 @@ python -m venv .venv
 python -m pip install -r backend\requirements.txt
 ```
 
-6. Crie o banco e o arquivo `backend\.env` conforme [SETUP_MYSQL.md](SETUP_MYSQL.md).
+6. Não é necessário criar o banco nem configurar `DB_*` no `.env`. O SQLite e as tabelas são inicializados automaticamente.
 
-Para enviar avisos quando um chamado for resolvido, configure também as variáveis `SMTP_*` no mesmo arquivo. Nunca envie o `.env` ao Git.
-
-Se o banco já existia, execute no MySQL Workbench `ALTER TABLE grupo_solucionadores ADD COLUMN senha VARCHAR(255);` antes do primeiro login.
+O arquivo `backend/.env` é opcional e pode conter configurações `SMTP_*` para enviar e-mails quando um chamado for resolvido. Sem SMTP, os demais fluxos da aplicação continuam disponíveis, mas o encerramento com envio de e-mail retorna uma mensagem de configuração necessária. Nunca envie credenciais ao Git.
 
 ### Iniciar o projeto
 
-Com o MySQL em execução e o ambiente virtual ativado, execute na pasta raiz `HelpTI`:
+Com as dependências instaladas e o ambiente virtual ativado, execute na pasta raiz `HelpTI`:
 
 ```powershell
 python app.py
 ```
 
-O arquivo [app.py](app.py) na raiz importa o servidor Flask que está em [backend/app.py](backend/app.py), aplica o schema/compatibilidade do banco e inicia API e frontend juntos. O navegador abrirá em `http://127.0.0.1:5000/`.
+O arquivo [app.py](app.py) na raiz inicializa o banco local se necessário e inicia a API e o frontend. O navegador abrirá em `http://127.0.0.1:5000/`. O arquivo SQLite fica em `instance/helpti.sqlite3` e é ignorado pelo Git.
 
 Endereços úteis:
 
@@ -172,29 +221,17 @@ No terminal em que o Flask está rodando, pressione `Ctrl+C`.
 
 ## Status do desenvolvimento
 
-O projeto possui uma base funcional de interface, API e persistência. Próximas etapas sugeridas:
-
-- integração real com banco de dados
-- autenticação de usuários
-- persistência de chamados e clientes
-- API para comunicação entre frontend e backend
-- geração de relatórios e indicadores automáticos
-- refinamento do fluxo administrativo completo
+O projeto possui interface web, API Flask e persistência local em SQLite. A configuração e os dados iniciais são aplicados no primeiro start. SMTP é opcional e necessário somente para o envio de e-mails de resolução.
 
 ---
 
 ## Conclusão
 
-O HelpTI hoje representa uma base sólida de interface e estrutura para um sistema de gestão de suporte técnico. O projeto já demonstra a organização visual do painel e os módulos principais, mas ainda está em fase inicial de implementação da parte lógica e de persistência.
-- autenticação real e controle de permissões
-- validação e edição de clientes e membros da equipe
-- associação de chamados a clientes e técnicos por ID
-- filtros, relatórios e indicadores mais completos
-- testes automatizados da API e do frontend
+Cada integrante trabalha com seu próprio banco SQLite local. Os dados não são enviados ao repositório nem sincronizados por `git pull`.
 
 ## Como contribuir
 
-Antes de alterar o código, leia [INTEGRACAO.md](INTEGRACAO.md) e [SETUP_MYSQL.md](SETUP_MYSQL.md). Faça mudanças pequenas, teste a API e o fluxo da tela correspondente e descreva no pull request o que foi alterado e como testar.
+Antes de alterar o código, consulte [INTEGRACAO.md](INTEGRACAO.md) e a modelagem de dados acima. Faça mudanças pequenas, teste a API e o fluxo da tela correspondente e descreva no pull request o que foi alterado e como testar. Para dados locais, pare o servidor antes de copiar o arquivo de banco como backup.
 
 ---
 

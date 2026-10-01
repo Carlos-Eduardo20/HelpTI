@@ -1,4 +1,8 @@
-# Setup HelpTI com MySQL
+# Setup legado HelpTI com MySQL
+
+> **Este guia não descreve mais a configuração padrão do projeto.** O HelpTI agora usa SQLite local e cria `instance/helpti.sqlite3` automaticamente. Para uma instalação nova, siga a seção “Como executar” do [README](README.md); não instale MySQL nem execute os comandos deste guia.
+>
+> Esta página foi mantida apenas como referência para instalações antigas. Os dados existentes no MySQL não são apagados nem migrados automaticamente para o SQLite. Faça backup e planeje uma migração explícita antes de deixar de usar a base antiga.
 
 ## Pré-requisitos
 
