@@ -1,4 +1,4 @@
-import { buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
+import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
 
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
@@ -39,6 +39,55 @@ function mostrarPerfil() {
 let clientesEmMemoria = [];
 let chamadosEmMemoria = [];
 let filtroClientesSelecionado = 'todos';
+
+const PERMISSOES_POR_CARGO = {
+  'RH': ['dashboard', 'clientes', 'equipe'],
+  'Suporte': ['dashboard', 'chamados', 'clientes', 'educacao'],
+  'NOC': ['dashboard', 'chamados'],
+  'Técnico': ['dashboard', 'chamados', 'educacao'],
+  'Personalizado': ['dashboard']
+};
+
+const PAGINA_POR_PERMISSAO = {
+  'dashboard.html': 'dashboard',
+  'chamados.html': 'chamados',
+  'chamados-detalhe.html': 'chamados',
+  'clientes.html': 'clientes',
+  'cliente-detalhe.html': 'clientes',
+  'equipe.html': 'equipe',
+  'equipe-detalhe.html': 'equipe',
+  'relatorios.html': 'relatorios',
+  'educacao.html': 'educacao',
+  'settings.html': 'configuracoes'
+};
+
+function aplicarPresetPermissoes(cargo) {
+  const permissoes = new Set(PERMISSOES_POR_CARGO[cargo] || PERMISSOES_POR_CARGO.Personalizado);
+  document.querySelectorAll('#form-nova-equipe [name="permissoes"]').forEach((checkbox) => {
+    checkbox.checked = permissoes.has(checkbox.value);
+  });
+}
+
+async function aplicarPermissoesNavegacao() {
+  try {
+    const response = await fetch(`${API_URL}/sessao`);
+    if (!response.ok) return;
+    const usuario = await response.json();
+    const permissoes = new Set(usuario.permissoes || []);
+    document.body.dataset.gerenciarEquipe = String(permissoes.has('gerenciar_equipe'));
+    document.querySelectorAll('a[href$=".html"]').forEach((link) => {
+      const pagina = new URL(link.href, window.location.href).pathname.split('/').pop();
+      const permissao = PAGINA_POR_PERMISSAO[pagina];
+      if (permissao && !permissoes.has(permissao)) {
+        link.hidden = true;
+        link.style.display = 'none';
+        link.setAttribute('aria-hidden', 'true');
+      }
+    });
+    if (usuario.nome) document.querySelectorAll('.user-role').forEach((element) => { element.textContent = usuario.nome; });
+  } catch (error) {
+  }
+}
 
 function renderizarClientes(clientes) {
   const tabela = document.querySelector('#tabelaClientes');
@@ -265,6 +314,7 @@ function abrirNovoFuncionario(setorId, nivel) {
   const campoNivel = form?.elements.nivel;
   if (!setor || !form || !campoSetor || !campoNivel) return;
   form.reset();
+  aplicarPresetPermissoes(form.elements.cargo.value);
   campoSetor.value = setor.nome;
   const niveis = setor.niveis || [];
   campoNivel.required = niveis.length > 0;
@@ -445,6 +495,8 @@ async function salvarMembro(event) {
     await criarMembro({
       nome: form.elements.nome.value.trim(),
       email: form.elements.email.value.trim(),
+      cargo: form.elements.cargo.value,
+      permissoes: [...form.querySelectorAll('[name="permissoes"]:checked')].map((checkbox) => checkbox.value),
       telefone: form.elements.telefone.value.trim(),
       valor_hora: form.elements.valor_hora.value,
       id_setor: setor.id_setor,
@@ -490,8 +542,9 @@ function cancelarConfigurações() {
   window.location.href = 'dashboard.html';
 }
 
-function encerrarSessao(event) {
+async function encerrarSessao(event) {
   event.preventDefault();
+  try { await fetch(`${API_URL}/logout`, { method: 'POST' }); } catch (error) {}
   localStorage.removeItem('usuarioId');
   localStorage.removeItem('grupoId');
   localStorage.removeItem('perfilNome');
@@ -543,7 +596,15 @@ document.addEventListener('click', (event) => {
   }
 });
 document.querySelector('a[href="login.html"]')?.addEventListener('click', encerrarSessao);
-document.addEventListener('DOMContentLoaded', () => { mostrarPerfil(); carregarClientes(); carregarEquipe(); carregarSetores(); configurarModalSetor(); });
+document.addEventListener('DOMContentLoaded', () => {
+  mostrarPerfil();
+  aplicarPermissoesNavegacao();
+  document.querySelector('#cargo-membro')?.addEventListener('change', (event) => aplicarPresetPermissoes(event.target.value));
+  carregarClientes();
+  carregarEquipe();
+  carregarSetores();
+  configurarModalSetor();
+});
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
   document.querySelector('#tabelaClientes')?.addEventListener('click', async (event) => {

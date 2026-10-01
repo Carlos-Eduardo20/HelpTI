@@ -41,11 +41,11 @@ Os tipos abaixo são os tipos lógicos do SQLite: `INTEGER`, `TEXT` e `NUMERIC`.
 
 | Tabela | Atributos |
 | --- | --- |
-| `usuario` | `id_usuario INTEGER` (PK); `nome`, `contato`, `email`, `telefone`, `telefone_empresa`, `endereco`, `cnpj`, `plano`, `acoes`, `senha_hash TEXT`; `status TEXT NOT NULL DEFAULT 'ATIVO'`. Representa a empresa cliente. |
+| `usuario` | `id_usuario INTEGER` (PK); `nome`, `contato`, `email`, `telefone`, `telefone_empresa`, `endereco`, `cnpj`, `plano`, `acoes`, `senha_hash TEXT`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `tipo_usuario TEXT NOT NULL DEFAULT 'CLIENTE'`. Um registro `WORKSPACE` representa a empresa/conta administradora; `CLIENTE` representa uma empresa atendida. |
 | `cliente` | `id_cliente INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK); `nome`, `email`, `telefone TEXT NOT NULL`. Contatos associados a uma empresa. |
 | `tipo_chamado` | `id_tipo_chamado INTEGER` (PK); `nome TEXT NOT NULL`; `classificacao`, `descricao TEXT`. Os tipos iniciais são Suporte Geral, Hardware, Software e Rede. |
 | `setor` | `id_setor INTEGER` (PK); `nome TEXT NOT NULL UNIQUE`; `descricao TEXT`; `niveis TEXT` (JSON). |
-| `grupo_solucionadores` | `id_grupo_solucionadores INTEGER` (PK); `descricao`, `nome`, `email`, `cargo`, `telefone TEXT`; `nivel INTEGER`; `data_inicio`, `data_fim TEXT`; `valor_hora NUMERIC`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `senha TEXT NOT NULL DEFAULT ''`; `id_setor INTEGER` (FK opcional). Apesar do nome legado, representa membros da equipe técnica e administradores. |
+| `grupo_solucionadores` | `id_grupo_solucionadores INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK do workspace); `descricao`, `nome`, `email`, `cargo`, `telefone TEXT`; `nivel INTEGER`; `data_inicio`, `data_fim TEXT`; `valor_hora NUMERIC`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `senha TEXT NOT NULL DEFAULT ''`; `permissoes TEXT NOT NULL DEFAULT '[]'` (JSON); `id_setor INTEGER` (FK opcional). Apesar do nome legado, representa administradores e funcionários da equipe. |
 | `chamado` | `id_chamado INTEGER` (PK); `id_tipo_chamado INTEGER NOT NULL` (FK); `id_setor`, `id_grupo_solucionadores INTEGER` (FKs opcionais); `status TEXT NOT NULL DEFAULT 'ABERTO'`; `cliente TEXT NOT NULL`; `assunto`, `descricao`, `email_cliente`, `telefone_cliente`, `contato_cliente`, `telefone_contato`, `descricao_final`, `documentacao`, `tempo_inicio`, `data_agendada`, `hora_agendada`, `classificacao TEXT`; `tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0`; `data_abertura TEXT NOT NULL` (data/hora local). |
 | `escalonamento` | `id_escalonamento INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `motivo TEXT`; `nivel INTEGER`; `id_setor_destino`, `id_grupo_destino INTEGER` (FKs opcionais); `data_escalonamento TEXT`. |
 | `historico_chamado` | `id_historico INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `evento`, `descricao`, `data_evento TEXT NOT NULL`. Mantém a timeline de abertura, início, pausa, escalonamento, encerramento e alterações. |
@@ -56,6 +56,7 @@ Os tipos abaixo são os tipos lógicos do SQLite: `INTEGER`, `TEXT` e `NUMERIC`.
 ```mermaid
 erDiagram
 	USUARIO ||--o{ CLIENTE : possui_contatos
+	USUARIO ||--o{ GRUPO_SOLUCIONADORES : administra_equipe
 	TIPO_CHAMADO ||--o{ CHAMADO : classifica
 	SETOR o|--o{ GRUPO_SOLUCIONADORES : organiza
 	SETOR o|--o{ CHAMADO : recebe
@@ -74,6 +75,7 @@ erDiagram
 		TEXT telefone_empresa
 		TEXT endereco
 		TEXT status
+		TEXT tipo_usuario
 		TEXT cnpj
 		TEXT plano
 		TEXT acoes
@@ -100,6 +102,7 @@ erDiagram
 	}
 	GRUPO_SOLUCIONADORES {
 		INTEGER id_grupo_solucionadores PK
+		INTEGER id_usuario FK
 		TEXT descricao
 		INTEGER nivel
 		TEXT data_inicio
@@ -111,6 +114,7 @@ erDiagram
 		TEXT telefone
 		TEXT status
 		TEXT senha
+		TEXT permissoes
 		INTEGER id_setor FK
 	}
 	CHAMADO {
@@ -161,6 +165,7 @@ erDiagram
 ### Relacionamentos
 
 - `usuario` 1:N `cliente`; excluir uma empresa exclui seus contatos.
+- Um registro `usuario.tipo_usuario = 'WORKSPACE'` é o administrador/empresa responsável; `grupo_solucionadores.id_usuario` liga o administrador e seus funcionários a esse workspace.
 - `tipo_chamado` 1:N `chamado`.
 - `setor` 1:N `grupo_solucionadores` e `chamado`; ao excluir um setor, a referência é removida dos registros relacionados.
 - `grupo_solucionadores` 1:N `chamado`; o vínculo fica nulo quando o membro é removido.
@@ -185,13 +190,17 @@ Todos os endpoints usam o prefixo `/api` e são servidos pelo mesmo processo Fla
 | Clientes | `GET/POST /api/clientes`, `PUT/DELETE /api/clientes/<id>` |
 | Equipe | `GET/POST /api/equipe`, `PUT/DELETE /api/equipe/<id>` |
 | Setores | `GET/POST /api/setores`, `DELETE /api/setores/<id>` |
-| Contas e sessão | `POST /api/contas`, `POST /api/login` |
+| Contas e sessão | `POST /api/contas`, `POST /api/login`, `GET /api/sessao`, `POST /api/logout` |
 | Relatórios | `GET /api/relatorios?periodo=todos|mes|dia` |
 | Configurações | `GET/PUT /api/configuracoes` |
 
 ### Persistência e compartilhamento
 
 O banco é local a cada computador: clonar ou atualizar o repositório não compartilha registros entre integrantes. Para backup local, pare o servidor e copie `instance/helpti.sqlite3`. Para uma base realmente compartilhada entre usuários, será necessário hospedar um banco central (por exemplo, PostgreSQL ou MySQL) e configurar o acesso seguro à rede; não coloque o arquivo SQLite no Git como mecanismo de sincronização.
+
+Cada banco local aceita um administrador inicial, criado em “Solicitar conta”. Esse administrador cadastra funcionários na página Equipe. O cargo sugere permissões iniciais (RH, Suporte, NOC ou Técnico), que podem ser ajustadas no popup; as permissões são gravadas em `grupo_solucionadores.permissoes`, a navegação oculta abas não autorizadas e o backend responde `403` a páginas/APIs sem acesso. Funcionários autenticam com o e-mail e a senha definidos no cadastro. O cookie de sessão é assinado por uma chave local em `instance/`.
+
+A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criação/edição de funcionários e setores. Quem tem acesso a Chamados também recebe leituras auxiliares limitadas de clientes, técnicos e setores para preencher chamados; isso não libera as páginas de Clientes ou Equipe nem operações de escrita nesses módulos.
 
 ---
 
@@ -226,56 +235,6 @@ HelpTI/
 │   └── planos.html
 └── .gitignore
 ```
-
----
-
-## Páginas existentes
-
-### Login
-Página inicial de acesso ao sistema.
-
-- [frontend/pages/login.html](frontend/pages/login.html)
-
-### Dashboard
-Painel principal com visão geral operacional e fila de atendimentos.
-
-- [frontend/pages/dashboard.html](frontend/pages/dashboard.html)
-
-### Chamados
-Estrutura para gestão e acompanhamento de chamados.
-
-- [frontend/pages/chamados.html](frontend/pages/chamados.html)
-
-### Clientes
-Área para cadastro e organização de clientes e contratos.
-
-- [frontend/pages/clientes.html](frontend/pages/clientes.html)
-
-### Equipe
-Visualização da equipe técnica e estrutura departamental.
-
-- [frontend/pages/equipe.html](frontend/pages/equipe.html)
-
-### Relatórios
-Módulo para indicadores e relatórios futuros.
-
-- [frontend/pages/relatorios.html](frontend/pages/relatorios.html)
-
----
-
-## Arquivos principais
-
-### CSS
-- [frontend/assets/css/dashboard.css](frontend/assets/css/dashboard.css): layout e estilos do dashboard
-- [frontend/assets/css/login.css](frontend/assets/css/login.css): estilos da tela de login
-- [frontend/assets/css/variables.css](frontend/assets/css/variables.css): paleta de cores e variáveis globais
-- [frontend/assets/css/planos.css](frontend/assets/css/planos.css): estilos de planos e contratos
-
-### JavaScript
-- [frontend/assets/js/dashboard.js](frontend/assets/js/dashboard.js): agenda, criação e atualização de chamados
-- [frontend/assets/js/api.js](frontend/assets/js/api.js): funções de comunicação com a API
-- [frontend/assets/js/main.js](frontend/assets/js/main.js): modais, cadastros e telas de detalhe
-
 ---
 
 ## Como executar

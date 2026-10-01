@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import sqlite3
 from datetime import date, datetime
@@ -117,4 +118,67 @@ def _migrate_legacy_schema(connection):
         }
         if 'documentacao' not in columns:
             connection.execute('ALTER TABLE chamado ADD COLUMN documentacao TEXT')
+
+    if 'usuario' in tables:
+        user_columns = {
+            row['name'] for row in connection.execute('PRAGMA table_info(usuario)')
+        }
+        if 'tipo_usuario' not in user_columns:
+            connection.execute(
+                "ALTER TABLE usuario ADD COLUMN tipo_usuario TEXT NOT NULL DEFAULT 'CLIENTE'"
+            )
+
+    if 'grupo_solucionadores' not in tables:
+        return
+
+    member_columns = {
+        row['name'] for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')
+    }
+    if 'permissoes' not in member_columns:
+        connection.execute(
+            "ALTER TABLE grupo_solucionadores ADD COLUMN permissoes TEXT NOT NULL DEFAULT '[]'"
+        )
+    if 'id_usuario' not in member_columns:
+        connection.execute(
+            'ALTER TABLE grupo_solucionadores ADD COLUMN id_usuario INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE'
+        )
+
+    workspace = connection.execute(
+        "SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' ORDER BY id_usuario LIMIT 1"
+    ).fetchone()
+    if workspace:
+        workspace_id = workspace['id_usuario']
+    else:
+        administrator = connection.execute(
+            "SELECT descricao, nome, email FROM grupo_solucionadores WHERE LOWER(cargo) = 'administrador' ORDER BY id_grupo_solucionadores LIMIT 1"
+        ).fetchone()
+        workspace_name = (administrator['descricao'] or administrator['nome']) if administrator else 'HelpTI'
+        workspace_email = administrator['email'] if administrator else None
+        connection.execute(
+            "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (?, ?, 'ATIVO', 'WORKSPACE')",
+            (workspace_name, workspace_email)
+        )
+        workspace_id = connection.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+    connection.execute(
+        'UPDATE grupo_solucionadores SET id_usuario = ? WHERE id_usuario IS NULL',
+        (workspace_id,)
+    )
+
+    defaults_by_role = {
+        'rh': ['dashboard', 'clientes', 'equipe'],
+        'suporte': ['dashboard', 'chamados', 'clientes', 'educacao'],
+        'noc': ['dashboard', 'chamados'],
+        'técnico': ['dashboard', 'chamados', 'educacao'],
+        'tecnico': ['dashboard', 'chamados', 'educacao'],
+    }
+    for member in connection.execute(
+        "SELECT id_grupo_solucionadores, cargo FROM grupo_solucionadores WHERE permissoes = '[]'"
+    ):
+        role = (member['cargo'] or '').strip().lower()
+        permissions = defaults_by_role.get(role, ['dashboard', 'chamados'])
+        connection.execute(
+            'UPDATE grupo_solucionadores SET permissoes = ? WHERE id_grupo_solucionadores = ?',
+            (json.dumps(permissions), member['id_grupo_solucionadores'])
+        )
 

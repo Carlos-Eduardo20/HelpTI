@@ -77,6 +77,15 @@
 
   <script>
     const DURACAO_LOGIN_DIAS = 30;
+    let verificacaoSessaoLembrada;
+
+    function limparSessaoLembrada() {
+      localStorage.removeItem('perfilNome');
+      localStorage.removeItem('grupoId');
+      localStorage.removeItem('empresaNome');
+      localStorage.removeItem('loginExpiraEm');
+      localStorage.removeItem('emailLembrado');
+    }
 
     function limparEstadoBotao() {
       const formulario = document.getElementById('loginForm');
@@ -89,19 +98,24 @@
     function limparSessaoExpirada() {
       const expiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
       if (localStorage.getItem('grupoId') && (!expiraEm || expiraEm <= Date.now())) {
-        localStorage.removeItem('perfilNome');
-        localStorage.removeItem('grupoId');
-        localStorage.removeItem('loginExpiraEm');
-        localStorage.removeItem('emailLembrado');
+        limparSessaoLembrada();
       }
     }
 
-    function abrirSessaoLembrada() {
+    async function abrirSessaoLembrada() {
       const expiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
-      if (localStorage.getItem('grupoId') && expiraEm > Date.now()) {
+      if (!localStorage.getItem('grupoId') || expiraEm <= Date.now()) return false;
+
+      verificacaoSessaoLembrada ||= fetch(`${window.location.origin}/api/sessao`, {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      }).then((response) => response.ok).catch(() => false);
+
+      if (await verificacaoSessaoLembrada) {
         window.location.replace('dashboard.html');
         return true;
       }
+      limparSessaoLembrada();
       return false;
     }
 
@@ -114,14 +128,15 @@
       if (lembrar) lembrar.checked = false;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       limparSessaoExpirada();
-      if (abrirSessaoLembrada()) return;
+      if (await abrirSessaoLembrada()) return;
       limparEstadoBotao();
       limparCamposLogin();
     });
-    window.addEventListener('pageshow', () => {
-      if (abrirSessaoLembrada()) return;
+    window.addEventListener('pageshow', async (event) => {
+      if (event.persisted) verificacaoSessaoLembrada = undefined;
+      if (await abrirSessaoLembrada()) return;
       limparEstadoBotao();
       limparCamposLogin();
     });
@@ -136,10 +151,10 @@
       botao.disabled = true;
       botao.textContent = 'Verificando...';
       try {
-        const response = await fetch('http://127.0.0.1:5000/api/login', {
+        const response = await fetch(`${window.location.origin}/api/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, senha })
+          body: JSON.stringify({ email, senha, lembrar })
         });
         const dados = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(dados.erro || 'Não foi possível entrar.');

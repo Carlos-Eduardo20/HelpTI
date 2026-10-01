@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify, redirect, send_from_directory
+from flask import Flask, request, jsonify, redirect, send_from_directory, session, g
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_cors import CORS
 from sqlite3 import Error
 import os
 import json
 import re
+import secrets
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
@@ -13,9 +14,9 @@ import webbrowser
 from threading import Timer
 
 try:
-    from .database import get_db_connection, initialize_database
+    from .database import DATABASE_PATH, get_db_connection, initialize_database
 except ImportError:
-    from database import get_db_connection, initialize_database
+    from database import DATABASE_PATH, get_db_connection, initialize_database
 
 BASE_DIR = os.path.dirname(__file__)
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -25,6 +26,161 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+
+def _get_session_secret():
+    if os.getenv('FLASK_SECRET_KEY'):
+        return os.environ['FLASK_SECRET_KEY']
+    secret_path = DATABASE_PATH.parent / '.flask-session-secret'
+    secret_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with secret_path.open('x', encoding='utf-8') as secret_file:
+            secret_file.write(secrets.token_urlsafe(48))
+    except FileExistsError:
+        pass
+    return secret_path.read_text(encoding='utf-8')
+
+
+app.config.update(
+    SECRET_KEY=_get_session_secret(),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+)
+app.permanent_session_lifetime = timedelta(days=30)
+
+PERMISSOES_VALIDAS = {
+    'dashboard', 'chamados', 'clientes', 'equipe', 'relatorios',
+    'educacao', 'configuracoes', 'gerenciar_equipe'
+}
+PAGINAS_PUBLICAS = {
+    'login.html', 'account.html', 'forgot-password.html'
+}
+PERMISSAO_PAGINA = {
+    'dashboard.html': 'dashboard',
+    'chamados.html': 'chamados',
+    'chamados-detalhe.html': 'chamados',
+    'clientes.html': 'clientes',
+    'cliente-detalhe.html': 'clientes',
+    'equipe.html': 'equipe',
+    'equipe-detalhe.html': 'equipe',
+    'relatorios.html': 'relatorios',
+    'educacao.html': 'educacao',
+    'settings.html': 'configuracoes',
+}
+PERMISSAO_API = {
+    '/api/chamados': 'chamados',
+    '/api/clientes': 'clientes',
+    '/api/equipe': 'equipe',
+    '/api/setores': 'equipe',
+    '/api/relatorios': 'relatorios',
+    '/api/configuracoes': 'configuracoes',
+}
+PERMISSOES_PADRAO_CARGO = {
+    'rh': {'dashboard', 'clientes', 'equipe'},
+    'suporte': {'dashboard', 'chamados', 'clientes', 'educacao'},
+    'noc': {'dashboard', 'chamados'},
+    'técnico': {'dashboard', 'chamados', 'educacao'},
+    'tecnico': {'dashboard', 'chamados', 'educacao'},
+    'personalizado': {'dashboard'},
+}
+
+
+def _permissoes_do_membro(membro):
+    if (membro.get('cargo') or '').strip().lower() == 'administrador':
+        return PERMISSOES_VALIDAS.copy()
+    try:
+        permissoes = json.loads(membro.get('permissoes') or '[]')
+    except (TypeError, json.JSONDecodeError):
+        permissoes = []
+    return {permissao for permissao in permissoes if permissao in PERMISSOES_VALIDAS}
+
+
+def _normalizar_permissoes(permissoes, cargo):
+    if permissoes is None:
+        permissoes = PERMISSOES_PADRAO_CARGO.get(
+            (cargo or '').strip().lower(), {'dashboard', 'chamados'}
+        )
+    if not isinstance(permissoes, (list, set, tuple)):
+        raise ValueError('As permissões devem ser uma lista.')
+    selecionadas = {permissao for permissao in permissoes if permissao in PERMISSOES_VALIDAS}
+    if not selecionadas.intersection(PERMISSOES_VALIDAS - {'gerenciar_equipe'}):
+        raise ValueError('Selecione pelo menos uma aba para o funcionário.')
+    if 'gerenciar_equipe' in selecionadas:
+        selecionadas.add('equipe')
+    return selecionadas
+
+
+def _carregar_membro_da_sessao():
+    membro_id = session.get('grupo_id')
+    if not membro_id:
+        return None
+    connection = get_db_connection()
+    try:
+        cursor = connection.cursor()
+        cursor.execute('''
+            SELECT id_grupo_solucionadores, id_usuario, nome, email, cargo, status, permissoes
+            FROM grupo_solucionadores
+            WHERE id_grupo_solucionadores = %s
+        ''', (membro_id,))
+        membro = dict_fetchone(cursor)
+        cursor.close()
+        if not membro or membro.get('status') not in (None, 'ATIVO'):
+            session.clear()
+            return None
+        return membro
+    finally:
+        connection.close()
+
+
+@app.before_request
+def proteger_paginas_e_api():
+    caminho = request.path
+    if caminho in ('/api/health', '/api/login', '/api/contas'):
+        return None
+
+    if caminho.startswith('/frontend/pages/'):
+        pagina = os.path.basename(caminho)
+        if pagina in PAGINAS_PUBLICAS:
+            return None
+        permissao = PERMISSAO_PAGINA.get(pagina)
+        if not permissao:
+            return 'Página não encontrada.', 404
+    elif caminho.startswith('/api/'):
+        if caminho == '/api/logout':
+            permissao = None
+        elif caminho == '/api/sessao':
+            permissao = None
+        else:
+            permissao = next((valor for prefixo, valor in PERMISSAO_API.items()
+                              if caminho == prefixo or caminho.startswith(f'{prefixo}/')), None)
+            if not permissao:
+                return jsonify({'erro': 'Endpoint não encontrado'}), 404
+    else:
+        return None
+
+    membro = _carregar_membro_da_sessao()
+    if not membro:
+        if caminho.startswith('/api/'):
+            return jsonify({'erro': 'Faça login para continuar.'}), 401
+        return redirect('/frontend/pages/login.html')
+
+    g.membro = membro
+    permissoes = _permissoes_do_membro(membro)
+    leitura_de_apoio_a_chamados = (
+        request.method == 'GET'
+        and caminho in ('/api/clientes', '/api/equipe', '/api/setores')
+        and 'chamados' in permissoes
+    )
+    if permissao and permissao not in permissoes and not leitura_de_apoio_a_chamados:
+        if caminho.startswith('/api/'):
+            return jsonify({'erro': 'Seu perfil não tem acesso a este recurso.'}), 403
+        return 'Seu perfil não tem acesso a esta página.', 403
+
+    if (caminho.startswith(('/api/equipe', '/api/setores'))
+            and request.method != 'GET'
+            and 'gerenciar_equipe' not in permissoes):
+        return jsonify({'erro': 'Somente o administrador pode gerenciar a equipe.'}), 403
+    return None
 
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
 
@@ -374,7 +530,7 @@ def get_clientes():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM usuario;')
+        cursor.execute("SELECT * FROM usuario WHERE tipo_usuario = 'CLIENTE';")
         clientes = dict_fetchall(cursor)
 
         if clientes:
@@ -400,6 +556,9 @@ def get_clientes():
         
         cursor.close()
         conn.close()
+        if 'clientes' not in _permissoes_do_membro(g.membro):
+            campos_de_apoio = ('id_usuario', 'nome', 'contato', 'email', 'telefone', 'telefone_empresa', 'cnpj', 'contatos')
+            clientes = [{campo: cliente.get(campo) for campo in campos_de_apoio} for cliente in clientes]
         return jsonify(clientes), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
@@ -474,9 +633,9 @@ def update_cliente(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
         valores = list(campos.values()) + [id]
-        cursor.execute(f"UPDATE usuario SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_usuario = %s", valores)
+        cursor.execute(f"UPDATE usuario SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'", valores)
         conn.commit()
-        cursor.execute('SELECT * FROM usuario WHERE id_usuario = %s', (id,))
+        cursor.execute("SELECT * FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'", (id,))
         cliente = dict_fetchone(cursor)
         cursor.close()
         conn.close()
@@ -493,7 +652,7 @@ def delete_cliente(id):
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM usuario WHERE id_usuario = %s', (id,))
+        cursor.execute("DELETE FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'", (id,))
         conn.commit()
         removido = cursor.rowcount
         cursor.close()
@@ -519,11 +678,19 @@ def get_equipe():
             SELECT grupo_solucionadores.*, setor.nome AS setor_nome
             FROM grupo_solucionadores
             LEFT JOIN setor ON setor.id_setor = grupo_solucionadores.id_setor
+            WHERE grupo_solucionadores.id_usuario = %s
             ORDER BY grupo_solucionadores.id_grupo_solucionadores DESC;
-        ''')
+        ''', (g.membro['id_usuario'],))
         equipe = dict_fetchall(cursor)
+        if 'equipe' not in _permissoes_do_membro(g.membro):
+            campos_de_apoio = ('id_grupo_solucionadores', 'nome', 'descricao', 'cargo', 'nivel', 'id_setor', 'setor_nome', 'status')
+            equipe = [{campo: membro.get(campo) for campo in campos_de_apoio} for membro in equipe]
         for membro in equipe:
             membro.pop('senha', None)
+            try:
+                membro['permissoes'] = json.loads(membro.get('permissoes') or '[]')
+            except (TypeError, json.JSONDecodeError):
+                membro['permissoes'] = []
         
         cursor.close()
         conn.close()
@@ -536,9 +703,15 @@ def create_equipe():
     try:
         dados = request.get_json() or {}
         nome = dados.get('nome')
-        email = dados.get('email')
+        email = (dados.get('email') or '').strip().lower()
         senha = dados.get('senha')
         cargo = dados.get('cargo', 'tecnico')
+        if (cargo or '').strip().lower() == 'administrador':
+            return jsonify({'erro': 'Contas de administrador são criadas pelo fluxo de cadastro do workspace.'}), 400
+        try:
+            permissoes = _normalizar_permissoes(dados.get('permissoes'), cargo)
+        except ValueError as error:
+            return jsonify({'erro': str(error)}), 400
         nivel = dados.get('nivel') or None
         valor_hora = dados.get('valor_hora') or None
         id_setor = dados.get('id_setor') or None
@@ -551,17 +724,25 @@ def create_equipe():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
+        cursor.execute('SELECT 1 FROM grupo_solucionadores WHERE LOWER(email) = LOWER(%s)', (email,))
+        if cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Já existe um funcionário com este e-mail.'}), 409
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio, status, senha, telefone)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s)""",
-            (nome, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio, senha, telefone)
+            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio,
+             status, senha, telefone, permissoes, id_usuario)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s, %s, %s)""",
+            (nome, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio,
+             generate_password_hash(senha), telefone, json.dumps(sorted(permissoes)), g.membro['id_usuario'])
         )
         conn.commit()
         novo_id = cursor.lastrowid
         cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (novo_id,))
         novo_membro = dict_fetchone(cursor)
         novo_membro.pop('senha', None)
+        novo_membro['permissoes'] = sorted(permissoes)
         cursor.close()
         conn.close()
         return jsonify(novo_membro), 201
@@ -571,7 +752,14 @@ def create_equipe():
 @app.route('/api/equipe/<int:id>', methods=['PUT'])
 def update_equipe(id):
     dados = request.get_json() or {}
+    if (dados.get('cargo') or '').strip().lower() == 'administrador':
+        return jsonify({'erro': 'Funcionários não podem ser promovidos a administrador por esta operação.'}), 400
     campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'nivel', 'status') if campo in dados}
+    try:
+        if 'permissoes' in dados:
+            campos['permissoes'] = json.dumps(sorted(_normalizar_permissoes(dados['permissoes'], dados.get('cargo'))))
+    except ValueError as error:
+        return jsonify({'erro': str(error)}), 400
     if not campos:
         return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
     try:
@@ -580,15 +768,19 @@ def update_equipe(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
         valores = list(campos.values()) + [id]
-        cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s", valores)
+        cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s AND id_usuario = %s", valores + [g.membro['id_usuario']])
         conn.commit()
-        cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (id,))
+        cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_usuario = %s', (id, g.membro['id_usuario']))
         membro = dict_fetchone(cursor)
         cursor.close()
         conn.close()
         if not membro:
             return jsonify({'erro': 'Membro não encontrado'}), 404
         membro.pop('senha', None)
+        try:
+            membro['permissoes'] = json.loads(membro.get('permissoes') or '[]')
+        except (TypeError, json.JSONDecodeError):
+            membro['permissoes'] = []
         return jsonify(membro), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
@@ -600,7 +792,7 @@ def delete_equipe(id):
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (id,))
+        cursor.execute('DELETE FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_usuario = %s', (id, g.membro['id_usuario']))
         conn.commit()
         removido = cursor.rowcount
         cursor.close()
@@ -656,21 +848,37 @@ def criar_conta():
 
     cursor = conn.cursor(dictionary=True)
     try:
+        cursor.execute("SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' LIMIT 1")
+        if cursor.fetchone():
+            return jsonify({'erro': 'Este workspace já possui administrador. Peça ao administrador para cadastrar sua conta pela página Equipe.'}), 409
+
         cursor.execute('SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1', (email,))
         if cursor.fetchone():
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
 
+        cursor.execute(
+            "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (%s, %s, 'ATIVO', 'WORKSPACE')",
+            (empresa, email)
+        )
+        workspace_id = cursor.lastrowid
         nome_empresa = obter_nome_empresa(email)
         cursor.execute('''
-            INSERT INTO grupo_solucionadores (descricao, nome, email, cargo, status, senha)
-            VALUES (%s, %s, %s, 'Administrador', 'ATIVO', %s)
-        ''', (empresa, nome_empresa, email, generate_password_hash(senha)))
+            INSERT INTO grupo_solucionadores
+                (descricao, nome, email, cargo, status, senha, id_usuario, permissoes)
+            VALUES (%s, %s, %s, 'Administrador', 'ATIVO', %s, %s, %s)
+        ''', (empresa, nome_empresa, email, generate_password_hash(senha), workspace_id,
+              json.dumps(sorted(PERMISSOES_VALIDAS))))
+        administrador_id = cursor.lastrowid
         conn.commit()
+        session.clear()
+        session['grupo_id'] = administrador_id
         return jsonify({
-            'id': cursor.lastrowid,
+            'id': administrador_id,
             'nome': nome_empresa,
             'email': email,
-            'empresaNome': nome_empresa
+            'empresaNome': empresa,
+            'cargo': 'Administrador',
+            'permissoes': sorted(PERMISSOES_VALIDAS)
         }), 201
     except Error as error:
         conn.rollback()
@@ -696,14 +904,17 @@ def login():
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute('''
-            SELECT id_grupo_solucionadores AS id, nome, email, cargo, status, senha
-            FROM grupo_solucionadores
-            WHERE LOWER(email) = LOWER(%s)
-              AND senha IS NOT NULL
-              AND senha <> ''
-            ORDER BY id_grupo_solucionadores DESC
+                        SELECT membro.id_grupo_solucionadores AS id, membro.id_usuario,
+                                     membro.nome, membro.email, membro.cargo, membro.status,
+                                     membro.senha, membro.permissoes, usuario.nome AS empresa_nome
+                        FROM grupo_solucionadores AS membro
+                        LEFT JOIN usuario ON usuario.id_usuario = membro.id_usuario
+                        WHERE LOWER(membro.email) = LOWER(%s)
+                            AND membro.senha IS NOT NULL
+                            AND membro.senha <> ''
+                        ORDER BY membro.id_grupo_solucionadores DESC
         ''', (email,))
-        usuarios = cursor.fetchall()
+        usuarios = [dict(usuario) for usuario in cursor.fetchall()]
     finally:
         cursor.close()
         conn.close()
@@ -716,13 +927,36 @@ def login():
     if usuario['status'] not in (None, 'ATIVO'):
         return jsonify({'erro': 'Esta conta está inativa'}), 403
 
+    session.clear()
+    session['grupo_id'] = usuario['id']
+    session.permanent = bool(dados.get('lembrar'))
+    permissoes = sorted(_permissoes_do_membro(usuario))
     return jsonify({
         'id': usuario['id'],
         'nome': usuario['nome'],
         'email': usuario['email'],
         'cargo': usuario['cargo'],
-        'empresaNome': obter_nome_empresa(usuario['email'])
+        'empresaNome': usuario.get('empresa_nome') or obter_nome_empresa(usuario['email']),
+        'permissoes': permissoes
     }), 200
+
+
+@app.route('/api/sessao', methods=['GET'])
+def obter_sessao():
+    membro = g.membro
+    return jsonify({
+        'id': membro['id_grupo_solucionadores'],
+        'nome': membro['nome'],
+        'email': membro['email'],
+        'cargo': membro['cargo'],
+        'permissoes': sorted(_permissoes_do_membro(membro))
+    }), 200
+
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'mensagem': 'Sessão encerrada.'}), 200
 
 @app.route('/api/setores', methods=['GET'])
 def get_setores():

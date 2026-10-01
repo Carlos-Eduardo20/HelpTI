@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     telefone_empresa TEXT,
     endereco TEXT,
     status TEXT NOT NULL DEFAULT 'ATIVO',
+    tipo_usuario TEXT NOT NULL DEFAULT 'CLIENTE',
     cnpj TEXT,
     plano TEXT,
     acoes TEXT,
@@ -51,7 +52,10 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     telefone TEXT,
     status TEXT NOT NULL DEFAULT 'ATIVO',
     senha TEXT NOT NULL DEFAULT '',
+    permissoes TEXT NOT NULL DEFAULT '[]',
+    id_usuario INTEGER NOT NULL,
     id_setor INTEGER,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
     FOREIGN KEY (id_setor) REFERENCES setor(id_setor) ON DELETE SET NULL
 );
 
@@ -111,6 +115,7 @@ CREATE TABLE IF NOT EXISTS configuracao (
 
 CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor ON grupo_solucionadores(id_setor);
+CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario ON grupo_solucionadores(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado(status, data_abertura);
 CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado(id_setor);
 CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado ON escalonamento(id_chamado);
@@ -124,3 +129,6 @@ INSERT OR IGNORE INTO tipo_chamado (id_tipo_chamado, nome, classificacao, descri
 (2, 'Hardware', 'Técnico', 'Problemas com hardware'),
 (3, 'Software', 'Técnico', 'Problemas com software'),
 (4, 'Rede', 'Infraestrutura', 'Problemas de rede');
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_workspace_unico
+ON usuario(tipo_usuario) WHERE tipo_usuario = 'WORKSPACE';
