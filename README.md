@@ -8,6 +8,8 @@ O HelpTI é uma aplicação web para gestão de suporte técnico. O frontend usa
 
 O projeto reúne telas de login, dashboard, chamados, clientes, equipe, setores, relatórios, configurações, educação e planos. O Flask serve as páginas e a API no mesmo endereço.
 
+A visualização interativa de componentes 3D da página Educação é desenhada em Python pelo Flask. Para iniciar o sistema e acessar a visualização, execute `python app.py` na raiz do projeto; não é necessário iniciar um aplicativo Tkinter separado.
+
 ---
 
 ## Estado atual do projeto
@@ -314,4 +316,3 @@ Cada integrante trabalha com seu próprio banco SQLite local. Os dados não são
 Antes de alterar o código, consulte [INTEGRACAO.md](INTEGRACAO.md) e a modelagem de dados acima. Faça mudanças pequenas, teste a API e o fluxo da tela correspondente e descreva no pull request o que foi alterado e como testar. Para dados locais, pare o servidor antes de copiar o arquivo de banco como backup.
 
 ---
-

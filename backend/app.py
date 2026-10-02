@@ -15,8 +15,10 @@ from threading import Timer
 
 try:
     from .database import DATABASE_PATH, get_db_connection, initialize_database
+    from .pc_explorer_3d import render_pc_explorer, render_pc_svg
 except ImportError:
     from database import DATABASE_PATH, get_db_connection, initialize_database
+    from pc_explorer_3d import render_pc_explorer, render_pc_svg
 
 BASE_DIR = os.path.dirname(__file__)
 load_dotenv(os.path.join(BASE_DIR, '.env'))
@@ -145,6 +147,8 @@ def proteger_paginas_e_api():
         permissao = PERMISSAO_PAGINA.get(pagina)
         if not permissao:
             return 'Página não encontrada.', 404
+    elif caminho in ('/educacao/pc-explorer', '/educacao/pc-explorer/modelo.svg'):
+        permissao = 'educacao'
     elif caminho.startswith('/api/'):
         if caminho == '/api/logout':
             permissao = None
@@ -193,6 +197,26 @@ def frontend_entrypoint():
 @app.route('/frontend/<path:filename>')
 def frontend_files(filename):
     return send_from_directory(FRONTEND_DIR, filename)
+
+
+@app.route('/educacao/pc-explorer')
+def pc_explorer_educacao():
+    return render_pc_explorer(
+        request.args.get('componente'),
+        request.args.get('azimute', 18),
+        request.args.get('elevacao', 18),
+    )
+
+
+@app.route('/educacao/pc-explorer/modelo.svg')
+def pc_explorer_modelo_svg():
+    svg = render_pc_svg(
+        request.args.get('componente'),
+        request.args.get('azimute', 18),
+        request.args.get('elevacao', 18),
+    )
+    return app.response_class(svg, mimetype='image/svg+xml')
+
 
 # Helper para converter resultado em dicionário
 def dict_fetchall(cursor):

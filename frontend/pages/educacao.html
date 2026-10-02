@@ -126,34 +126,15 @@
   </header>
 
   <main class="education-container">
-
-    <!-- Import do Three.js necessário para o 3D -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <div class="educacao-container">
-      <!-- Lado Esquerdo: Torre Interativa 3D -->
-      <div class="card-torre">
-        <h3>Torre interativa</h3>
-        <div id="pcExplorer3D" style="height: 520px; width: 100%; position: relative;"></div>
-        <p class="legenda-instrucao">
-          Passe o mouse (ou toque) em um componente para destacá-lo em vermelho e ler o diagnóstico ao lado.
-        </p>
-      </div>
-
-      <!-- Lado Direito: Painel de Diagnóstico do Componente -->
-      <div class="card-diagnostico">
-        <h3>Diagnóstico do componente</h3>
-        <div id="painelDiagnostico" class="diagnostico-content">
-          <div class="empty-state">
-            <span class="icon-cursor">➤</span>
-            <p>Selecione uma peça na torre 3D para ver os possíveis erros e as soluções recomendadas.</p>
-          </div>
-        </div>
-      </div>
+      <iframe
+        class="pc-explorer-frame"
+        src="/educacao/pc-explorer"
+        title="Explorador 3D de componentes de computador"
+        loading="eager"></iframe>
     </div>
   </main>
 
-  <script type="module" src="../assets/js/educacao.js"></script>
   <script type="module" src="../assets/js/main.js"></script>
 </body>
 

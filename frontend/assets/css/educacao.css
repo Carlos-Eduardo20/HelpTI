@@ -259,6 +259,14 @@
     padding: 24px;
 }
 
+.pc-explorer-frame {
+    display: block;
+    width: 100%;
+    height: 780px;
+    grid-column: 1 / -1;
+    border: 0;
+}
+
 .card-torre, .card-diagnostico {
     background: #FFFFFF;
     border: 1px solid #E2DCD0;
@@ -314,5 +322,9 @@
 @media (max-width: 900px) {
     .educacao-container {
         grid-template-columns: 1fr;
+    }
+
+    .pc-explorer-frame {
+        height: 1120px;
     }
 }
