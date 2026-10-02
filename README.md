@@ -12,16 +12,6 @@ O projeto reúne telas de login, dashboard, chamados, clientes, equipe, setores,
 
 ## Estado atual do projeto
 
-### Frontend
-O frontend já conta com a estrutura principal do sistema em HTML, CSS e JavaScript.
-
-- Tela de login com autenticação visual simulada
-- Dashboard com indicadores de operação
-- Agenda de chamados por dia e técnico
-- Modal para abertura de novos chamados
-- Dropdown de perfil com ações de configuração e logout
-- Navegação entre páginas do painel
-
 ### Backend
 
 - [backend/app.py](backend/app.py): aplicação Flask, páginas e endpoints da API
@@ -162,6 +152,21 @@ erDiagram
 	}
 ```
 
+### Adaptação da modelagem de referência
+
+O diagrama entidade-relacionamento acima representa o banco atualmente implementado no site. Para o modelo conceitual do case solicitado, `setor` deve ser um atributo de `grupo_solucionadores` (por exemplo, `setor TEXT`), sem uma tabela `setor` separada. O banco do site ainda mantém a tabela `setor` porque a aplicação permite cadastrar setores e associá-los também a chamados; essa diferença fica registrada para não confundir a proposta do case com o schema em execução.
+
+O fluxo de atendimento da referência foi adaptado aos conceitos existentes no HelpTI:
+
+| Conceito da referência | Implementação no HelpTI |
+| --- | --- |
+| Cliente que relata o problema | `usuario` representa a empresa/workspace e `cliente` seus contatos cadastrados. O chamado mantém nome, e-mail e telefone do solicitante em seus próprios campos, sem FK para essas tabelas. |
+| Grupo solucionador | `grupo_solucionadores`, vinculado ao workspace por `id_usuario` e opcionalmente a um `setor`. |
+| Chamado | `chamado`, associado a `tipo_chamado` e, opcionalmente, a um setor e membro responsável. |
+| Transferência/escalonamento | `escalonamento`, com motivo, nível e destinos opcionais de setor e membro da equipe. |
+| Registro de horas | Não há tabela de apontamentos. O tempo corrido do atendimento fica em `chamado.tempo_decorrido_segundos`; `grupo_solucionadores.valor_hora` é um atributo cadastral e não gera cálculo de pagamento. |
+| Fechamento/pagamento | Não há entidade financeira no schema atual. O encerramento do chamado é registrado em `chamado` e na timeline `historico_chamado`; pagamentos não fazem parte do escopo implementado. |
+
 ### Relacionamentos
 
 - `usuario` 1:N `cliente`; excluir uma empresa exclui seus contatos.
@@ -178,6 +183,12 @@ erDiagram
 As chaves estrangeiras são habilitadas em cada conexão. O schema cria índices para contatos por empresa, equipe por setor, chamados por status/data e escalonamentos por chamado.
 
 Ao migrar uma base antiga, a tabela `cliente_contato` é renomeada para `cliente` mantendo os registros. A antiga tabela `documentacao`, cujas linhas não apontavam para chamados, é arquivada como `documentacao_legado` (ou com sufixo numérico) se contiver dados; em instalações novas ela não é criada. O histórico inicial dos chamados existentes é preenchido usando `data_abertura`.
+
+### Case do banco de dados
+
+Uma empresa de suporte de TI recebe de um cliente o relato de uma falha em seu computador. A equipe registra o cliente, descreve o problema e abre um chamado, atribuindo-o a um técnico responsável e ao setor correspondente. Quando o atendimento começa, registra-se a data e a hora de início da resolução; ao concluir o serviço, registra-se a data e a hora do fim. Com esses dados, o sistema calcula a duração de cada atendimento e gera um relatório com o tempo total acumulado dos chamados, ajudando a equipe a acompanhar o trabalho realizado e a identificar atendimentos que ainda precisam ser concluídos.
+
+No modelo conceitual do case, o setor fica registrado como atributo do grupo solucionador. O registro do chamado precisa guardar os instantes de início e fim da resolução para que a duração possa ser calculada pela diferença entre eles e somada no relatório. No site atual já existem chamados, equipe, setores e acompanhamento de tempo, mas o schema e o relatório implementados ainda não correspondem integralmente a esse modelo: setores são uma tabela própria e o relatório atual agrupa chamados por status e classificação, sem somar a duração de todos eles.
 
 ## API
 
