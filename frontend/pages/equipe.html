@@ -204,11 +204,12 @@
               <option value="Suporte">Suporte</option>
               <option value="NOC">NOC</option>
               <option value="Personalizado">Personalizado</option>
+              <option value="Administrador">Administrador</option>
             </select>
           </div>
           <fieldset class="permission-fieldset">
             <legend>Acessos do funcionário</legend>
-            <p>Marque as abas que este funcionário poderá abrir.</p>
+            <p>Administradores recebem acesso total. Para os demais cargos, marque as abas que poderão abrir.</p>
             <div class="permission-grid">
               <label><input type="checkbox" name="permissoes" value="dashboard" checked>Dashboard</label>
               <label><input type="checkbox" name="permissoes" value="chamados" checked>Chamados</label>
@@ -243,7 +244,7 @@
           <div class="modal-footer">
             <button type="button" class="button button--secondary"
               onclick="closeModal('modal-equipe')">Cancelar</button>
-            <button type="submit" class="button button--primary">Cadastrar Técnico</button>
+            <button type="submit" class="button button--primary">Cadastrar membro</button>
           </div>
         </form>
       </div>

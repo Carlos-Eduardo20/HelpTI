@@ -731,11 +731,14 @@ def create_equipe():
         senha = dados.get('senha')
         cargo = dados.get('cargo', 'tecnico')
         if (cargo or '').strip().lower() == 'administrador':
-            return jsonify({'erro': 'Contas de administrador são criadas pelo fluxo de cadastro do workspace.'}), 400
-        try:
-            permissoes = _normalizar_permissoes(dados.get('permissoes'), cargo)
-        except ValueError as error:
-            return jsonify({'erro': str(error)}), 400
+            if (g.membro.get('cargo') or '').strip().lower() != 'administrador':
+                return jsonify({'erro': 'Somente um administrador pode cadastrar outro administrador.'}), 403
+            permissoes = PERMISSOES_VALIDAS.copy()
+        else:
+            try:
+                permissoes = _normalizar_permissoes(dados.get('permissoes'), cargo)
+            except ValueError as error:
+                return jsonify({'erro': str(error)}), 400
         nivel = dados.get('nivel') or None
         valor_hora = dados.get('valor_hora') or None
         id_setor = dados.get('id_setor') or None
