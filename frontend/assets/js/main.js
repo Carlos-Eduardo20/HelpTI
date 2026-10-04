@@ -935,11 +935,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      const botaoContatos = document.querySelector('#abrirContatosChamado');
+      const botoesContatos = document.querySelectorAll('[data-abrir-contatos]');
       const menuContatos = document.querySelector('#menuContatosChamado');
       const contatosCliente = cliente?.contatos?.length
         ? cliente.contatos
         : cliente?.contato ? [{ nome: cliente.contato, telefone: cliente.telefone }] : [];
+      const definirMenuContatos = (aberto) => {
+        menuContatos.hidden = !aberto;
+        botoesContatos.forEach((botao) => botao.setAttribute('aria-expanded', String(aberto)));
+      };
       const renderizarContatosChamado = () => {
         if (!menuContatos) return;
         menuContatos.innerHTML = contatosCliente.length
@@ -950,11 +954,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           : '<span class="employee-contact-option">Nenhum contato cadastrado para este cliente.</span>';
       };
       renderizarContatosChamado();
-      botaoContatos?.addEventListener('click', () => {
-        const aberto = menuContatos.hidden;
-        menuContatos.hidden = !aberto;
-        botaoContatos.setAttribute('aria-expanded', String(aberto));
-      });
+      botoesContatos.forEach((botao) => botao.addEventListener('click', () => {
+        definirMenuContatos(menuContatos.hidden);
+      }));
       menuContatos?.addEventListener('click', async (event) => {
         const opcao = event.target.closest('[data-contato-indice]');
         if (!opcao) return;
@@ -968,8 +970,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           atualizarTelaChamado();
           renderizarContatosChamado();
-          menuContatos.hidden = true;
-          botaoContatos?.setAttribute('aria-expanded', 'false');
+          definirMenuContatos(false);
         } catch (error) { alert(`Não foi possível alterar o contato: ${error.message}`); }
       });
 

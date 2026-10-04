@@ -14,10 +14,10 @@ import webbrowser
 from threading import Timer
 
 try:
-    from .database import DATABASE_PATH, get_db_connection, initialize_database
+    from .database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
     from .pc_explorer_3d import render_pc_explorer, render_pc_svg
 except ImportError:
-    from database import DATABASE_PATH, get_db_connection, initialize_database
+    from database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
     from pc_explorer_3d import render_pc_explorer, render_pc_svg
 
 BASE_DIR = os.path.dirname(__file__)
@@ -47,6 +47,7 @@ app.config.update(
     SECRET_KEY=_get_session_secret(),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv('HELPTI_HTTPS_ONLY', 'false').strip().lower() in ('1', 'true', 'yes', 'on'),
 )
 app.permanent_session_lifetime = timedelta(days=30)
 
@@ -126,6 +127,11 @@ def _carregar_membro_da_sessao():
         ''', (membro_id,))
         membro = dict_fetchone(cursor)
         cursor.close()
+        if membro and not demo_mode_enabled() and str(membro.get('email') or '').lower() in (
+            'test@helpiti.com', 'teste@helpiti.com'
+        ):
+            session.clear()
+            return None
         if not membro or membro.get('status') not in (None, 'ATIVO'):
             session.clear()
             return None
@@ -911,30 +917,32 @@ def criar_conta():
 
     cursor = conn.cursor(dictionary=True)
     try:
+        conn.execute('BEGIN IMMEDIATE')
         cursor.execute('SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1', (email,))
         if cursor.fetchone():
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
 
         cursor.execute("SELECT id_usuario, nome FROM usuario WHERE tipo_usuario = 'WORKSPACE' LIMIT 1")
-        workspace = cursor.fetchone()
-        if workspace:
-            workspace_id = workspace['id_usuario']
-            nome_empresa = workspace['nome'] or empresa
-        else:
-            cursor.execute(
-                "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (%s, %s, 'ATIVO', 'WORKSPACE')",
-                (empresa, email)
-            )
-            workspace_id = cursor.lastrowid
-            nome_empresa = empresa
+        if cursor.fetchone():
+            return jsonify({
+                'erro': 'Este HelpTI já possui uma empresa cadastrada. Peça ao administrador para criar seu acesso.'
+            }), 409
+
+        cursor.execute(
+            "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (%s, %s, 'ATIVO', 'WORKSPACE')",
+            (empresa, email)
+        )
+        workspace_id = cursor.lastrowid
+        nome_empresa = empresa
 
         nome_membro = nome or re.sub(r'[-_.]+', ' ', email.split('@', 1)[0]).title()
-        permissoes = ['dashboard', 'chamados']
+        cargo = 'Administrador'
+        permissoes = sorted(PERMISSOES_VALIDAS)
         cursor.execute('''
             INSERT INTO grupo_solucionadores
                 (descricao, nome, email, cargo, status, senha, id_usuario, permissoes)
-            VALUES (%s, %s, %s, 'Usuário', 'ATIVO', %s, %s, %s)
-        ''', (nome_empresa, nome_membro, email, generate_password_hash(senha), workspace_id,
+            VALUES (%s, %s, %s, %s, 'ATIVO', %s, %s, %s)
+        ''', (nome_empresa, nome_membro, email, cargo, generate_password_hash(senha), workspace_id,
               json.dumps(permissoes)))
         membro_id = cursor.lastrowid
         conn.commit()
@@ -945,7 +953,7 @@ def criar_conta():
             'nome': nome_membro,
             'email': email,
             'empresaNome': nome_empresa,
-            'cargo': 'Usuário',
+            'cargo': cargo,
             'permissoes': permissoes
         }), 201
     except Error as error:
@@ -964,6 +972,8 @@ def login():
     senha = dados.get('senha') or ''
     if not email or not senha:
         return jsonify({'erro': 'E-mail e senha são obrigatórios'}), 400
+    if not demo_mode_enabled() and email.lower() in ('test@helpiti.com', 'teste@helpiti.com'):
+        return jsonify({'erro': 'E-mail ou senha inválidos'}), 401
 
     conn = get_db_connection()
     if not conn:

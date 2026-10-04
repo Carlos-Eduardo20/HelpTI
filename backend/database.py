@@ -60,13 +60,21 @@ def get_db_connection():
     return SQLiteConnection(connection)
 
 
+def demo_mode_enabled():
+    """Whether startup should create the public demonstration data and account."""
+    return os.getenv('HELPTI_DEMO_MODE', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 def initialize_database():
     """Migra bancos antigos e cria tabelas/dados iniciais sem sobrescrever registros."""
     schema_path = Path(__file__).with_name('schema.sql')
+    demo_seed_path = Path(__file__).with_name('demo_seed.sql')
     connection = get_db_connection()
     try:
         _migrate_legacy_schema(connection)
         connection.executescript(schema_path.read_text(encoding='utf-8'))
+        if demo_mode_enabled():
+            connection.executescript(demo_seed_path.read_text(encoding='utf-8'))
         connection.execute('''
             INSERT INTO historico_chamado (id_chamado, evento, descricao, data_evento)
             SELECT chamado.id_chamado, 'aberto', 'Chamado criado no sistema.', chamado.data_abertura
@@ -181,4 +189,3 @@ def _migrate_legacy_schema(connection):
             'UPDATE grupo_solucionadores SET permissoes = ? WHERE id_grupo_solucionadores = ?',
             (json.dumps(permissions), member['id_grupo_solucionadores'])
         )
-

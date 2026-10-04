@@ -158,7 +158,7 @@
                 <div class="status-filter-control">
                     <button class="status-filter-button" id="botaoStatusChamados" type="button" aria-haspopup="listbox"
                         aria-expanded="false" aria-controls="menuStatusChamados">
-                        <span id="statusChamadosLabel">Todos os Status</span>
+                        <span id="statusChamadosLabel">Chamados não resolvidos</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                             class="lucide lucide-chevron-right">
@@ -166,8 +166,10 @@
                         </svg>
                     </button>
                     <div class="status-filter-menu" id="menuStatusChamados" role="listbox">
-                        <button type="button" role="option" data-status-filter="" aria-selected="true">Todos os
-                            Status</button>
+                        <button type="button" role="option" data-status-filter="NAO_RESOLVIDOS"
+                            aria-selected="true">Chamados não resolvidos</button>
+                        <button type="button" role="option" data-status-filter="RESOLVIDO"
+                            aria-selected="false">Listar todos os chamados resolvidos</button>
                         <button type="button" role="option" data-status-filter="ABERTO"
                             aria-selected="false">Aberto</button>
                         <button type="button" role="option" data-status-filter="ANDAMENTO" aria-selected="false">Em
@@ -176,16 +178,14 @@
                             aria-selected="false">Aguardando Terceiros</button>
                         <button type="button" role="option" data-status-filter="PAUSADO"
                             aria-selected="false">Pausado</button>
-                        <button type="button" role="option" data-status-filter="RESOLVIDO"
-                            aria-selected="false">Resolvido</button>
                     </div>
                     <select id="filtroStatusChamados" class="status-filter-select" aria-hidden="true" tabindex="-1">
-                        <option value="">Todos os Status</option>
+                        <option value="NAO_RESOLVIDOS" selected>Chamados não resolvidos</option>
+                        <option value="RESOLVIDO">Listar todos os chamados resolvidos</option>
                         <option value="ABERTO">Aberto</option>
                         <option value="ANDAMENTO">Em Andamento</option>
                         <option value="AGUARDANDO">Aguardando Terceiros</option>
                         <option value="PAUSADO">Pausado</option>
-                        <option value="RESOLVIDO">Resolvido</option>
                     </select>
                 </div>
 

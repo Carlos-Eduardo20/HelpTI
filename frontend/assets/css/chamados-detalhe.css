@@ -593,7 +593,42 @@
 .employee-contact-option strong { font-size: 13px; }
 .employee-contact-option span { color: var(--text-muted, #5C5650); font-size: 12px; }
 
-.ticket-agenda-picker { width: 100%; min-height: 42px; }
+.employee-contact-value {
+    width: 100%;
+    padding: 2px 0;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.employee-contact-value:hover,
+.employee-contact-value:focus-visible {
+    color: var(--blue-700, #1D4ED8);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.ticket-agenda-picker {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-radius: 6px;
+    background: var(--white, #FFFFFF);
+    color: var(--text-dark, #1E1B18);
+    transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.ticket-agenda-picker:hover,
+.ticket-agenda-picker:focus-visible {
+    border-color: var(--blue-600, #2563EB);
+    background: var(--blue-100, #EFF6FF);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.ticket-agenda-picker svg { color: var(--blue-600, #2563EB); }
 
 .agenda-calendar-overlay {
     position: fixed;

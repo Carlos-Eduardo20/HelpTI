@@ -6,6 +6,16 @@ Sistema web de gestão operacional para suporte técnico, com foco em acompanhar
 
 O HelpTI é uma aplicação web para gestão de suporte técnico. O frontend usa HTML, CSS e JavaScript; o backend usa Flask e expõe uma API REST. Os dados são persistidos em SQLite, criado automaticamente na primeira inicialização.
 
+### Problema que motivou o projeto
+
+Uma equipe de suporte interno de TI controlava seus chamados em planilhas compartilhadas e por e-mail. Com o aumento das solicitações, esse processo passou a causar problemas que também dificultavam organizar os dados e produzir relatórios confiáveis:
+
+- **Histórico incompleto:** linhas eram apagadas ou sobrescritas, então não havia um registro confiável das alterações de status, dos responsáveis e das ações realizadas.
+- **Dados inconsistentes e duplicados:** cada pessoa podia escrever status e nomes de clientes de formas diferentes, e não havia validação nem relacionamentos que impedissem referências incorretas.
+- **Conflito de atendimento:** duas pessoas podiam assumir ou alterar o mesmo chamado sem perceber, causando retrabalho e informações divergentes.
+
+O projeto foi criado para resolver esse problema com uma aplicação apoiada por um banco de dados relacional: clientes, contatos, chamados, responsáveis e histórico ficam organizados em tabelas relacionadas, com valores padronizados e alterações registradas. Isso permite consultar os atendimentos e demonstrar como a modelagem e as restrições do banco ajudam a manter os dados consistentes.
+
 O projeto reúne telas de login, dashboard, chamados, clientes, equipe, setores, relatórios, configurações, educação e planos. O Flask serve as páginas e a API no mesmo endereço.
 
 A visualização interativa de componentes 3D da página Educação é desenhada em Python pelo Flask. Para iniciar o sistema e acessar a visualização, execute `python app.py` na raiz do projeto; não é necessário iniciar um aplicativo Tkinter separado.
@@ -19,13 +29,18 @@ A visualização interativa de componentes 3D da página Educação é desenhada
 - [backend/app.py](backend/app.py): aplicação Flask, páginas e endpoints da API
 - [backend/database.py](backend/database.py): conexão SQLite e inicialização automática
 - [backend/schema.sql](backend/schema.sql): tabelas, relacionamentos, índices e dados iniciais
+- [backend/demo_seed.sql](backend/demo_seed.sql): usuário e dados fictícios iniciais para apresentação
 - [backend/requirements.txt](backend/requirements.txt): dependências Python da aplicação
 
 Chamados, clientes, contatos, equipe, setores e configurações permanecem salvos no banco local após reiniciar o servidor.
 
 ## Banco de dados
 
-O banco padrão é SQLite. Na primeira inicialização, o sistema cria `instance/helpti.sqlite3` e aplica `backend/schema.sql`. Não é necessário instalar MySQL, usar Workbench ou configurar credenciais de banco no `.env`. Cada clone mantém seu próprio arquivo de dados, que não deve ser enviado ao Git.
+O banco padrão é SQLite. Na primeira inicialização, o sistema cria `instance/helpti.sqlite3` e aplica `backend/schema.sql` e `backend/demo_seed.sql`. Os arquivos SQL são versionados para que todos recebam o mesmo esquema e os mesmos dados fictícios iniciais; o arquivo SQLite de cada pessoa permanece local e não deve ser enviado ao Git.
+
+Para entrar localmente na conta de demonstração, use `test@helpiti.com` com a senha `HelpTI2026!`. O endereço `teste@helpiti.com` também é aceito como alias. Em uma instalação limpa, o seed cria essas contas com perfil de administrador. Depois disso, o seed não redefine a senha nem reativa uma conta alterada. A senha é pública e só pode ser usada localmente: desligue `HELPTI_DEMO_MODE` antes de hospedar o sistema.
+
+Cada clone executa seu próprio SQLite local: todos podem usar a conta de demonstração, mas as alterações feitas em um computador não aparecem nos bancos dos outros. Sem um banco ou servidor central compartilhado, não existe sincronização ao vivo dos dados entre clones. Os scripts `.sql` versionados distribuem o mesmo esquema e o mesmo estado inicial, não uma base de dados sincronizada. A senha da demonstração é pública e destinada exclusivamente a testes.
 
 ### Tabelas e atributos
 
@@ -209,9 +224,9 @@ Todos os endpoints usam o prefixo `/api` e são servidos pelo mesmo processo Fla
 
 ### Persistência e compartilhamento
 
-O banco SQLite fica no computador que executa o servidor. Clonar ou atualizar o repositório não compartilha os registros. Para várias pessoas usarem o mesmo workspace, uma opção de teste é executar o HelpTI em um computador da rede local e acessar a mesma URL nos navegadores; todos usarão o banco desse servidor. Para backup, pare o servidor e copie `instance/helpti.sqlite3`. Não coloque o arquivo SQLite no Git para sincronizar dados. Para uso online ou produção, hospede a aplicação e configure um banco central (por exemplo, PostgreSQL ou MySQL) com acesso seguro.
+Cada clone ou Codespace recebe uma cópia inicial equivalente do esquema e dos dados fictícios. Depois disso, as alterações feitas em uma máquina não são sincronizadas com as outras: compartilhar o mesmo login não compartilha o banco local. Para a equipe trabalhar simultaneamente sobre os mesmos registros, execute uma única instância do HelpTI em um computador acessível a todos na rede local e use a mesma URL; para uso online, será necessário hospedar a aplicação e configurar um banco central com acesso seguro. Não coloque arquivos SQLite, `.env` ou credenciais no Git. O `.gitignore` já mantém esses arquivos locais fora do repositório, enquanto os scripts `.sql` permanecem versionados.
 
-Qualquer pessoa pode criar uma conta em “Criar conta” usando um e-mail com formato válido; não há verificação de domínio ou aprovação administrativa. O cadastro autentica a pessoa automaticamente com a senha escolhida. A primeira conta inicializa o workspace; as seguintes entram no workspace existente como “Usuário”, com acesso ao Dashboard e Chamados. Contas públicas não recebem permissões administrativas; a página Equipe não oferece o cargo Administrador e a API não permite criá-lo por esse formulário. Como o cadastro é aberto, qualquer pessoa que alcance essa tela pode entrar no workspace atual e visualizar chamados; não exponha o sistema publicamente antes de implementar isolamento por conta e controles de cadastro. O cookie de sessão é assinado por uma chave local em `instance/`.
+Em uma instalação sem workspace, o primeiro cadastro cria a empresa e a conta administradora. Depois que existe um workspace, o cadastro público é recusado; o administrador deve criar os outros acessos pela área Equipe. O primeiro cadastro de uma instalação nova deve ser feito e validado antes de publicar o endereço do site. Cada instalação representa somente um workspace; não use a mesma instalação para empresas diferentes. O cookie de sessão é assinado por uma chave local em `instance/`, persistida no volume quando executado via Docker.
 
 A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criação/edição de funcionários e setores. Quem tem acesso a Chamados também recebe leituras auxiliares limitadas de clientes, técnicos e setores para preencher chamados; isso não libera as páginas de Clientes ou Equipe nem operações de escrita nesses módulos.
 
@@ -222,6 +237,12 @@ A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criaçã
 ```text
 HelpTI/
 ├── README.md
+├── Dockerfile
+├── compose.yaml
+├── wsgi.py
+├── .dockerignore
+├── .devcontainer/
+│   └── devcontainer.json
 ├── backend/
 │   ├── app.py
 │   ├── database.py
@@ -259,26 +280,19 @@ O projeto roda com um único processo. O Flask serve as páginas do frontend, di
 1. Instale Python 3.8 ou superior.
 2. Clone ou copie o projeto para o computador.
 3. Abra o projeto no VS Code e abra um terminal na raiz da pasta `HelpTI`.
-4. Crie e ative um ambiente virtual:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-5. Instale as dependências:
+4. Instale as dependências no Python disponível no sistema, sem criar ou ativar `.venv`:
 
 ```powershell
 python -m pip install -r backend\requirements.txt
 ```
 
-6. Não é necessário criar o banco nem configurar `DB_*` no `.env`. O SQLite e as tabelas são inicializados automaticamente.
+5. Não é necessário criar o banco nem configurar `DB_*` no `.env`. O SQLite, as tabelas e a conta de demonstração são inicializados automaticamente.
 
-O arquivo `backend/.env` é opcional e pode conter configurações `SMTP_*` para enviar e-mails quando um chamado for resolvido. Sem SMTP, os demais fluxos da aplicação continuam disponíveis, mas o encerramento com envio de e-mail retorna uma mensagem de configuração necessária. Nunca envie credenciais ao Git.
+O arquivo `backend/.env` é opcional e local; use-o somente para configurações `SMTP_*` de envio de e-mail. Sem SMTP, os demais fluxos da aplicação continuam disponíveis, mas o encerramento com envio de e-mail informa que o serviço não está configurado. Nunca envie credenciais ao Git. O `.venv` é ignorado e não faz parte do fluxo padrão.
 
 ### Iniciar o projeto
 
-Com as dependências instaladas e o ambiente virtual ativado, execute na pasta raiz `HelpTI`:
+Com as dependências instaladas, execute na pasta raiz `HelpTI`:
 
 ```powershell
 python app.py
@@ -286,19 +300,49 @@ python app.py
 
 O arquivo [app.py](app.py) na raiz inicializa o banco local se necessário e inicia a API e o frontend. O navegador abrirá em `http://127.0.0.1:5000/`. O arquivo SQLite fica em `instance/helpti.sqlite3` e é ignorado pelo Git.
 
-### Acesso pela rede local
+### Docker e Dev Container
 
-Para permitir que outros computadores da mesma rede usem o mesmo servidor e banco, inicie o HelpTI no computador servidor pelo PowerShell:
+O `Dockerfile` empacota o HelpTI e suas dependências em uma imagem. O `compose.yaml` inicia essa imagem como um container, publica a aplicação somente no próprio computador por padrão (`127.0.0.1:5000`) e guarda o SQLite em um volume Docker chamado `help-ti-data`. O volume mantém os dados quando o container é atualizado ou recriado. Cada computador tem seu próprio volume e seu próprio banco: Docker distribui o mesmo código, mas não sincroniza chamados entre amigos.
+
+#### Executar no computador de cada pessoa
+
+1. Instale e inicie o Docker Desktop no Windows ou macOS; no Linux, instale o Docker Engine com o plugin Docker Compose.
+2. Para uma cópia nova, clone e entre na pasta:
 
 ```powershell
-$env:HELPTI_HOST = '0.0.0.0'
-$env:HELPTI_DEBUG = 'false'
-python app.py
+git clone https://github.com/Carlos-Eduardo20/HelpTI.git
+cd HelpTI
 ```
 
-Descubra o IPv4 do computador servidor com `ipconfig` e, nos outros computadores, abra `http://<IPV4-DO-SERVIDOR>:5000/`. Se o Windows Firewall perguntar, permita o acesso somente em redes privadas confiáveis. Mantenha o servidor ligado e não exponha essa configuração diretamente à internet. O modo de depuração é desativado automaticamente quando o host não é local.
+   Se já tiver uma cópia, entre na pasta e execute `git pull`.
+3. Abra o PowerShell/terminal na pasta raiz do HelpTI, onde estão `Dockerfile` e `compose.yaml`.
+4. Inicie a aplicação:
 
-Depois, cada pessoa pode criar sua própria conta pela tela “Criar conta” na mesma URL; o cadastro entra automaticamente no workspace atual com acesso básico ao Dashboard e Chamados.
+```powershell
+docker compose up --build -d
+```
+
+5. Abra `http://localhost:5000` e entre com `test@helpiti.com` e `HelpTI2026!`.
+6. Para acompanhar a inicialização, use `docker compose logs -f help-ti` (Ctrl+C sai dos logs). Para parar o container sem apagar o banco, use `docker compose down`.
+
+Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A senha de demonstração e os dados iniciais vêm do seed versionado e são ativados localmente por padrão. `HELPTI_DEMO_MODE=false` desativa a criação do seed e bloqueia o login da conta de demonstração; essa opção é obrigatória em um ambiente público. O arquivo SQLite e a chave de sessão ficam no volume persistente, não na imagem nem no Git.
+
+Em uma instalação sem dados, o primeiro cadastro cria o workspace. Depois disso, cadastros públicos são recusados; o administrador deve criar os acessos pela área de Equipe. Isso evita que visitantes se adicionem à empresa já cadastrada.
+
+O container roda como usuário sem privilégios e usa Gunicorn em vez do servidor de desenvolvimento do Flask. `HELPTI_HTTPS_ONLY=true` ativa o atributo `Secure` do cookie de sessão quando a aplicação está atrás de um proxy HTTPS. Não publique a porta HTTP do Compose diretamente na internet.
+
+#### Docker, Dev Container e hospedagem não são a mesma coisa
+
+- **Docker** monta e executa o pacote isolado da aplicação.
+- **Compose** configura como iniciar esse pacote, quais portas usar e onde guardar o banco.
+- **Dev Container** (`.devcontainer/devcontainer.json`) prepara um ambiente para editar e desenvolver com VS Code. Localmente usa Docker; no GitHub Codespaces, roda na infraestrutura do Codespaces. A tarefa do VS Code inicia o HelpTI ao abrir a pasta.
+- **Hospedagem** é um computador/serviço na internet que mantém o container ligado. Um domínio aponta para esse serviço; HTTPS protege a conexão entre o navegador e a aplicação. O domínio, o Docker e o volume não sincronizam nem substituem um banco de dados central.
+
+O caminho de hospedagem será: navegador → domínio/DNS → hospedagem com certificado HTTPS → proxy/entrada HTTPS → container HelpTI → armazenamento persistente do banco. O sistema suporta um workspace por instalação, não várias empresas isoladas. O primeiro cadastro cria o workspace; depois, o administrador deve cadastrar os demais acessos. Crie e valide o administrador inicial antes de expor o site publicamente. Até implementar isolamento para múltiplas empresas, não permita que empresas diferentes compartilhem a mesma instalação. Na hospedagem, `HELPTI_DEMO_MODE=false` e `HELPTI_HTTPS_ONLY=true` são configurações necessárias. O SQLite é adequado para uma demonstração de instância única; para vários servidores ou usuários simultâneos em produção, planeje migrar para um banco gerenciado como PostgreSQL. Não reutilize o volume local dos amigos como banco hospedado.
+
+### Acesso pela rede local
+
+O Compose publica a aplicação somente em `localhost` por padrão. Isso é intencional: a sessão de demonstração usa credenciais conhecidas e a conexão HTTP não cifra o tráfego. Não altere o endereço de publicação para compartilhar o app pela rede ou pela internet antes de configurar autenticação adequada, HTTPS e isolamento dos dados de cada empresa. Um único servidor compartilhado também significa que os usuários acessam o mesmo banco SQLite; não é equivalente a cada amigo executar seu próprio clone.
 
 Endereços úteis:
 
@@ -311,7 +355,7 @@ Não é necessário executar `python -m http.server` nem abrir a porta 8000.
 
 ### Encerrar
 
-No terminal em que o Flask está rodando, pressione `Ctrl+C`.
+Para parar o container, execute `docker compose down` na pasta do projeto. O volume `help-ti-data` não é apagado por esse comando, portanto o banco continua guardado para a próxima inicialização.
 
 ---
 

@@ -127,12 +127,15 @@ function correspondeAoPeriodoDeAbertura(chamado, periodo) {
 
 function aplicarFiltrosChamados() {
   const busca = document.querySelector('#buscaChamados')?.value.trim().toLowerCase() || '';
-  const status = document.querySelector('#filtroStatusChamados')?.value || '';
+  const status = document.querySelector('#filtroStatusChamados')?.value || 'NAO_RESOLVIDOS';
   const periodo = document.querySelector('input[name="filtroAbertura"]:checked')?.value || '';
   const chamadosFiltrados = chamadosEmMemoria.filter((chamado) => {
     const correspondeBusca = [chamado.id_chamado, chamado.cliente]
       .some((valor) => String(valor || '').toLowerCase().includes(busca));
-    return correspondeBusca && (!status || chamado.status === status) && correspondeAoPeriodoDeAbertura(chamado, periodo);
+    const correspondeStatus = status === 'NAO_RESOLVIDOS'
+      ? chamado.status !== 'RESOLVIDO'
+      : chamado.status === status;
+    return correspondeBusca && correspondeStatus && correspondeAoPeriodoDeAbertura(chamado, periodo);
   });
   const totalPaginas = Math.max(1, Math.ceil(chamadosFiltrados.length / chamadosPorPagina));
   paginaChamados = Math.min(paginaChamados, totalPaginas);

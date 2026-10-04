@@ -46,13 +46,13 @@ PARTES = (
 )
 
 _COLORS = {
-    "DARK": "#2E3A4E",
-    "FRAME": "#3A4860",
-    "PCB": "#1E3A5F",
-    "ACCENT": "#2563EB",
-    "GOLD": "#D4A73C",
-    "BODY": "#DCE3EE",
-    "METAL": "#AAB7C8",
+    "DARK": "#303538",
+    "FRAME": "#555B5E",
+    "PCB": "#26372F",
+    "ACCENT": "#899398",
+    "GOLD": "#B58A52",
+    "BODY": "#AEB6B8",
+    "METAL": "#D0D4D2",
 }
 _FACE_SHADE = (0.64, 1.12, 0.83, 0.73, 0.94, 0.77)
 _WIDTH, _HEIGHT = 760, 560
@@ -241,6 +241,9 @@ def _build_parts(azimuth, elevation):
     for x in (-1.12, 1.12):
         _add_box(meshes, "Gabinete", case, (x, 1.3, 1.32), (0.07, 2.5, 0.07),
                  _COLORS["FRAME"], azimuth, elevation)
+    for y in (0.08, 2.52):
+        _add_box(meshes, "Gabinete", case, (0, y, 1.32), (2.3, 0.08, 0.07),
+                 _COLORS["FRAME"], azimuth, elevation)
 
     board = (0, 1.25, -1.2)
     _add_box(meshes, "Placa-mãe", board, (0, 0, 0), (1.9, 1.9, 0.07),
@@ -254,16 +257,12 @@ def _build_parts(azimuth, elevation):
                       0.06, 0.14, _COLORS["DARK"], (0, 0, 1), azimuth, elevation)
 
     cpu = (-0.35, 1.7, -1.05)
-    _add_box(meshes, "Processador", cpu, (0, 0, 0), (0.42, 0.42, 0.1),
-             _COLORS["ACCENT"], azimuth, elevation, glow=True)
-    _add_cylinder(meshes, "Processador", cpu, (0, 0, 0.14),
-                  0.32, 0.16, _COLORS["BODY"], (0, 0, 1), azimuth, elevation)
-    _add_cylinder(meshes, "Processador", cpu, (0, 0, 0.24),
-                  0.09, 0.06, _COLORS["DARK"], (0, 0, 1), azimuth, elevation)
-    for angle in (0, pi / 3, 2 * pi / 3):
-        _add_box(meshes, "Processador", cpu, (0, 0, 0.24),
-                 (0.52, 0.05, 0.05), _COLORS["ACCENT"], azimuth, elevation,
-                 glow=True, rotation_z=angle)
+    _add_box(meshes, "Processador", cpu, (0, 0, 0), (0.5, 0.5, 0.08),
+             _COLORS["DARK"], azimuth, elevation)
+    _add_box(meshes, "Processador", cpu, (0, 0, 0.06), (0.4, 0.4, 0.04),
+             _COLORS["METAL"], azimuth, elevation)
+    _add_box(meshes, "Processador", cpu, (0, 0, 0.083), (0.22, 0.02, 0.006),
+             _COLORS["ACCENT"], azimuth, elevation)
 
     ram = (0.55, 1.5, -0.9)
     for x in (0, 0.24):
@@ -281,11 +280,14 @@ def _build_parts(azimuth, elevation):
              _COLORS["BODY"], azimuth, elevation)
     for x in (-0.32, 0.32):
         _add_cylinder(meshes, "Placa de vídeo", gpu, (x, 0.33, 0),
-                      0.24, 0.05, _COLORS["ACCENT"], (0, 1, 0), azimuth, elevation)
+                      0.24, 0.05, _COLORS["DARK"], (0, 1, 0), azimuth, elevation)
         _add_cylinder(meshes, "Placa de vídeo", gpu, (x, 0.34, 0),
-                      0.08, 0.06, _COLORS["BODY"], (0, 1, 0), azimuth, elevation)
+                      0.08, 0.06, _COLORS["METAL"], (0, 1, 0), azimuth, elevation)
     _add_box(meshes, "Placa de vídeo", gpu, (0, -0.05, -0.45),
              (1.25, 0.32, 0.08), _COLORS["PCB"], azimuth, elevation)
+    for x in (-0.42, 0.42):
+        _add_box(meshes, "Placa de vídeo", gpu, (x, 0.31, 0.04),
+                 (0.025, 0.035, 0.025), _COLORS["GOLD"], azimuth, elevation)
 
     psu = (-0.62, 0.45, 0.65)
     _add_box(meshes, "Fonte de alimentação", psu, (0, 0, 0), (0.75, 0.65, 1.0),
@@ -295,7 +297,7 @@ def _build_parts(azimuth, elevation):
     _add_cylinder(meshes, "Fonte de alimentação", psu, (0, 0.35, 0),
                   0.24, 0.05, _COLORS["BODY"], (0, 1, 0), azimuth, elevation)
     _add_box(meshes, "Fonte de alimentação", psu, (0.25, -0.18, 0.52),
-             (0.08, 0.05, 0.04), _COLORS["ACCENT"], azimuth, elevation, glow=True)
+             (0.08, 0.05, 0.04), _COLORS["ACCENT"], azimuth, elevation)
 
     ssd = (0.68, 0.15, 0.6)
     _add_box(meshes, "HD/SSD", ssd, (0, 0, 0), (0.6, 0.14, 0.95),
@@ -303,20 +305,19 @@ def _build_parts(azimuth, elevation):
     _add_box(meshes, "HD/SSD", ssd, (0, 0.09, 0),
              (0.42, 0.05, 0.62), _COLORS["BODY"], azimuth, elevation)
     _add_box(meshes, "HD/SSD", ssd, (0, -0.09, 0),
-             (0.6, 0.05, 0.95), _COLORS["ACCENT"], azimuth, elevation, glow=True)
+             (0.6, 0.05, 0.95), _COLORS["METAL"], azimuth, elevation)
     return meshes
 
 
 def _render_mesh(key, face, selected):
     highlighted = key == selected
-    color = "#EF4444" if highlighted else face["color"]
+    color = "#B58A52" if highlighted else face["color"]
     shade = 1 if highlighted else face["shade"]
-    glow = ' filter="url(#component-glow)"' if highlighted or face["glow"] else ""
     opacity = face["opacity"]
     return (
         f'<polygon points="{face["points"]}" fill="{_shade(color, shade)}" '
-        f'fill-opacity="{opacity}" stroke="#172033" stroke-width="1.2" '
-        f'stroke-linejoin="round"{glow}/>'
+        f'fill-opacity="{opacity}" stroke="#303538" stroke-width="1.1" '
+        'stroke-linejoin="round"/>'
     )
 
 
@@ -333,11 +334,7 @@ def render_pc_svg(
     svg = [
         f'<svg xmlns="http://www.w3.org/2000/svg" class="model" viewBox="0 0 {_WIDTH} {_HEIGHT}" '
         'role="img" aria-label="Modelo 3D detalhado de uma torre de computador">',
-        "<defs><filter id=\"component-glow\" x=\"-60%\" y=\"-60%\" width=\"220%\" height=\"220%\">"
-        '<feGaussianBlur stdDeviation="4" result="blur"/>'
-        '<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
-        "</defs>",
-        '<rect width="760" height="560" rx="14" fill="#F8FAFC"/>',
+        '<rect width="760" height="560" rx="14" fill="#F1F2F0"/>',
         '<ellipse cx="380" cy="488" rx="205" ry="24" fill="#DDE5E8" opacity=".65"/>',
     ]
 
@@ -513,17 +510,17 @@ def render_pc_explorer(selected_part=None, azimuth=_DEFAULT_AZIMUTH, elevation=_
     .model {{ display: block; width: 100%; height: auto; }}
     .model-viewport {{ cursor: grab; touch-action: none; user-select: none; }}
     .model-viewport.dragging {{ cursor: grabbing; }}
-    .component polygon {{ transition: fill .16s ease, filter .16s ease; }}
-    .component:hover polygon {{ fill: #EF4444 !important; fill-opacity: 1 !important; filter: url(#component-glow); }}
+    .component polygon {{ transition: fill .16s ease; }}
+    .component:hover polygon {{ fill: #B58A52 !important; fill-opacity: 1 !important; }}
     .component-label {{ cursor: pointer; }}
-    .component-label:hover rect {{ fill: #FEF2F2; stroke: #EF4444; }}
+    .component-label:hover rect {{ fill: #F4EBDD; stroke: #B58A52; }}
     .hint {{ margin: 10px 0 0; color: #6B7280; font-size: 12px; line-height: 1.5; }}
     .model-status {{ min-height: 16px; margin: 4px 0 0; color: #B91C1C; font-size: 12px; }}
     .parts {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }}
     .part-button {{ padding: 8px 10px; border: 1px solid #D1D5DB; border-radius: 6px; color: #1F2937; background: #F9FAFB; font-size: 12px; text-decoration: none; }}
-    .part-button:hover, .part-button.selected {{ border-color: #EF4444; color: #B91C1C; background: #FEF2F2; }}
+    .part-button:hover, .part-button.selected {{ border-color: #B58A52; color: #59452D; background: #F4EBDD; }}
     .diagnosis h3 {{ margin: 4px 0 22px; font-size: 20px; }}
-    .diagnosis h4 {{ margin: 18px 0 6px; color: #EF4444; font-size: 13px; }}
+    .diagnosis h4 {{ margin: 18px 0 6px; color: #76572F; font-size: 13px; }}
     .diagnosis h4.solution-title {{ color: #2563EB; }}
     .diagnosis p {{ margin: 0; color: #4B5563; line-height: 1.6; }}
     .diagnosis .empty-state {{ display: grid; min-height: 200px; place-items: center; text-align: center; color: #6B7280; }}

@@ -189,7 +189,7 @@
                 <div class="employee-info-column">
                   <div class="employee-contact-heading">
                     <span class="info-label">FUNCIONÁRIOS</span>
-                    <button type="button" class="employee-contact-toggle" id="abrirContatosChamado" aria-expanded="false" aria-controls="menuContatosChamado">
+                    <button type="button" class="employee-contact-toggle" id="abrirContatosChamado" data-abrir-contatos aria-expanded="false" aria-controls="menuContatosChamado">
                       Alterar contato
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
@@ -200,12 +200,12 @@
                   <div class="employee-card-row">
                     <div class="info-item">
                       <span class="info-sublabel">NOME</span>
-                      <span class="info-value" id="chamado-contato-nome">Paulo</span>
+                      <button type="button" class="info-value employee-contact-value" id="chamado-contato-nome" data-abrir-contatos aria-haspopup="listbox" aria-expanded="false" aria-controls="menuContatosChamado">Paulo</button>
                     </div>
 
                     <div class="info-item">
                       <span class="info-sublabel">TELEFONE</span>
-                      <span class="info-value" id="chamado-contato-tel">654654654</span>
+                      <button type="button" class="info-value employee-contact-value" id="chamado-contato-tel" data-abrir-contatos aria-haspopup="listbox" aria-expanded="false" aria-controls="menuContatosChamado">654654654</button>
                     </div>
                   </div>
                 </div>
