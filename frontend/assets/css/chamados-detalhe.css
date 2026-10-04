@@ -598,7 +598,7 @@
 .agenda-calendar-overlay {
     position: fixed;
     inset: 0;
-    z-index: 2200;
+    z-index: 3000;
     display: grid;
     place-items: center;
     padding: 20px;
@@ -607,7 +607,15 @@
 }
 
 .agenda-calendar-overlay[hidden] { display: none; }
-.ticket-agenda-modal { width: min(100%, 410px); }
+.ticket-agenda-modal {
+    width: min(100%, 410px);
+    overflow: hidden;
+    border: 1px solid var(--border-color, #D1D5DB);
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: var(--text-dark, #1E1B18);
+    box-shadow: 0 22px 60px rgba(30, 27, 24, 0.24);
+}
 .agenda-calendar-header { display: flex; justify-content: space-between; padding: 22px 24px 20px; background: var(--bg-beige-main); border-bottom: 1px solid var(--border-color); }
 .agenda-calendar-header > div { display: grid; gap: 7px; }
 .agenda-calendar-eyebrow { color: var(--blue-700); font-size: 10px; font-weight: 700; }

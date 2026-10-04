@@ -696,6 +696,13 @@ function detailDate(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('pt-BR');
 }
 
+function formatarDataAbertura(value) {
+  const partes = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+  if (!partes) return detailDate(value);
+  const [, ano, mes, dia, hora, minuto] = partes;
+  return `${dia}-${mes}-${ano}${hora ? ` ${hora}:${minuto}` : ''}`;
+}
+
 function detailEscape(value) {
   return String(value ?? '-').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 }
@@ -882,7 +889,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setDetailText('chamado-contato-tel', chamado.telefone_contato || 'Não informado');
         setDetailText('chamado-telefone', chamado.telefone_cliente || cliente?.telefone || 'Não informado');
         setDetailText('chamado-email', chamado.email_cliente || cliente?.email || 'Não informado');
-        setDetailText('chamado-data', detailDate(chamado.data_abertura));
+        setDetailText('chamado-data', formatarDataAbertura(chamado.data_abertura));
         setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
         setDetailText('statusChamado', status);
         renderizarHistoricoChamado(chamado.historico || []);
@@ -1059,7 +1066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (path.includes('cliente-detalhe.html')) {
-      const { buscarClientes, buscarChamados } = await import('./api.js');
+      const { buscarClientes, buscarChamados, criarContatoCliente } = await import('./api.js');
       const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
       let cliente = clientes.find((item) => item.id_usuario == id);
       if (!cliente) throw new Error('Cliente não encontrado.');
@@ -1078,6 +1085,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         listaContatos.innerHTML = contatos.map((contato) => `<div class="client-contact-detail"><strong>${detailEscape(contato.nome || 'Contato')}</strong><span>${detailEscape(contato.email || 'E-mail não informado')}</span><span>${detailEscape(contato.telefone || 'Telefone não informado')}</span></div>`).join('') || '<span class="info-value">Nenhum contato cadastrado.</span>';
       }
       configurarDetalheEditavel('cliente', cliente);
+      const botaoEditarCliente = document.querySelector('[data-edit-scope="cliente"]');
+      const botaoAdicionarContato = document.querySelector('#adicionar-contato-cliente');
+      const modalContato = document.querySelector('#modalContatoCliente');
+      const formularioContato = document.querySelector('#formContatoCliente');
+      const mensagemContato = document.querySelector('#mensagemContatoCliente');
+      const renderizarContatosCliente = () => {
+        const listaAtualizada = cliente.contatos || [];
+        if (listaContatos) {
+          listaContatos.innerHTML = listaAtualizada.map((contato) => `<div class="client-contact-detail"><strong>${detailEscape(contato.nome || 'Contato')}</strong><span>${detailEscape(contato.email || 'E-mail não informado')}</span><span>${detailEscape(contato.telefone || 'Telefone não informado')}</span></div>`).join('') || '<span class="info-value">Nenhum contato cadastrado.</span>';
+        }
+      };
+      botaoEditarCliente?.addEventListener('click', () => { botaoAdicionarContato.hidden = false; });
+      botaoAdicionarContato?.addEventListener('click', () => {
+        formularioContato?.reset();
+        if (mensagemContato) mensagemContato.textContent = '';
+        modalContato?.showModal();
+        formularioContato?.elements.nome.focus();
+      });
+      document.querySelector('#fecharModalContatoCliente')?.addEventListener('click', () => modalContato?.close());
+      document.querySelector('#cancelarContatoCliente')?.addEventListener('click', () => modalContato?.close());
+      formularioContato?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const dados = Object.fromEntries(new FormData(formularioContato).entries());
+        try {
+          const resultado = await criarContatoCliente(cliente.id_usuario, dados);
+          cliente.contatos = resultado.contatos;
+          renderizarContatosCliente();
+          modalContato?.close();
+        } catch (error) {
+          if (mensagemContato) mensagemContato.textContent = `Não foi possível adicionar o contato: ${error.message}`;
+        }
+      });
       configurarEquipamentos(id);
       const botaoStatusCliente = document.querySelector('#desativarCliente');
       const atualizarStatusCliente = () => {

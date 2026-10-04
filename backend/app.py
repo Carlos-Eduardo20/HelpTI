@@ -347,16 +347,23 @@ def create_chamado():
             cursor.close()
             conn.close()
             return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
+
+        for _ in range(100):
+            novo_id = 100000 + secrets.randbelow(900000)
+            cursor.execute('SELECT id_chamado FROM chamado WHERE id_chamado = %s', (novo_id,))
+            if not cursor.fetchone():
+                break
+        else:
+            return jsonify({'erro': 'Não foi possível gerar um ID disponível para o chamado'}), 503
         
         query = """
             INSERT INTO chamado
-                (id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, descricao,
+                (id_chamado, id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, descricao,
                  email_cliente, telefone_cliente, contato_cliente, telefone_contato)
-            VALUES (%s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, descricao,
+        cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, descricao,
                                email_cliente, telefone_cliente, contato_cliente, telefone_contato))
-        novo_id = cursor.lastrowid
         registrar_historico(cursor, novo_id, 'aberto', 'Chamado criado no sistema.')
         conn.commit()
 
@@ -668,6 +675,52 @@ def update_cliente(id):
         return jsonify(cliente), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/clientes/<int:id>/contatos', methods=['POST'])
+def create_contato_cliente(id):
+    dados = request.get_json() or {}
+    contato = {campo: (dados.get(campo) or '').strip() for campo in ('nome', 'email', 'telefone')}
+    if any(not valor for valor in contato.values()):
+        return jsonify({'erro': 'Nome, e-mail e telefone são obrigatórios'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT email, telefone, contato FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'",
+            (id,)
+        )
+        cliente = cursor.fetchone()
+        if not cliente:
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+
+        cursor.execute('SELECT id_cliente FROM cliente WHERE id_usuario = %s LIMIT 1', (id,))
+        if not cursor.fetchone() and any(cliente[indice] for indice in range(3)):
+            cursor.execute(
+                'INSERT INTO cliente (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
+                (id, cliente[2] or 'Contato', cliente[0] or '', cliente[1] or '')
+            )
+
+        cursor.execute(
+            'INSERT INTO cliente (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
+            (id, contato['nome'], contato['email'], contato['telefone'])
+        )
+        conn.commit()
+
+        cursor.execute(
+            'SELECT nome, email, telefone FROM cliente WHERE id_usuario = %s ORDER BY id_cliente',
+            (id,)
+        )
+        return jsonify({'contatos': dict_fetchall(cursor)}), 201
+    except Error as error:
+        conn.rollback()
+        return jsonify({'erro': str(error)}), 500
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/api/clientes/<int:id>', methods=['DELETE'])
 def delete_cliente(id):

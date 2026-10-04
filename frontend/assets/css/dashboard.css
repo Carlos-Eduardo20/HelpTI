@@ -110,6 +110,27 @@
   gap: 12px;
 }
 
+.agenda-day-navigation {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.agenda-day-navigation button {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border-color, #E5E7EB);
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+}
+
+.agenda-day-navigation button:hover:not(:disabled) { background: var(--blue-100); color: var(--blue-700); }
+.agenda-day-navigation button:disabled { opacity: 0.45; cursor: not-allowed; }
+.agenda-day-navigation svg { width: 17px; height: 17px; }
+
 .agenda-date-picker,
 .select-filter {
   height: 38px;
@@ -143,6 +164,13 @@
 }
 
 .agenda-date-picker svg { color: var(--blue-600); flex: 0 0 auto; }
+
+.agenda-empty-day {
+  padding: 16px 10px;
+  color: var(--text-muted, #5C5650);
+  font-size: 12px;
+  text-align: center;
+}
 
 .agenda-calendar-overlay {
   position: fixed;
