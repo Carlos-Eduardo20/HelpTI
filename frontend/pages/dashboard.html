@@ -234,6 +234,14 @@
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
           </button>
+          <div class="agenda-day-navigation" aria-label="Navegar pelas datas da agenda">
+            <button type="button" id="agendaDiaAnterior" aria-label="Data anterior" onclick="mudarDia(-1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            <button type="button" id="agendaProximoDia" aria-label="Próxima data" onclick="mudarDia(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          </div>
           <label class="agenda-all-dates">
             <input type="checkbox" id="agendaTodasDatas" onchange="filtrarAgenda()">
             <span>Todas as datas</span>

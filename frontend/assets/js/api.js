@@ -50,6 +50,10 @@ export async function criarCliente(dadosCliente) {
   return request('/clientes', { method: 'POST', body: JSON.stringify(dadosCliente) });
 }
 
+export async function criarContatoCliente(id, dadosContato) {
+  return request(`/clientes/${id}/contatos`, { method: 'POST', body: JSON.stringify(dadosContato) });
+}
+
 export async function atualizarCliente(id, dadosCliente) {
   return request(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(dadosCliente) });
 }

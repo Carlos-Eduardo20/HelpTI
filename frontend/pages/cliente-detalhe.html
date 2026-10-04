@@ -128,6 +128,9 @@
             <div class="info-contato client-contact-details">
               <span class="info-label">Funcionários / contatos</span>
               <div id="cli-contatos" class="client-contact-details-list"></div>
+              <button type="button" class="detail-add-contact-button" id="adicionar-contato-cliente" aria-label="Adicionar funcionário ou contato" title="Adicionar funcionário ou contato" hidden>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              </button>
             </div>
           </div>
           <button type="button" class="detail-danger-button" id="desativarCliente">Desativar Cliente</button>
@@ -201,6 +204,26 @@
     </section>
 
   </main>
+
+  <dialog class="contact-modal" id="modalContatoCliente" aria-labelledby="tituloModalContatoCliente">
+    <form id="formContatoCliente">
+      <div class="contact-modal-heading">
+        <h2 id="tituloModalContatoCliente">Adicionar funcionário / contato</h2>
+        <button type="button" class="contact-modal-close" id="fecharModalContatoCliente" aria-label="Fechar">&times;</button>
+      </div>
+      <label for="novoContatoNome">Nome</label>
+      <input id="novoContatoNome" name="nome" type="text" autocomplete="name" required>
+      <label for="novoContatoEmail">E-mail</label>
+      <input id="novoContatoEmail" name="email" type="email" autocomplete="email" required>
+      <label for="novoContatoTelefone">Telefone</label>
+      <input id="novoContatoTelefone" name="telefone" type="tel" autocomplete="tel" required>
+      <p class="contact-modal-message" id="mensagemContatoCliente" role="alert"></p>
+      <div class="contact-modal-actions">
+        <button type="button" class="contact-modal-cancel" id="cancelarContatoCliente">Cancelar</button>
+        <button type="submit" class="contact-modal-submit">Adicionar contato</button>
+      </div>
+    </form>
+  </dialog>
 
   <script type="module" src="../assets/js/main.js"></script>
 </body>

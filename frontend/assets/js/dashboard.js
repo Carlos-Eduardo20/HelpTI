@@ -3,9 +3,24 @@ import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, buscarE
 let chamadosEmMemoria = [];
 let agendaPagina = 0;
 let agendaModoAnterior = false;
+let ultimaDataAgenda = '';
 let paginaChamados = 1;
 const chamadosPorPagina = 5;
 const SLA_LIMITE_SEGUNDOS = 25 * 60;
+
+function dataLocalISO(data = new Date()) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+function datasAgendaApartirDe(dataInicial, datasComChamados) {
+  const indiceInicial = datasComChamados.findIndex((data) => data >= dataInicial);
+  const datas = indiceInicial < 0 ? [] : datasComChamados.slice(indiceInicial);
+  if (!datas.length || datas[0] !== dataInicial) datas.unshift(dataInicial);
+  return datas;
+}
 
 function segundosSlaRestantes(chamado, agora = Date.now()) {
   let consumidos = Number(chamado.tempo_decorrido_segundos || 0);
@@ -182,25 +197,31 @@ function renderizarAgenda(chamados) {
     return diaDaSemana >= 1 && diaDaSemana <= 5;
   });
   const todasDatas = document.querySelector('#agendaTodasDatas')?.checked || false;
-  if (todasDatas !== agendaModoAnterior) agendaPagina = 0;
+  const dataEscolhida = document.querySelector('#agendaData')?.value || dataLocalISO();
+  if (todasDatas !== agendaModoAnterior || dataEscolhida !== ultimaDataAgenda) agendaPagina = 0;
   agendaModoAnterior = todasDatas;
+  ultimaDataAgenda = dataEscolhida;
   let datas;
+  const datasComChamados = [...new Set(chamadosComData.map((item) => item.data_agendada))].sort();
   if (todasDatas) {
-    const datasComChamados = [...new Set(chamadosComData.map((item) => item.data_agendada))].sort();
-    datas = datasComChamados.slice(agendaPagina * 5, agendaPagina * 5 + 5);
+    const datasDisponiveis = datasAgendaApartirDe(dataEscolhida, datasComChamados);
+    datas = datasDisponiveis.slice(agendaPagina, agendaPagina + 5);
+    if (!datas.length) datas = [dataEscolhida];
   } else {
-    const campoData = document.querySelector('#agendaData');
-    const dataSelecionada = new Date(`${campoData?.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
-    const diaDaSemana = dataSelecionada.getDay();
-    const segunda = new Date(dataSelecionada);
-    segunda.setDate(dataSelecionada.getDate() + (diaDaSemana === 0 ? -6 : 1 - diaDaSemana));
+    const dataInicio = new Date(`${dataEscolhida}T12:00:00`);
     datas = Array.from({ length: 5 }, (_, indice) => {
-      const data = new Date(segunda);
-      data.setDate(segunda.getDate() + indice);
-      return data.toISOString().slice(0, 10);
+      const data = new Date(dataInicio);
+      data.setDate(dataInicio.getDate() + indice);
+      return dataLocalISO(data);
     });
   }
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataLocalISO();
+  const anterior = document.querySelector('#agendaDiaAnterior');
+  const proximo = document.querySelector('#agendaProximoDia');
+  if (anterior) anterior.disabled = todasDatas && agendaPagina <= 0;
+  const totalDatasDisponiveis = datasAgendaApartirDe(dataEscolhida, datasComChamados).length;
+  if (anterior) anterior.disabled = todasDatas && agendaPagina <= 0;
+  if (proximo) proximo.disabled = todasDatas && agendaPagina + 5 >= totalDatasDisponiveis;
 
   const colunas = `repeat(${Math.max(datas.length, 1)}, minmax(0, 1fr))`;
   cabecalho.style.gridTemplateColumns = colunas;
@@ -210,7 +231,7 @@ function renderizarAgenda(chamados) {
   const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', PAUSADO: 'badge-yellow', RESOLVIDO: 'badge-green' };
   agenda.innerHTML = datas.map((data) => {
     const chamadosDoDia = chamadosComData.filter((item) => item.data_agendada === data);
-    const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('');
+    const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('') || '<span class="agenda-empty-day">Nenhum chamado nesta data.</span>';
     return `<div class="agenda-column">${cards}</div>`;
   }).join('');
 }
@@ -289,23 +310,25 @@ function selecionarDataAgenda(valor) {
   filtrarAgenda();
 }
 
-function mudarDia(semanas) {
+function mudarDia(dias) {
   if (document.querySelector('#agendaTodasDatas')?.checked) {
+    const dataEscolhida = document.querySelector('#agendaData')?.value || dataLocalISO();
     const datasComChamados = [...new Set(chamadosEmMemoria.filter((item) => {
       if (!item.data_agendada) return false;
       const diaDaSemana = new Date(`${item.data_agendada}T12:00:00`).getDay();
       return diaDaSemana >= 1 && diaDaSemana <= 5;
     }).map((item) => item.data_agendada))];
-    const ultimaPagina = Math.max(0, Math.ceil(datasComChamados.length / 5) - 1);
-    agendaPagina = Math.min(ultimaPagina, Math.max(0, agendaPagina + semanas));
+    const totalDatas = datasAgendaApartirDe(dataEscolhida, datasComChamados).length;
+    const ultimaPagina = Math.max(0, Math.ceil(totalDatas / 5) * 5 - 5);
+    agendaPagina = Math.min(ultimaPagina, Math.max(0, agendaPagina + (dias * 5)));
     renderizarAgenda(chamadosEmMemoria);
     return;
   }
   const campo = document.querySelector('#agendaData');
   if (!campo) return;
-  const data = new Date(`${campo.value || new Date().toISOString().slice(0, 10)}T12:00:00`);
-  data.setDate(data.getDate() + (semanas * 7));
-  campo.value = data.toISOString().slice(0, 10);
+  const data = new Date(`${campo.value || dataLocalISO()}T12:00:00`);
+  data.setDate(data.getDate() + (dias * 5));
+  campo.value = dataLocalISO(data);
   const label = document.querySelector('#agendaDataLabel');
   if (label) label.textContent = formatarDataCurtaAgenda(campo.value);
   filtrarAgenda();
@@ -669,7 +692,7 @@ window.addEventListener('scroll', () => {
 document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
   const agendaData = document.querySelector('#agendaData');
-  if (agendaData && !agendaData.value) agendaData.value = new Date().toISOString().slice(0, 10);
+  if (agendaData && !agendaData.value) agendaData.value = dataLocalISO();
   if (agendaData) document.querySelector('#agendaDataLabel').textContent = formatarDataCurtaAgenda(agendaData.value);
   document.querySelector('#abrirCalendarioAgenda')?.addEventListener('click', abrirCalendarioAgenda);
   document.querySelector('#fecharCalendarioAgenda')?.addEventListener('click', fecharCalendarioAgenda);
@@ -688,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mes > 11) { mes = 0; ano += 1; }
     modal.dataset.mes = String(mes); modal.dataset.ano = String(ano); renderizarCalendarioAgenda();
   });
-  document.querySelector('#hojeCalendarioAgenda')?.addEventListener('click', () => selecionarDataAgenda(new Date().toISOString().slice(0, 10)));
+  document.querySelector('#hojeCalendarioAgenda')?.addEventListener('click', () => selecionarDataAgenda(dataLocalISO()));
   document.querySelector('#calendarioAgendaDias')?.addEventListener('click', (event) => {
     const botao = event.target.closest('[data-data]');
     if (botao) selecionarDataAgenda(botao.dataset.data);
