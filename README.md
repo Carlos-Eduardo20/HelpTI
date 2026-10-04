@@ -209,9 +209,9 @@ Todos os endpoints usam o prefixo `/api` e são servidos pelo mesmo processo Fla
 
 ### Persistência e compartilhamento
 
-O banco é local a cada computador: clonar ou atualizar o repositório não compartilha registros entre integrantes. Para backup local, pare o servidor e copie `instance/helpti.sqlite3`. Para uma base realmente compartilhada entre usuários, será necessário hospedar um banco central (por exemplo, PostgreSQL ou MySQL) e configurar o acesso seguro à rede; não coloque o arquivo SQLite no Git como mecanismo de sincronização.
+O banco SQLite fica no computador que executa o servidor. Clonar ou atualizar o repositório não compartilha os registros. Para várias pessoas usarem o mesmo workspace, uma opção de teste é executar o HelpTI em um computador da rede local e acessar a mesma URL nos navegadores; todos usarão o banco desse servidor. Para backup, pare o servidor e copie `instance/helpti.sqlite3`. Não coloque o arquivo SQLite no Git para sincronizar dados. Para uso online ou produção, hospede a aplicação e configure um banco central (por exemplo, PostgreSQL ou MySQL) com acesso seguro.
 
-Cada banco local aceita uma conta inicial, criada em “Solicitar conta”. Administradores podem cadastrar outros membros — inclusive mais administradores — na página Equipe. Administradores recebem acesso total; para os demais cargos (RH, Suporte, NOC ou Técnico), o cargo sugere permissões iniciais que podem ser ajustadas no popup. As permissões são gravadas em `grupo_solucionadores.permissoes`, a navegação oculta abas não autorizadas e o backend responde `403` a páginas/APIs sem acesso. Membros autenticam com o e-mail e a senha definidos no cadastro. O cookie de sessão é assinado por uma chave local em `instance/`.
+Qualquer pessoa pode criar uma conta em “Criar conta” usando um e-mail com formato válido; não há verificação de domínio ou aprovação administrativa. O cadastro autentica a pessoa automaticamente com a senha escolhida. A primeira conta inicializa o workspace; as seguintes entram no workspace existente como “Usuário”, com acesso ao Dashboard e Chamados. Contas públicas não recebem permissões administrativas; a página Equipe não oferece o cargo Administrador e a API não permite criá-lo por esse formulário. Como o cadastro é aberto, qualquer pessoa que alcance essa tela pode entrar no workspace atual e visualizar chamados; não exponha o sistema publicamente antes de implementar isolamento por conta e controles de cadastro. O cookie de sessão é assinado por uma chave local em `instance/`.
 
 A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criação/edição de funcionários e setores. Quem tem acesso a Chamados também recebe leituras auxiliares limitadas de clientes, técnicos e setores para preencher chamados; isso não libera as páginas de Clientes ou Equipe nem operações de escrita nesses módulos.
 
@@ -285,6 +285,20 @@ python app.py
 ```
 
 O arquivo [app.py](app.py) na raiz inicializa o banco local se necessário e inicia a API e o frontend. O navegador abrirá em `http://127.0.0.1:5000/`. O arquivo SQLite fica em `instance/helpti.sqlite3` e é ignorado pelo Git.
+
+### Acesso pela rede local
+
+Para permitir que outros computadores da mesma rede usem o mesmo servidor e banco, inicie o HelpTI no computador servidor pelo PowerShell:
+
+```powershell
+$env:HELPTI_HOST = '0.0.0.0'
+$env:HELPTI_DEBUG = 'false'
+python app.py
+```
+
+Descubra o IPv4 do computador servidor com `ipconfig` e, nos outros computadores, abra `http://<IPV4-DO-SERVIDOR>:5000/`. Se o Windows Firewall perguntar, permita o acesso somente em redes privadas confiáveis. Mantenha o servidor ligado e não exponha essa configuração diretamente à internet. O modo de depuração é desativado automaticamente quando o host não é local.
+
+Depois, cada pessoa pode criar sua própria conta pela tela “Criar conta” na mesma URL; o cadastro entra automaticamente no workspace atual com acesso básico ao Dashboard e Chamados.
 
 Endereços úteis:
 

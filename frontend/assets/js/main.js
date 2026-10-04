@@ -62,16 +62,10 @@ const PAGINA_POR_PERMISSAO = {
 };
 
 function aplicarPresetPermissoes(cargo) {
-  const administrador = cargo.trim().toLowerCase() === 'administrador';
-  const permissoes = new Set(administrador
-    ? ['dashboard', 'chamados', 'clientes', 'equipe', 'relatorios', 'educacao', 'configuracoes', 'gerenciar_equipe']
-    : PERMISSOES_POR_CARGO[cargo] || PERMISSOES_POR_CARGO.Personalizado);
-  const camposPermissao = document.querySelectorAll('#form-nova-equipe [name="permissoes"]');
-  camposPermissao.forEach((checkbox) => {
+  const permissoes = new Set(PERMISSOES_POR_CARGO[cargo] || PERMISSOES_POR_CARGO.Personalizado);
+  document.querySelectorAll('#form-nova-equipe [name="permissoes"]').forEach((checkbox) => {
     checkbox.checked = permissoes.has(checkbox.value);
   });
-  const campoPermissoes = document.querySelector('#form-nova-equipe .permission-fieldset');
-  if (campoPermissoes) campoPermissoes.disabled = administrador;
 }
 
 async function aplicarPermissoesNavegacao() {
