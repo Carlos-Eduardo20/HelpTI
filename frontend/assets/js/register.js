@@ -23,19 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const dominio = email.split('@').pop().toLowerCase();
-        const dominiosPessoais = new Set([
-            'aol.com', 'bol.com.br', 'email.com', 'fastmail.com', 'gmail.com',
-            'gmx.com', 'googlemail.com', 'hotmail.com', 'hotmail.com.br', 'icloud.com',
-            'ig.com.br', 'live.com', 'mail.com', 'me.com', 'msn.com', 'outlook.com',
-            'outlook.com.br', 'pm.me', 'proton.me', 'protonmail.com', 'terra.com.br',
-            'uol.com.br', 'yahoo.com', 'yahoo.com.br', 'yandex.com', 'zoho.com'
-        ]);
-        if ([...dominiosPessoais].some((pessoal) => dominio === pessoal || dominio.endsWith(`.${pessoal}`))) {
-            feedback.textContent = 'Use um e-mail corporativo. Provedores de e-mail pessoal não são aceitos.';
-            return;
-        }
-
         botao.disabled = true;
         botao.textContent = 'Criando conta...';
         try {

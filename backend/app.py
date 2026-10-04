@@ -830,29 +830,14 @@ def delete_equipe(id):
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
-DOMINIOS_EMAIL_PESSOAL = {
-    'aol.com', 'bol.com.br', 'email.com', 'fastmail.com', 'gmail.com',
-    'gmx.com', 'googlemail.com', 'hotmail.com', 'hotmail.com.br', 'icloud.com',
-    'ig.com.br', 'live.com', 'mail.com', 'me.com', 'msn.com', 'outlook.com',
-    'outlook.com.br', 'pm.me', 'proton.me', 'protonmail.com', 'terra.com.br',
-    'uol.com.br', 'yahoo.com', 'yahoo.com.br', 'yandex.com', 'zoho.com'
-}
-
-
 def obter_nome_empresa(email):
     dominio = email.rsplit('@', 1)[1].lower()
     nome = re.split(r'[-_]+', dominio.split('.', 1)[0])
     return ' '.join(parte.capitalize() for parte in nome if parte)
 
 
-def email_corporativo_valido(email):
-    if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
-        return False
-    dominio = email.rsplit('@', 1)[1].lower()
-    return not any(
-        dominio == bloqueado or dominio.endswith(f'.{bloqueado}')
-        for bloqueado in DOMINIOS_EMAIL_PESSOAL
-    )
+def email_valido(email):
+    return bool(re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email))
 
 
 @app.route('/api/contas', methods=['POST'])
@@ -864,8 +849,8 @@ def criar_conta():
 
     if not empresa or not email or not senha:
         return jsonify({'erro': 'Empresa, e-mail e senha são obrigatórios'}), 400
-    if not email_corporativo_valido(email):
-        return jsonify({'erro': 'Use um e-mail corporativo; provedores de e-mail pessoal não são aceitos'}), 400
+    if not email_valido(email):
+        return jsonify({'erro': 'Informe um endereço de e-mail válido'}), 400
     if len(senha) < 8:
         return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres'}), 400
 
