@@ -1,11 +1,11 @@
 from flask import Flask, request, jsonify, redirect, send_from_directory, session, g
 from werkzeug.security import check_password_hash, generate_password_hash
-from flask_cors import CORS
 from sqlite3 import Error
 import os
 import json
 import re
 import secrets
+import hashlib
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
@@ -16,18 +16,18 @@ from threading import Timer
 try:
     from .database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
     from .pc_explorer_3d import render_pc_explorer, render_pc_svg
+    from .security_check import run_security_checks
 except ImportError:
     from database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
     from pc_explorer_3d import render_pc_explorer, render_pc_svg
+    from security_check import run_security_checks
 
 BASE_DIR = os.path.dirname(__file__)
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 load_dotenv()
 
 
-
 app = Flask(__name__)
-CORS(app)
 
 
 def _get_session_secret():
@@ -143,7 +143,10 @@ def _carregar_membro_da_sessao():
 @app.before_request
 def proteger_paginas_e_api():
     caminho = request.path
-    if caminho in ('/api/health', '/api/login', '/api/contas'):
+    if caminho in (
+        '/api/health', '/api/login', '/api/contas',
+        '/api/solicitar-codigo-recuperacao', '/api/redefinir-senha'
+    ):
         return None
 
     if caminho.startswith('/frontend/pages/'):
@@ -244,6 +247,41 @@ def registrar_historico(cursor, id_chamado, evento, descricao):
         'INSERT INTO historico_chamado (id_chamado, evento, descricao) VALUES (%s, %s, %s)',
         (id_chamado, evento, descricao)
     )
+
+
+def enviar_email(destinatario, assunto, conteudo):
+    smtp_host = os.getenv('SMTP_HOST')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_password = ''.join((os.getenv('SMTP_PASSWORD') or '').split())
+    if not all((smtp_host, smtp_user, smtp_password, destinatario)):
+        return False, 'SMTP ou e-mail do destinatário não está configurado.'
+
+    mensagem = EmailMessage()
+    mensagem['Subject'] = assunto
+    mensagem['From'] = os.getenv('SMTP_FROM') or smtp_user
+    mensagem['To'] = destinatario
+    mensagem.set_content(conteudo)
+    try:
+        with smtplib.SMTP(smtp_host, int(os.getenv('SMTP_PORT', '587')), timeout=15) as servidor:
+            servidor.starttls()
+            servidor.login(smtp_user, smtp_password)
+            servidor.send_message(mensagem)
+        return True, None
+    except (OSError, smtplib.SMTPException, ValueError) as error:
+        return False, f'O e-mail não foi enviado: {error}'
+
+
+def smtp_configurado():
+    return all((
+        os.getenv('SMTP_HOST'),
+        os.getenv('SMTP_USER'),
+        ''.join((os.getenv('SMTP_PASSWORD') or '').split()),
+    ))
+
+
+def dominio_email_bloqueado(email):
+    dominio = email.rsplit('@', 1)[-1].lower()
+    return dominio in {'gmail.com', 'googlemail.com'} or dominio.startswith('yahoo.')
 
 
 def normalize_record(record):
@@ -378,7 +416,17 @@ def create_chamado():
         
         cursor.close()
         conn.close()
-        
+        email_enviado, aviso_email = enviar_email(
+            email_cliente,
+            f'Chamado #{novo_id} recebido',
+            f"Olá, {contato_cliente}.\n\n"
+            f"Recebemos seu chamado #{novo_id} para {cliente}.\n"
+            f"Descrição: {descricao}\n\n"
+            'A equipe de suporte dará continuidade ao atendimento.'
+        )
+        novo_chamado['email_enviado'] = email_enviado
+        if aviso_email:
+            novo_chamado['aviso_email'] = aviso_email
         return jsonify(novo_chamado), 201
     except Error as e:
         return jsonify({'erro': str(e)}), 500
@@ -467,28 +515,16 @@ def update_chamado(id):
                 return jsonify({'erro': 'Informe a descrição final após iniciar o atendimento'}), 400
             if inicio:
                 segundos += max(0, int((agora - inicio).total_seconds()))
-            smtp_host = os.getenv('SMTP_HOST')
-            smtp_user = os.getenv('SMTP_USER')
-            smtp_password = ''.join((os.getenv('SMTP_PASSWORD') or '').split())
             destinatario = chamado.get('email_cliente')
-            if all((smtp_host, smtp_user, smtp_password, destinatario)):
-                mensagem = EmailMessage()
-                mensagem['Subject'] = f'Chamado #{id} resolvido'
-                mensagem['From'] = os.getenv('SMTP_FROM') or smtp_user
-                mensagem['To'] = destinatario
-                mensagem.set_content(f"Olá, {chamado.get('cliente') or 'cliente'}.\n\nO chamado #{id} foi resolvido.\nTempo de atendimento: {segundos // 60} min.\n\nDescrição inicial:\n{chamado.get('descricao') or 'Não informada'}\n\nSolução aplicada:\n{descricao_final}")
-                try:
-                    with smtplib.SMTP(smtp_host, int(os.getenv('SMTP_PORT', '587')), timeout=15) as servidor:
-                        servidor.starttls()
-                        servidor.login(smtp_user, smtp_password)
-                        servidor.send_message(mensagem)
-                    email_enviado = True
-                except (OSError, smtplib.SMTPException, ValueError) as error:
-                    email_enviado = False
-                    aviso_email = f'Chamado encerrado; o e-mail não foi enviado: {error}'
-            else:
-                email_enviado = False
-                aviso_email = 'Chamado encerrado; SMTP ou e-mail do cliente não está configurado.'
+            email_enviado, aviso_email = enviar_email(
+                destinatario,
+                f'Chamado #{id} resolvido',
+                f"Olá, {chamado.get('cliente') or 'cliente'}.\n\n"
+                f"O chamado #{id} foi resolvido.\n"
+                f"Tempo de atendimento: {segundos // 60} min.\n\n"
+                f"Descrição inicial:\n{chamado.get('descricao') or 'Não informada'}\n\n"
+                f'Solução aplicada:\n{descricao_final}'
+            )
             cursor.execute("UPDATE chamado SET status = 'RESOLVIDO', tempo_inicio = NULL, tempo_decorrido_segundos = %s, descricao_final = %s WHERE id_chamado = %s", (segundos, descricao_final, id))
             evento_historico = 'encerrado'
             descricao_historico = f'Chamado encerrado. Solução: {descricao_final}'
@@ -900,14 +936,16 @@ def email_valido(email):
 def criar_conta():
     dados = request.get_json() or {}
     nome = (dados.get('nome') or '').strip()
-    empresa = (dados.get('empresa') or '').strip() or 'HelpTI'
+    empresa = (dados.get('empresa') or '').strip()
     email = (dados.get('email') or '').strip().lower()
     senha = dados.get('senha') or ''
 
-    if not email or not senha:
-        return jsonify({'erro': 'E-mail e senha são obrigatórios'}), 400
+    if not nome or not empresa or not email or not senha:
+        return jsonify({'erro': 'Nome, empresa, e-mail e senha são obrigatórios'}), 400
     if not email_valido(email):
         return jsonify({'erro': 'Informe um endereço de e-mail válido'}), 400
+    if dominio_email_bloqueado(email):
+        return jsonify({'erro': 'Use um e-mail empresarial; Gmail e Yahoo não são aceitos.'}), 400
     if len(senha) < 8:
         return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres'}), 400
 
@@ -998,7 +1036,7 @@ def login():
         conn.close()
 
     usuario = next((candidato for candidato in usuarios if (
-        candidato['senha'] == senha or check_password_hash(candidato['senha'], senha)
+        check_password_hash(candidato['senha'], senha)
     )), None)
     if not usuario:
         return jsonify({'erro': 'E-mail ou senha inválidos'}), 401
@@ -1017,6 +1055,154 @@ def login():
         'empresaNome': usuario.get('empresa_nome') or obter_nome_empresa(usuario['email']),
         'permissoes': permissoes
     }), 200
+
+
+def _hash_codigo_recuperacao(codigo):
+    return hashlib.sha256(codigo.encode('ascii')).hexdigest()
+
+
+@app.route('/api/solicitar-codigo-recuperacao', methods=['POST'])
+def solicitar_codigo_recuperacao():
+    dados = request.get_json() or {}
+    email = (dados.get('email') or '').strip().lower()
+    if not email_valido(email):
+        return jsonify({'erro': 'Informe um endereço de e-mail válido.'}), 400
+    if not smtp_configurado():
+        return jsonify({
+            'erro': 'O envio de email não está configurado. Configure SMTP no backend/.env.'
+        }), 503
+
+    conexao = get_db_connection()
+    try:
+        cursor = conexao.cursor()
+        cursor.execute('''
+            SELECT id_grupo_solucionadores, nome
+            FROM grupo_solucionadores
+            WHERE LOWER(email) = %s AND status = 'ATIVO'
+            ORDER BY id_grupo_solucionadores DESC
+            LIMIT 1
+        ''', (email,))
+        membro = cursor.fetchone()
+        if not membro:
+            return jsonify({
+                'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
+            }), 202
+
+        agora = datetime.now()
+        cursor.execute('''
+            SELECT criado_em FROM codigo_recuperacao_senha
+            WHERE id_grupo_solucionadores = %s
+            ORDER BY id_codigo DESC LIMIT 1
+        ''', (membro['id_grupo_solucionadores'],))
+        codigo_anterior = cursor.fetchone()
+        if codigo_anterior:
+            criado_em = datetime.fromisoformat(codigo_anterior['criado_em'])
+            if agora - criado_em < timedelta(seconds=60):
+                return jsonify({
+                    'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
+                }), 202
+
+        codigo = f'{secrets.randbelow(1_000_000):06d}'
+        cursor.execute('''
+            UPDATE codigo_recuperacao_senha SET usado = 1
+            WHERE id_grupo_solucionadores = %s AND usado = 0
+        ''', (membro['id_grupo_solucionadores'],))
+        cursor.execute('''
+            INSERT INTO codigo_recuperacao_senha
+                (id_grupo_solucionadores, codigo_hash, criado_em, expira_em)
+            VALUES (%s, %s, %s, %s)
+        ''', (
+            membro['id_grupo_solucionadores'],
+            _hash_codigo_recuperacao(codigo),
+            agora.isoformat(timespec='seconds'),
+            (agora + timedelta(minutes=10)).isoformat(timespec='seconds')
+        ))
+        conexao.commit()
+        email_enviado, aviso_email = enviar_email(
+            email,
+            'Código para redefinir sua senha do HelpTI',
+            f"Olá, {membro['nome'] or 'usuário'}.\n\n"
+            f'Seu código de recuperação é: {codigo}\n'
+            'Ele expira em 10 minutos e pode ser usado uma única vez.'
+        )
+        if not email_enviado:
+            cursor.execute('''
+                UPDATE codigo_recuperacao_senha SET usado = 1
+                WHERE id_grupo_solucionadores = %s AND usado = 0
+            ''', (membro['id_grupo_solucionadores'],))
+            conexao.commit()
+            print(f'Falha ao enviar código de recuperação: {aviso_email}')
+            return jsonify({
+                'erro': 'Não foi possível enviar o email. Confira as configurações SMTP e tente novamente.'
+            }), 503
+        return jsonify({
+            'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
+        }), 202
+    finally:
+        conexao.close()
+
+
+@app.route('/api/redefinir-senha', methods=['POST'])
+def redefinir_senha():
+    dados = request.get_json() or {}
+    email = (dados.get('email') or '').strip().lower()
+    codigo = (dados.get('codigo') or '').strip()
+    senha = dados.get('senha') or ''
+    if not email_valido(email) or not re.fullmatch(r'[0-9]{6}', codigo):
+        return jsonify({'erro': 'Informe o email e o código de seis dígitos.'}), 400
+    if len(senha) < 8:
+        return jsonify({'erro': 'A nova senha deve ter pelo menos 8 caracteres.'}), 400
+
+    conexao = get_db_connection()
+    try:
+        conexao.execute('BEGIN IMMEDIATE')
+        cursor = conexao.cursor()
+        cursor.execute('''
+            SELECT reset.id_codigo, reset.id_grupo_solucionadores,
+                   reset.codigo_hash, reset.expira_em, reset.tentativas
+            FROM codigo_recuperacao_senha AS reset
+            JOIN grupo_solucionadores AS membro
+              ON membro.id_grupo_solucionadores = reset.id_grupo_solucionadores
+            WHERE LOWER(membro.email) = %s
+              AND membro.status = 'ATIVO'
+              AND reset.usado = 0
+            ORDER BY reset.id_codigo DESC
+            LIMIT 1
+        ''', (email,))
+        registro = cursor.fetchone()
+        agora = datetime.now()
+        if not registro or datetime.fromisoformat(registro['expira_em']) <= agora:
+            conexao.rollback()
+            return jsonify({'erro': 'Código inválido ou expirado. Solicite outro código.'}), 400
+        if registro['tentativas'] >= 5:
+            cursor.execute(
+                'UPDATE codigo_recuperacao_senha SET usado = 1 WHERE id_codigo = %s',
+                (registro['id_codigo'],)
+            )
+            conexao.commit()
+            return jsonify({'erro': 'Limite de tentativas excedido. Solicite outro código.'}), 400
+        if not secrets.compare_digest(
+            registro['codigo_hash'], _hash_codigo_recuperacao(codigo)
+        ):
+            cursor.execute(
+                'UPDATE codigo_recuperacao_senha SET tentativas = tentativas + 1 WHERE id_codigo = %s',
+                (registro['id_codigo'],)
+            )
+            conexao.commit()
+            return jsonify({'erro': 'Código inválido ou expirado. Solicite outro código.'}), 400
+
+        cursor.execute(
+            'UPDATE grupo_solucionadores SET senha = %s WHERE id_grupo_solucionadores = %s',
+            (generate_password_hash(senha), registro['id_grupo_solucionadores'])
+        )
+        cursor.execute(
+            'UPDATE codigo_recuperacao_senha SET usado = 1 WHERE id_grupo_solucionadores = %s',
+            (registro['id_grupo_solucionadores'],)
+        )
+        conexao.commit()
+        return jsonify({'mensagem': 'Senha redefinida. Faça login com a nova senha.'}), 200
+    finally:
+        conexao.close()
 
 
 @app.route('/api/sessao', methods=['GET'])
@@ -1233,9 +1419,11 @@ def health_check():
     return jsonify({'status': 'API rodando corretamente'}), 200
 
 if __name__ == '__main__':
+    if not run_security_checks(app):
+        raise SystemExit('O HelpTI não iniciou porque uma verificação de segurança falhou.')
     initialize_database()
     host = os.environ.get('HELPTI_HOST', '127.0.0.1')
-    debug_requested = os.environ.get('HELPTI_DEBUG', 'true').strip().lower() in ('1', 'true', 'yes')
+    debug_requested = os.environ.get('HELPTI_DEBUG', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
     debug = debug_requested and host in ('127.0.0.1', 'localhost', '::1')
     port = int(os.environ.get('HELPTI_PORT', '5000'))
     if debug and os.environ.get('WERKZEUG_RUN_MAIN') == 'true':

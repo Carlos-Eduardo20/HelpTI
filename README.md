@@ -29,18 +29,18 @@ A visualização interativa de componentes 3D da página Educação é desenhada
 - [backend/app.py](backend/app.py): aplicação Flask, páginas e endpoints da API
 - [backend/database.py](backend/database.py): conexão SQLite e inicialização automática
 - [backend/schema.sql](backend/schema.sql): tabelas, relacionamentos, índices e dados iniciais
-- [backend/demo_seed.sql](backend/demo_seed.sql): usuário e dados fictícios iniciais para apresentação
+- [backend/demo_seed.sql](backend/demo_seed.sql): única conta administradora local de teste
 - [backend/requirements.txt](backend/requirements.txt): dependências Python da aplicação
 
 Chamados, clientes, contatos, equipe, setores e configurações permanecem salvos no banco local após reiniciar o servidor.
 
 ## Banco de dados
 
-O banco padrão é SQLite. Na primeira inicialização, o sistema cria `instance/helpti.sqlite3` e aplica `backend/schema.sql` e `backend/demo_seed.sql`. Os arquivos SQL são versionados para que todos recebam o mesmo esquema e os mesmos dados fictícios iniciais; o arquivo SQLite de cada pessoa permanece local e não deve ser enviado ao Git.
+O banco padrão é SQLite local. Na primeira inicialização, o sistema cria `instance/helpti.sqlite3` e aplica `backend/schema.sql` e `backend/demo_seed.sql`. O banco de cada pessoa ou Codespace permanece independente e não é enviado ao Git.
 
-Para entrar localmente na conta de demonstração, use `test@helpiti.com` com a senha `HelpTI2026!`. O endereço `teste@helpiti.com` também é aceito como alias. Em uma instalação limpa, o seed cria essas contas com perfil de administrador. Depois disso, o seed não redefine a senha nem reativa uma conta alterada. A senha é pública e só pode ser usada localmente: desligue `HELPTI_DEMO_MODE` antes de hospedar o sistema.
+Ao executar `python app.py`, o terminal pergunta se deve iniciar com a conta de teste HelpTI. Respondendo `S`, a instalação cria/usa seu banco de demonstração, com a conta administradora **HelpTI** e um setor vazio chamado **Suporte** associado a ela. Não são criados chamados, clientes ou contatos. O login é `test@helpiti.com` / `HelpTI2026!`; essa senha é pública e serve apenas para testes. Tipos de chamado são mantidos porque são opções de referência necessárias ao sistema.
 
-Cada clone executa seu próprio SQLite local: todos podem usar a conta de demonstração, mas as alterações feitas em um computador não aparecem nos bancos dos outros. Sem um banco ou servidor central compartilhado, não existe sincronização ao vivo dos dados entre clones. Os scripts `.sql` versionados distribuem o mesmo esquema e o mesmo estado inicial, não uma base de dados sincronizada. A senha da demonstração é pública e destinada exclusivamente a testes.
+Respondendo `N`, o app inicia outra base vazia, separada da demonstração, para criar a empresa e o primeiro administrador. Cada clone e cada Codespace guardam seu SQLite dentro da própria cópia e não sincronizam dados com outras máquinas. A conta de teste existe em cada instalação escolhida, mas chamados criados no clone de um amigo só ficam no banco daquele clone. Não use a conta de teste com dados reais nem exponha uma instalação pública com a demonstração ativa.
 
 ### Tabelas e atributos
 
@@ -57,6 +57,7 @@ Os tipos abaixo são os tipos lógicos do SQLite: `INTEGER`, `TEXT` e `NUMERIC`.
 | `escalonamento` | `id_escalonamento INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `motivo TEXT`; `nivel INTEGER`; `id_setor_destino`, `id_grupo_destino INTEGER` (FKs opcionais); `data_escalonamento TEXT`. |
 | `historico_chamado` | `id_historico INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `evento`, `descricao`, `data_evento TEXT NOT NULL`. Mantém a timeline de abertura, início, pausa, escalonamento, encerramento e alterações. |
 | `configuracao` | `id_configuracao INTEGER` (PK); `workspace_name`, `support_email TEXT NOT NULL`. Guarda as configurações gerais do workspace. |
+| `codigo_recuperacao_senha` | Código de recuperação armazenado como hash, com validade, contador de tentativas e marca de uso único; expira após 10 minutos. |
 
 ### Diagrama entidade-relacionamento
 
@@ -219,12 +220,13 @@ Todos os endpoints usam o prefixo `/api` e são servidos pelo mesmo processo Fla
 | Equipe | `GET/POST /api/equipe`, `PUT/DELETE /api/equipe/<id>` |
 | Setores | `GET/POST /api/setores`, `DELETE /api/setores/<id>` |
 | Contas e sessão | `POST /api/contas`, `POST /api/login`, `GET /api/sessao`, `POST /api/logout` |
+| Recuperação de senha | `POST /api/solicitar-codigo-recuperacao`, `POST /api/redefinir-senha` |
 | Relatórios | `GET /api/relatorios?periodo=todos|mes|dia` |
 | Configurações | `GET/PUT /api/configuracoes` |
 
 ### Persistência e compartilhamento
 
-Cada clone ou Codespace recebe uma cópia inicial equivalente do esquema e dos dados fictícios. Depois disso, as alterações feitas em uma máquina não são sincronizadas com as outras: compartilhar o mesmo login não compartilha o banco local. Para a equipe trabalhar simultaneamente sobre os mesmos registros, execute uma única instância do HelpTI em um computador acessível a todos na rede local e use a mesma URL; para uso online, será necessário hospedar a aplicação e configurar um banco central com acesso seguro. Não coloque arquivos SQLite, `.env` ou credenciais no Git. O `.gitignore` já mantém esses arquivos locais fora do repositório, enquanto os scripts `.sql` permanecem versionados.
+Cada clone ou Codespace recebe o mesmo esquema e a mesma conta de teste vazia. Depois disso, as alterações feitas em uma máquina não são sincronizadas com as outras: compartilhar o login não compartilha o banco local. Para trabalhar sobre os mesmos registros, todos precisariam acessar uma única instalação hospedada e seu banco central, o que é diferente do fluxo isolado descrito neste projeto. Não coloque arquivos SQLite, `.env` ou credenciais no Git. O `.gitignore` já mantém esses arquivos locais fora do repositório, enquanto os scripts `.sql` permanecem versionados.
 
 Em uma instalação sem workspace, o primeiro cadastro cria a empresa e a conta administradora. Depois que existe um workspace, o cadastro público é recusado; o administrador deve criar os outros acessos pela área Equipe. O primeiro cadastro de uma instalação nova deve ser feito e validado antes de publicar o endereço do site. Cada instalação representa somente um workspace; não use a mesma instalação para empresas diferentes. O cookie de sessão é assinado por uma chave local em `instance/`, persistida no volume quando executado via Docker.
 
@@ -286,9 +288,11 @@ O projeto roda com um único processo. O Flask serve as páginas do frontend, di
 python -m pip install -r backend\requirements.txt
 ```
 
-5. Não é necessário criar o banco nem configurar `DB_*` no `.env`. O SQLite, as tabelas e a conta de demonstração são inicializados automaticamente.
+5. Não é necessário criar o banco nem configurar `DB_*` no `.env`. Ao executar `python app.py`, escolha `S` para a conta de demonstração ou `N` para criar uma empresa; o SQLite e as tabelas são inicializados automaticamente.
 
-O arquivo `backend/.env` é opcional e local; use-o somente para configurações `SMTP_*` de envio de e-mail. Sem SMTP, os demais fluxos da aplicação continuam disponíveis, mas o encerramento com envio de e-mail informa que o serviço não está configurado. Nunca envie credenciais ao Git. O `.venv` é ignorado e não faz parte do fluxo padrão.
+O arquivo `backend/.env` é opcional e local; use-o para as configurações `SMTP_*`. Com SMTP configurado, o HelpTI envia uma confirmação quando um chamado é aberto ou resolvido e também um código de recuperação de senha. O código expira em 10 minutos, pode ser usado uma vez e aceita no máximo cinco tentativas. A conta de teste usa `test@helpiti.com`, que é um endereço demonstrativo, não uma caixa postal real; redefina a senha de uma conta com email ao qual você tenha acesso. Sem SMTP, o chamado continua sendo salvo, mas email e recuperação de senha não serão enviados. Receber emails e convertê-los em chamados ainda não está implementado. Nunca envie credenciais ao Git.
+
+Para configurar SMTP, copie `backend/.env.example` para `backend/.env` e preencha os campos com os dados fornecidos pelo seu provedor de email. Use a senha de aplicativo quando o provedor exigir; não coloque sua senha pessoal no Git. O envio deve ser testado com uma conta de email autorizada pelo provedor.
 
 ### Iniciar o projeto
 
@@ -298,7 +302,46 @@ Com as dependências instaladas, execute na pasta raiz `HelpTI`:
 python app.py
 ```
 
-O arquivo [app.py](app.py) na raiz inicializa o banco local se necessário e inicia a API e o frontend. O navegador abrirá em `http://127.0.0.1:5000/`. O arquivo SQLite fica em `instance/helpti.sqlite3` e é ignorado pelo Git.
+O arquivo [app.py](app.py) na raiz pergunta se deve usar a demonstração, inicializa o banco selecionado e inicia a API e o frontend. O navegador abrirá em `http://127.0.0.1:5000/`. No VS Code local, o SQLite da demonstração fica em `instance/helpti.sqlite3`; no Codespace, em `instance/helpti-codespace.sqlite3`. Os arquivos são ignorados pelo Git.
+
+Na inicialização, o terminal informa o caminho absoluto do SQLite em uso e se a conta de demonstração está habilitada. Antes de tentar entrar com a conta HelpTI, confirme a mensagem `Conta teste HelpTI: habilitada`.
+
+Antes de iniciar, o programa mostra **“Validando a configuração básica de segurança do HelpTI...”**. O script [security_check.py](backend/security_check.py) verifica as opções de sessão, chave secreta, acesso remoto, modo debug e alguns padrões perigosos no código Python; falhas críticas impedem a inicialização. É uma checagem local de configuração e padrões, não um scanner completo de vulnerabilidades ou CVEs, e não certifica a segurança de uma hospedagem pública.
+
+#### Selecionar a demonstração ou cadastrar uma empresa
+
+Na raiz do projeto, execute normalmente:
+
+```text
+python app.py
+```
+
+Responda `S` para usar a conta de teste ou `N` para iniciar a base vazia e cadastrar a sua empresa. O programa informa o caminho completo do SQLite escolhido e o modo ativo. Em instalação local, a demonstração usa `instance\helpti.sqlite3` e o cadastro da empresa usa `instance\helpti-empresa-local.sqlite3`. Esses bancos são separados; a escolha `N` não apaga nem altera os dados da demonstração.
+
+Se responder `S`, abra `http://127.0.0.1:5000/` e entre com `test@helpiti.com` e `HelpTI2026!`. Se responder `N`, abra `http://127.0.0.1:5000/frontend/pages/account.html` para criar a primeira conta administradora. Se já houver servidor na porta 5000, pare-o com `Ctrl+C` antes de iniciar outro. Para alternar o modo, pare o servidor e execute `python app.py` outra vez.
+
+Para testar um chamado com a conta de demonstração, primeiro cadastre um cliente na aba **Clientes**. O setor **Suporte** e o técnico **Conta teste HelpTI** já estarão criados e associados pelo seed de demonstração. Em **Chamados**, inicie o cadastro, selecione o cliente, escolha o setor **Suporte** e o técnico **Conta teste HelpTI**, informe contato, telefone e descrição, e crie o chamado. O email de confirmação só é enviado se SMTP estiver configurado.
+
+Se escolheu `N`, cadastre a empresa com nome, email e senha. Gmail e Yahoo são recusados; Outlook é permitido. Para abrir chamados nessa instalação, cadastre clientes na aba **Clientes** e, em **Equipe**, pelo menos um técnico com um setor associado. Cada instalação aceita uma empresa/workspace.
+
+### GitHub Codespaces
+
+1. Abra o repositório no GitHub e escolha **Code → Codespaces → Create codespace on main**.
+2. Aguarde o Codespace preparar o Dev Container e instalar as dependências. Se já tinha um Codespace aberto antes de atualizar `.devcontainer/devcontainer.json`, use **Codespaces: Rebuild Container** para aplicar as configurações novas.
+3. No terminal integrado, rode `python app.py` e responda `S` para iniciar a demonstração.
+4. Confira o caminho contendo `helpti-codespace.sqlite3` e a mensagem `Conta teste HelpTI: habilitada`; abra a aba **Ports**, use a porta `5000` e entre com `test@helpiti.com` e `HelpTI2026!`.
+
+A porta do Codespace está configurada como privada. Cada Codespace usa um banco próprio, separado do VS Code local e dos Codespaces dos colegas. Para testar individualmente, cada amigo deve clonar o projeto ou criar o próprio Codespace e responder `S`; todos usarão o mesmo login de demonstração, mas os dados não serão compartilhados. Para amigos acessarem pela internet uma única instância rodando no seu Codespace, seria necessário publicar a porta como pública; nesse caso todos usariam o banco dessa única instância, não bancos isolados.
+
+### Executar os testes
+
+Na raiz do projeto, com o ambiente virtual selecionado no VS Code:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s backend\tests -v
+```
+
+Os testes de email usam um servidor SMTP simulado e não enviam mensagens reais. Eles criam um banco temporário separado e não alteram `instance/helpti.sqlite3`.
 
 ### Docker e Dev Container
 
@@ -325,9 +368,9 @@ docker compose up --build -d
 5. Abra `http://localhost:5000` e entre com `test@helpiti.com` e `HelpTI2026!`.
 6. Para acompanhar a inicialização, use `docker compose logs -f help-ti` (Ctrl+C sai dos logs). Para parar o container sem apagar o banco, use `docker compose down`.
 
-Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A senha de demonstração e os dados iniciais vêm do seed versionado e são ativados localmente por padrão. `HELPTI_DEMO_MODE=false` desativa a criação do seed e bloqueia o login da conta de demonstração; essa opção é obrigatória em um ambiente público. O arquivo SQLite e a chave de sessão ficam no volume persistente, não na imagem nem no Git.
+Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A conta e as opções de referência vêm do seed versionado; chamados e clientes fictícios não são criados. `HELPTI_DEMO_MODE=false` desativa o seed e bloqueia o login da conta de teste; essa opção é obrigatória em um ambiente público. O arquivo SQLite e a chave de sessão ficam no volume persistente, não na imagem nem no Git.
 
-Em uma instalação sem dados, o primeiro cadastro cria o workspace. Depois disso, cadastros públicos são recusados; o administrador deve criar os acessos pela área de Equipe. Isso evita que visitantes se adicionem à empresa já cadastrada.
+Em uma instalação criada com `HELPTI_DEMO_MODE=false`, o primeiro cadastro cria o workspace. Depois disso, cadastros públicos são recusados; o administrador deve criar os acessos pela área de Equipe. Isso evita que visitantes se adicionem à empresa já cadastrada. O cadastro inicial exige nome da empresa e recusa Gmail/Yahoo; Outlook é permitido. Para criar uma empresa própria, use um SQLite novo e desative o seed, em vez de cadastrar outra empresa no banco da demonstração.
 
 O container roda como usuário sem privilégios e usa Gunicorn em vez do servidor de desenvolvimento do Flask. `HELPTI_HTTPS_ONLY=true` ativa o atributo `Secure` do cookie de sessão quando a aplicação está atrás de um proxy HTTPS. Não publique a porta HTTP do Compose diretamente na internet.
 
@@ -361,7 +404,7 @@ Para parar o container, execute `docker compose down` na pasta do projeto. O vol
 
 ## Status do desenvolvimento
 
-O projeto possui interface web, API Flask e persistência local em SQLite. A configuração e os dados iniciais são aplicados no primeiro start. SMTP é opcional e necessário somente para o envio de e-mails de resolução.
+O projeto possui interface web, API Flask e persistência local em SQLite. A configuração e a conta vazia de teste são aplicadas no primeiro start. SMTP é opcional e necessário para notificações por email e recuperação de senha.
 
 ---
 

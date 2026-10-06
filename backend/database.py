@@ -4,6 +4,7 @@ import re
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
+from werkzeug.security import generate_password_hash
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATABASE_PATH = Path(os.getenv(
@@ -75,6 +76,7 @@ def initialize_database():
         connection.executescript(schema_path.read_text(encoding='utf-8'))
         if demo_mode_enabled():
             connection.executescript(demo_seed_path.read_text(encoding='utf-8'))
+        _migrate_plaintext_passwords(connection)
         connection.execute('''
             INSERT INTO historico_chamado (id_chamado, evento, descricao, data_evento)
             SELECT chamado.id_chamado, 'aberto', 'Chamado criado no sistema.', chamado.data_abertura
@@ -87,6 +89,17 @@ def initialize_database():
         connection.commit()
     finally:
         connection.close()
+
+
+def _migrate_plaintext_passwords(connection):
+    for member in connection.execute(
+        "SELECT id_grupo_solucionadores, senha FROM grupo_solucionadores "
+        "WHERE senha <> '' AND senha NOT LIKE 'pbkdf2:%' AND senha NOT LIKE 'scrypt:%'"
+    ):
+        connection.execute(
+            'UPDATE grupo_solucionadores SET senha = ? WHERE id_grupo_solucionadores = ?',
+            (generate_password_hash(member['senha']), member['id_grupo_solucionadores'])
+        )
 
 
 def _migrate_legacy_schema(connection):

@@ -113,9 +113,23 @@ CREATE TABLE IF NOT EXISTS configuracao (
     support_email TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS codigo_recuperacao_senha (
+    id_codigo INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_grupo_solucionadores INTEGER NOT NULL,
+    codigo_hash TEXT NOT NULL,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    expira_em TEXT NOT NULL,
+    tentativas INTEGER NOT NULL DEFAULT 0,
+    usado INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (id_grupo_solucionadores)
+        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor ON grupo_solucionadores(id_setor);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario ON grupo_solucionadores(id_usuario);
+CREATE INDEX IF NOT EXISTS idx_codigo_recuperacao_usuario
+ON codigo_recuperacao_senha(id_grupo_solucionadores, criado_em);
 CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado(status, data_abertura);
 CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado(id_setor);
 CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado ON escalonamento(id_chamado);

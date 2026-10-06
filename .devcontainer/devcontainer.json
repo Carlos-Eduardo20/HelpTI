@@ -4,7 +4,10 @@
   "postCreateCommand": "python -m pip install -r backend/requirements.txt",
   "containerEnv": {
     "HELPTI_HOST": "0.0.0.0",
-    "HELPTI_DEBUG": "false"
+    "HELPTI_DEBUG": "false",
+    "HELPTI_HTTPS_ONLY": "true",
+    "HELPTI_RUNTIME_ENV": "codespace",
+    "HELPTI_DEMO_MODE": "prompt"
   },
   "forwardPorts": [
     5000
@@ -12,6 +15,7 @@
   "portsAttributes": {
     "5000": {
       "label": "HelpTI",
+      "visibility": "private",
       "onAutoForward": "openBrowser"
     }
   }

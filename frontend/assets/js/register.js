@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
 
         const nome = document.getElementById('nome').value.trim();
+        const empresa = document.getElementById('empresa').value.trim();
         const email = document.getElementById('email').value.trim().toLowerCase();
         const senha = document.getElementById('senha').value;
         const confirmarSenha = document.getElementById('confirmarSenha').value;
@@ -30,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, email, senha })
+                body: JSON.stringify({ nome, empresa, email, senha })
             });
             const dados = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(dados.erro || 'Não foi possível criar a conta.');

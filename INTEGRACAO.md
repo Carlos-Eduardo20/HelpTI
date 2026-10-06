@@ -16,7 +16,7 @@ O arquivo `backend/app.py` inicia a API e também serve o frontend. A rota `/` r
 
 #### Banco de dados
 
-O SQLite armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações no arquivo local `instance/helpti.sqlite3`. A aplicação cria o arquivo e aplica o schema automaticamente. Não é necessário instalar MySQL, abrir Workbench ou cadastrar credenciais de banco no `.env`. Cada integrante tem sua própria base local; `git pull` não sincroniza dados.
+O SQLite armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações no arquivo local `instance/helpti.sqlite3`. A aplicação cria o arquivo e aplica o schema automaticamente. Uma instalação nova inclui a conta local `test@helpiti.com` / `HelpTI2026!` e um setor vazio `Suporte` associado à conta, sem chamados ou clientes fictícios. Não é necessário instalar MySQL, abrir Workbench ou cadastrar credenciais de banco no `.env`. Cada clone/Codespace tem sua própria base; `git pull` não sincroniza dados.
 
 ## Endpoints da API
 
@@ -70,7 +70,7 @@ python -m pip install -r backend/requirements.txt
 python app.py
 ```
 
-O primeiro start cria o banco e as tabelas. O servidor rodará em `http://127.0.0.1:5000`. Para e-mail de resolução de chamados, configure `SMTP_*` em `backend/.env`; essa configuração é opcional para os outros fluxos.
+No início, o aplicativo executa uma checagem local de configuração de segurança. O primeiro start cria o banco e as tabelas. O servidor rodará em `http://127.0.0.1:5000`. Para notificações e códigos de recuperação de senha, configure `SMTP_*` em `backend/.env`.
 
 ### Frontend
 
@@ -134,6 +134,8 @@ await criarChamado({
 
 Status possíveis: `ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `PAUSADO`, `RESOLVIDO`. Para resolver, use a ação de encerramento na tela do chamado; ela registra a descrição final e envia o e-mail ao cliente.
 
+Com SMTP configurado, também é enviado um aviso ao abrir um chamado. A recuperação de senha envia um código de seis dígitos ao email cadastrado; ele expira em 10 minutos e só pode ser usado uma vez. A conta local de teste não usa uma caixa postal real, portanto não é possível receber emails para ela.
+
 ## Erros Comuns
 
 ### "Não foi possível conectar à API" ou "Failed to fetch"
@@ -174,4 +176,3 @@ Escolha uma tarefa, faça uma branch com um nome claro e mantenha as alteraçõe
 - edição e exclusão de clientes, equipe e chamados
 - filtros e relatórios com dados reais
 - testes automatizados para os endpoints
-
