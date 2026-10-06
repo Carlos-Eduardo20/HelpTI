@@ -26,13 +26,9 @@ A visualização interativa de componentes 3D da página Educação é desenhada
 
 ### Backend
 
-- [backend/app.py](backend/app.py): aplicação Flask, páginas e endpoints da API
 - [backend/database.py](backend/database.py): conexão SQLite e inicialização automática
-- [backend/schema.sql](backend/schema.sql): tabelas, relacionamentos, índices e dados iniciais
 - [backend/demo_seed.sql](backend/demo_seed.sql): única conta administradora local de teste
 - [backend/requirements.txt](backend/requirements.txt): dependências Python da aplicação
-
-Chamados, clientes, contatos, equipe, setores e configurações permanecem salvos no banco local após reiniciar o servidor.
 
 ## Banco de dados
 
@@ -43,8 +39,6 @@ Ao executar `python app.py`, o terminal pergunta se deve iniciar com a conta de 
 Respondendo `N`, o app inicia outra base vazia, separada da demonstração, para criar a empresa e o primeiro administrador. Cada clone e cada Codespace guardam seu SQLite dentro da própria cópia e não sincronizam dados com outras máquinas. A conta de teste existe em cada instalação escolhida, mas chamados criados no clone de um amigo só ficam no banco daquele clone. Não use a conta de teste com dados reais nem exponha uma instalação pública com a demonstração ativa.
 
 ### Tabelas e atributos
-
-Os tipos abaixo são os tipos lógicos do SQLite: `INTEGER`, `TEXT` e `NUMERIC`.
 
 | Tabela | Atributos |
 | --- | --- |
@@ -200,29 +194,11 @@ O fluxo de atendimento da referência foi adaptado aos conceitos existentes no H
 
 As chaves estrangeiras são habilitadas em cada conexão. O schema cria índices para contatos por empresa, equipe por setor, chamados por status/data e escalonamentos por chamado.
 
-Ao migrar uma base antiga, a tabela `cliente_contato` é renomeada para `cliente` mantendo os registros. A antiga tabela `documentacao`, cujas linhas não apontavam para chamados, é arquivada como `documentacao_legado` (ou com sufixo numérico) se contiver dados; em instalações novas ela não é criada. O histórico inicial dos chamados existentes é preenchido usando `data_abertura`.
-
 ### Case do banco de dados
 
 Uma empresa de suporte de TI recebe de um cliente o relato de uma falha em seu computador. A equipe registra o cliente, descreve o problema e abre um chamado, atribuindo-o a um técnico responsável e ao setor correspondente. Quando o atendimento começa, registra-se a data e a hora de início da resolução; ao concluir o serviço, registra-se a data e a hora do fim. Com esses dados, o sistema calcula a duração de cada atendimento e gera um relatório com o tempo total acumulado dos chamados, ajudando a equipe a acompanhar o trabalho realizado e a identificar atendimentos que ainda precisam ser concluídos.
 
 No modelo conceitual do case, o setor fica registrado como atributo do grupo solucionador. O registro do chamado precisa guardar os instantes de início e fim da resolução para que a duração possa ser calculada pela diferença entre eles e somada no relatório. No site atual já existem chamados, equipe, setores e acompanhamento de tempo, mas o schema e o relatório implementados ainda não correspondem integralmente a esse modelo: setores são uma tabela própria e o relatório atual agrupa chamados por status e classificação, sem somar a duração de todos eles.
-
-## API
-
-Todos os endpoints usam o prefixo `/api` e são servidos pelo mesmo processo Flask.
-
-| Recurso | Endpoints |
-| --- | --- |
-| Saúde | `GET /api/health` |
-| Chamados | `GET/POST /api/chamados`, `GET/PUT/DELETE /api/chamados/<id>` |
-| Clientes | `GET/POST /api/clientes`, `PUT/DELETE /api/clientes/<id>` |
-| Equipe | `GET/POST /api/equipe`, `PUT/DELETE /api/equipe/<id>` |
-| Setores | `GET/POST /api/setores`, `DELETE /api/setores/<id>` |
-| Contas e sessão | `POST /api/contas`, `POST /api/login`, `GET /api/sessao`, `POST /api/logout` |
-| Recuperação de senha | `POST /api/solicitar-codigo-recuperacao`, `POST /api/redefinir-senha` |
-| Relatórios | `GET /api/relatorios?periodo=todos|mes|dia` |
-| Configurações | `GET/PUT /api/configuracoes` |
 
 ### Persistência e compartilhamento
 
@@ -232,45 +208,6 @@ Em uma instalação sem workspace, o primeiro cadastro cria a empresa e a conta 
 
 A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criação/edição de funcionários e setores. Quem tem acesso a Chamados também recebe leituras auxiliares limitadas de clientes, técnicos e setores para preencher chamados; isso não libera as páginas de Clientes ou Equipe nem operações de escrita nesses módulos.
 
----
-
-## Estrutura do projeto
-
-```text
-HelpTI/
-├── README.md
-├── Dockerfile
-├── compose.yaml
-├── wsgi.py
-├── .dockerignore
-├── .devcontainer/
-│   └── devcontainer.json
-├── backend/
-│   ├── app.py
-│   ├── database.py
-│   └── schema.sql
-├── frontend/
-│   ├── assets/
-│   │   ├── css/
-│   │   │   ├── dashboard.css
-│   │   │   ├── login.css
-│   │   │   ├── planos.css
-│   │   │   └── variables.css
-│   │   ├── images/
-│   │   └── js/
-│   │       ├── api.js
-│   │       ├── dashboard.js
-│   │       └── main.js
-│   ├── pages/
-│   │   ├── chamados.html
-│   │   ├── clientes.html
-│   │   ├── dashboard.html
-│   │   ├── equipe.html
-│   │   ├── login.html
-│   │   └── relatorios.html
-│   └── planos.html
-└── .gitignore
-```
 ---
 
 ## Como executar
@@ -399,12 +336,6 @@ Não é necessário executar `python -m http.server` nem abrir a porta 8000.
 ### Encerrar
 
 Para parar o container, execute `docker compose down` na pasta do projeto. O volume `help-ti-data` não é apagado por esse comando, portanto o banco continua guardado para a próxima inicialização.
-
----
-
-## Status do desenvolvimento
-
-O projeto possui interface web, API Flask e persistência local em SQLite. A configuração e a conta vazia de teste são aplicadas no primeiro start. SMTP é opcional e necessário para notificações por email e recuperação de senha.
 
 ---
 

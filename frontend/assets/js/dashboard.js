@@ -1,4 +1,5 @@
 import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
+import { mostrarNotificacao } from './notifications.js';
 
 let chamadosEmMemoria = [];
 let agendaPagina = 0;
@@ -537,6 +538,7 @@ async function salvarNovoClienteDoChamado(event) {
     document.querySelector('#emailClienteChamado').value = cliente.email || '';
     form.reset();
     cancelarNovoClienteDoChamado();
+    mostrarNotificacao('Cliente cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar o cliente: ${error.message}`); }
 }
 
@@ -559,7 +561,7 @@ async function salvarChamado(event) {
       id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
       descricao: campos.descricao.value.trim()
     });
-    fecharModalChamado(); form.reset(); await carregarChamados(); alert('Chamado criado com sucesso.');
+    fecharModalChamado(); form.reset(); await carregarChamados(); mostrarNotificacao('Chamado criado com sucesso.');
   } catch (error) { alert(`Não foi possível criar o chamado: ${error.message}`); }
 }
 
@@ -659,6 +661,7 @@ document.addEventListener('click', async (event) => {
     try {
       await atualizarChamado(id, { status: value });
       await carregarChamados();
+      mostrarNotificacao('Status do chamado atualizado com sucesso.');
     } catch (error) {
       select.value = statusAnterior;
       await carregarChamados();
@@ -694,6 +697,18 @@ window.addEventListener('scroll', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   atualizarPerfil();
+  const statusInicial = new URLSearchParams(window.location.search).get('status');
+  const filtroStatus = document.querySelector('#filtroStatusChamados');
+  if (statusInicial === 'RESOLVIDO' && filtroStatus) {
+    filtroStatus.value = statusInicial;
+    const opcaoResolvidos = document.querySelector('[data-status-filter="RESOLVIDO"]');
+    if (opcaoResolvidos) {
+      document.querySelector('#statusChamadosLabel').textContent = opcaoResolvidos.textContent;
+      document.querySelectorAll('[data-status-filter]').forEach((opcao) => {
+        opcao.setAttribute('aria-selected', String(opcao === opcaoResolvidos));
+      });
+    }
+  }
   const agendaData = document.querySelector('#agendaData');
   if (agendaData && !agendaData.value) agendaData.value = dataLocalISO();
   if (agendaData) document.querySelector('#agendaDataLabel').textContent = formatarDataCurtaAgenda(agendaData.value);

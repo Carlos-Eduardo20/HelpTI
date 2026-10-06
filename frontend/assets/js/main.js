@@ -1,4 +1,5 @@
 import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
+import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina } from './notifications.js';
 
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
@@ -178,7 +179,7 @@ async function salvarCliente(event) {
   try {
     const { criarCliente } = await import('./api.js');
     await criarCliente(dados);
-    closeModal('modal-cliente'); form.reset(); resetarContatosCliente(); await carregarClientes(); alert('Cliente cadastrado com sucesso.');
+    closeModal('modal-cliente'); form.reset(); resetarContatosCliente(); await carregarClientes(); mostrarNotificacao('Cliente cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
 }
 
@@ -364,6 +365,7 @@ function salvarEquipamento(id, indice = null) {
   if (indice === null) equipamentos.push(equipamento); else equipamentos[indice] = equipamento;
   localStorage.setItem(`helpti-equipamentos-${id}`, JSON.stringify(equipamentos));
   renderizarEquipamentos(id);
+  mostrarNotificacao(indice === null ? 'Equipamento cadastrado com sucesso.' : 'Equipamento atualizado com sucesso.');
 }
 
 function configurarEquipamentos(id) {
@@ -391,7 +393,7 @@ async function excluirSetor(idSetor) {
     const { excluirSetor: remover } = await import('./api.js');
     await remover(idSetor);
     await carregarSetores();
-    alert('Setor apagado com sucesso.');
+    mostrarNotificacao('Setor apagado com sucesso.');
   } catch (error) { alert(`Não foi possível apagar o setor: ${error.message}`); }
 }
 
@@ -401,6 +403,7 @@ async function alterarNivelFuncionario(id, setorId, nivel) {
     await atualizarMembro(id, { nivel: Number(nivel), id_setor: setorId });
     await carregarSetores();
     abrirDetalhesNivel(setorId, Number(nivel));
+    mostrarNotificacao('Nível do funcionário atualizado com sucesso.');
   } catch (error) { alert(`Não foi possível alterar o nível: ${error.message}`); }
 }
 
@@ -411,6 +414,7 @@ async function removerFuncionarioNivel(id) {
     await atualizarMembro(id, { nivel: null });
     await carregarSetores();
     abrirDetalhesNivel(setorId, nivel);
+    mostrarNotificacao('Funcionário removido do nível com sucesso.');
   } catch (error) { alert(`Não foi possível remover o funcionário do nível: ${error.message}`); }
 }
 
@@ -423,6 +427,7 @@ async function adicionarFuncionariosSelecionados() {
     await Promise.all(selecionados.map((id) => atualizarMembro(id, { nivel, id_setor: setorId })));
     closeModal('modal-adicionar-nivel');
     await carregarSetores();
+    mostrarNotificacao('Funcionário(s) adicionado(s) ao nível com sucesso.');
   } catch (error) { alert(`Não foi possível adicionar os funcionários: ${error.message}`); }
 }
 
@@ -451,7 +456,7 @@ async function salvarSetor(event) {
     document.querySelector('#levels-list').innerHTML = '';
     document.querySelector('#levels-editor').hidden = true;
     await carregarSetores();
-    alert('Setor criado com sucesso.');
+    mostrarNotificacao('Setor criado com sucesso.');
   } catch (error) { alert(`Não foi possível criar o setor: ${error.message}`); }
 }
 
@@ -503,7 +508,7 @@ async function salvarMembro(event) {
       nivel: form.elements.nivel.value,
       senha: form.elements.senha.value
     });
-    closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); alert('Membro cadastrado com sucesso.');
+    closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); mostrarNotificacao('Membro cadastrado com sucesso.');
   } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
 }
 
@@ -528,7 +533,7 @@ async function salvarConfiguracoes(event) {
     document.getElementById('supportEmail').value = configuracoesSalvas.supportEmail;
     localStorage.setItem('workspaceName', configuracoesSalvas.workspaceName);
     localStorage.setItem('supportEmail', configuracoesSalvas.supportEmail);
-    alert('Configurações salvas com sucesso.');
+    mostrarNotificacaoNaProximaPagina('Configurações salvas com sucesso.');
     window.location.href = 'dashboard.html';
   } catch (error) {
     alert(`Não foi possível salvar: ${error.message}`);
@@ -683,7 +688,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function setDetailText(id, value) {
   const element = document.getElementById(id);
-  if (element) element.textContent = value || '-';
+  if (!element) return;
+  if (element instanceof HTMLInputElement) element.value = value || '';
+  else element.textContent = value || '-';
 }
 
 function detailInitials(name) {
@@ -838,6 +845,7 @@ function iniciarEdicaoDetalhe(scope, registro) {
         span.dataset.editField = input.dataset.editField;
         span.textContent = input.dataset.editField === 'id_setor' ? (atualizado.setor_nome || input.value) : (atualizado[input.dataset.editField] || input.value);
         input.replaceWith(span);
+        mostrarNotificacao('Alterações salvas com sucesso.');
       } catch (error) { alert(`Não foi possível salvar: ${error.message}`); input.focus(); }
     });
     input.focus();
@@ -892,6 +900,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setDetailText('chamado-data', formatarDataAbertura(chamado.data_abertura));
         setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
         setDetailText('statusChamado', status);
+        document.querySelector('#statusChamado')?.classList.toggle('is-resolved', status === 'RESOLVIDO');
         renderizarHistoricoChamado(chamado.historico || []);
         const valoresSidebar = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');
         if (valoresSidebar.length >= 2) {
@@ -907,7 +916,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (chamado.data_agendada) campoAgendamento.value = `${chamado.data_agendada.slice(0, 10)}T${(chamado.hora_agendada || '09:00:00').slice(0, 5)}`;
           else if (!campoAgendamento.value) campoAgendamento.value = `${dataLocalAgendamento()}T09:00`;
           const horaAgendamento = document.querySelector('#horaAgendamento');
-          if (horaAgendamento) horaAgendamento.value = campoAgendamento.value.split('T')[1] || '09:00';
+          if (horaAgendamento) {
+            horaAgendamento.value = campoAgendamento.value.split('T')[1] || '09:00';
+          }
           atualizarRotuloAgendamento();
         }
         const encerrado = status === 'RESOLVIDO';
@@ -927,7 +938,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           chamado = await atualizarChamado(id, dados);
           atualizarTelaChamado();
-          if (sucesso) alert(sucesso);
+          if (sucesso) mostrarNotificacao(sucesso);
           return true;
         } catch (error) {
           alert(`Não foi possível atualizar o chamado: ${error.message}`);
@@ -935,28 +946,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      const botoesContatos = document.querySelectorAll('[data-abrir-contatos]');
+      const camposContato = document.querySelectorAll('[data-buscar-contatos]');
       const menuContatos = document.querySelector('#menuContatosChamado');
       const contatosCliente = cliente?.contatos?.length
         ? cliente.contatos
         : cliente?.contato ? [{ nome: cliente.contato, telefone: cliente.telefone }] : [];
       const definirMenuContatos = (aberto) => {
-        menuContatos.hidden = !aberto;
-        botoesContatos.forEach((botao) => botao.setAttribute('aria-expanded', String(aberto)));
-      };
-      const renderizarContatosChamado = () => {
         if (!menuContatos) return;
-        menuContatos.innerHTML = contatosCliente.length
-          ? contatosCliente.map((contato, indice) => {
-            const selecionado = contato.nome === chamado.contato_cliente && contato.telefone === chamado.telefone_contato;
-            return `<button type="button" role="option" class="employee-contact-option" data-contato-indice="${indice}" aria-selected="${selecionado}"><strong>${detailEscape(contato.nome || 'Contato')}</strong><span>${detailEscape(contato.telefone || 'Telefone não informado')}</span></button>`;
-          }).join('')
-          : '<span class="employee-contact-option">Nenhum contato cadastrado para este cliente.</span>';
+        menuContatos.hidden = !aberto;
+        camposContato.forEach((campo) => campo.setAttribute('aria-expanded', String(aberto)));
       };
-      renderizarContatosChamado();
-      botoesContatos.forEach((botao) => botao.addEventListener('click', () => {
-        definirMenuContatos(menuContatos.hidden);
-      }));
+      const renderizarContatosChamado = (termo = '') => {
+        if (!menuContatos) return;
+        const busca = normalizarTexto(termo);
+        const contatosFiltrados = contatosCliente
+          .map((contato, indice) => ({ ...contato, indice }))
+          .filter((contato) => !busca || normalizarTexto(`${contato.nome} ${contato.telefone}`).includes(busca));
+        menuContatos.innerHTML = contatosFiltrados.length
+          ? contatosFiltrados.map((contato) => {
+            const selecionado = contato.nome === chamado.contato_cliente && contato.telefone === chamado.telefone_contato;
+            return `<button type="button" role="option" class="employee-contact-option" data-contato-indice="${contato.indice}" aria-selected="${selecionado}"><strong>${detailEscape(contato.nome || 'Contato')}</strong><span>${detailEscape(contato.telefone || 'Telefone não informado')}</span></button>`;
+          }).join('')
+          : '<span class="employee-contact-option">Nenhum contato encontrado para este cliente.</span>';
+      };
+      camposContato.forEach((campo) => {
+        campo.addEventListener('focus', () => {
+          renderizarContatosChamado(campo.value);
+          definirMenuContatos(true);
+        });
+        campo.addEventListener('input', () => {
+          renderizarContatosChamado(campo.value);
+          definirMenuContatos(true);
+        });
+        campo.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') definirMenuContatos(false);
+          if (event.key === 'ArrowDown' && !menuContatos.hidden) {
+            event.preventDefault();
+            menuContatos.querySelector('[data-contato-indice]')?.focus();
+          }
+        });
+      });
       menuContatos?.addEventListener('click', async (event) => {
         const opcao = event.target.closest('[data-contato-indice]');
         if (!opcao) return;
@@ -969,9 +998,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             telefone_contato: contato.telefone
           });
           atualizarTelaChamado();
-          renderizarContatosChamado();
           definirMenuContatos(false);
+          mostrarNotificacao('Contato do chamado alterado com sucesso.');
         } catch (error) { alert(`Não foi possível alterar o contato: ${error.message}`); }
+      });
+      menuContatos?.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('[data-contato-indice]')) event.preventDefault();
+      });
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.employee-info-column')) definirMenuContatos(false);
       });
 
       const modalCalendario = document.querySelector('#modalCalendarioAgendamento');
@@ -993,9 +1028,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dia = event.target.closest('[data-agendamento-data]');
         if (dia) selecionarDataAgendamento(dia.dataset.agendamentoData);
       });
-      document.querySelector('#horaAgendamento')?.addEventListener('change', (event) => {
+      const horaAgendamento = document.querySelector('#horaAgendamento');
+      horaAgendamento?.addEventListener('input', () => {
+        if (!horaAgendamento) return;
+        const posicaoOriginal = horaAgendamento.selectionStart ?? horaAgendamento.value.length;
+        const digitosAntesDoCursor = horaAgendamento.value.slice(0, posicaoOriginal).replace(/\D/g, '').length;
+        const digitos = horaAgendamento.value.replace(/\D/g, '').slice(0, 4);
+        const horarioFormatado = digitos.length > 2
+          ? `${digitos.slice(0, 2)}:${digitos.slice(2)}`
+          : digitos.length === 2 ? `${digitos}:` : digitos;
+        if (horaAgendamento.value !== horarioFormatado) {
+          horaAgendamento.value = horarioFormatado;
+          const novaPosicao = Math.min(
+            digitosAntesDoCursor + (digitosAntesDoCursor >= 2 && digitos.length >= 2 ? 1 : 0),
+            horarioFormatado.length
+          );
+          horaAgendamento.setSelectionRange(novaPosicao, novaPosicao);
+        }
+        if (!horaAgendamento.checkValidity()) return;
         const data = campoAgendamento?.value.split('T')[0] || dataLocalAgendamento();
-        if (campoAgendamento) campoAgendamento.value = `${data}T${event.target.value}`;
+        if (campoAgendamento) campoAgendamento.value = `${data}T${horaAgendamento.value}`;
         atualizarRotuloAgendamento();
       });
       document.querySelector('#hojeCalendarioAgendamento')?.addEventListener('click', () => selecionarDataAgendamento(dataLocalAgendamento()));
@@ -1038,16 +1090,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       document.querySelector('#formEncerrar')?.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const botaoSubmit = event.currentTarget.querySelector('[type="submit"]');
+        const form = event.currentTarget;
+        const botaoSubmit = form.querySelector('[type="submit"]');
         botaoSubmit.disabled = true;
         try {
-          chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: new FormData(event.currentTarget).get('descricao_final') });
+          chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: new FormData(form).get('descricao_final') });
           atualizarTelaChamado();
           modalEncerrar?.classList.remove('active');
-          event.currentTarget.reset();
-          alert(chamado.email_enviado
-            ? 'Chamado resolvido e e-mail enviado ao cliente.'
-            : (chamado.aviso_email || 'Chamado resolvido. O e-mail não foi enviado.'));
+          form.reset();
+          mostrarNotificacao('Chamado resolvido com sucesso.');
+          if (!chamado.email_enviado && chamado.aviso_email) alert(chamado.aviso_email);
         } catch (error) {
           alert(`Não foi possível encerrar o chamado: ${error.message}`);
         } finally {
@@ -1056,8 +1108,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       document.querySelector('#salvarAgendamento')?.addEventListener('click', async () => {
         const data = campoAgendamento?.value.split('T')[0];
-        const hora = document.querySelector('#horaAgendamento')?.value;
-        if (!data || !hora) { document.querySelector('#horaAgendamento')?.reportValidity(); return; }
+        const campoHora = document.querySelector('#horaAgendamento');
+        const hora = campoHora?.value;
+        if (!data || !hora || !campoHora?.checkValidity()) { campoHora?.reportValidity(); return; }
         if (await executarAcao({ acao: 'agendar', data_agendada: `${data}T${hora}` }, 'Agendamento salvo.')) modalCalendario.hidden = true;
       });
       timerChamado = window.setInterval(() => {
@@ -1114,6 +1167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           cliente.contatos = resultado.contatos;
           renderizarContatosCliente();
           modalContato?.close();
+          mostrarNotificacao('Contato cadastrado com sucesso.');
         } catch (error) {
           if (mensagemContato) mensagemContato.textContent = `Não foi possível adicionar o contato: ${error.message}`;
         }
@@ -1141,6 +1195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           cliente = await atualizarCliente(cliente.id_usuario, { status: novoStatus });
           atualizarStatusCliente();
+          mostrarNotificacao(`Cliente ${novoStatus === 'ATIVO' ? 'ativado' : 'desativado'} com sucesso.`);
         } catch (error) { alert(`Não foi possível atualizar o status: ${error.message}`); }
       });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
@@ -1190,6 +1245,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const atualizado = await atualizarMembro(membro.id_grupo_solucionadores, { status: novoStatus });
           membro.status = atualizado.status;
           atualizarStatusMembro();
+          mostrarNotificacao(`Técnico ${novoStatus === 'ATIVO' ? 'ativado' : 'desativado'} com sucesso.`);
         } catch (error) { alert(`Não foi possível atualizar o status: ${error.message}`); }
       });
       setDetailText('membro-certificacoes', 'Não informado');

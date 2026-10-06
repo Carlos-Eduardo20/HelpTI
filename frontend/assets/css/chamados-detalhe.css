@@ -187,6 +187,9 @@
 
 /* Descrição e Histórico */
 .description-text { 
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     font-size: 14px; 
     line-height: 1.6; 
     color: var(--text-dark, #1E1B18); 
@@ -194,6 +197,9 @@
     padding: 16px; 
     border-radius: 8px; 
     border: 1px solid var(--border-color, #E2DCD0); 
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .timeline-list { 
@@ -256,6 +262,15 @@
 .badge-yellow { background: #FEF3C7; color: #D97706; }
 .badge-blue { background: #EFF6FF; color: #1D4ED8; }
 .badge-red { background: #FEE2E2; color: #DC2626; }
+
+#statusChamado.is-resolved {
+    display: inline-flex;
+    width: fit-content;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #DCFCE7;
+    color: #15803D;
+}
 
 #tempoChamado {
     display: inline-flex;
@@ -538,12 +553,13 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 10px;
+    padding: 4px 7px;
     border: 1px solid var(--border-color, #D1D5DB);
     border-radius: 6px;
     background: #FFFFFF;
     color: var(--text-dark, #1E1B18);
-    font: 600 12px var(--font-family-primary, sans-serif);
+    font: 600 11px var(--font-family-primary, sans-serif);
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -595,21 +611,26 @@
 
 .employee-contact-value {
     width: 100%;
-    padding: 2px 0;
-    border: 0;
-    border-radius: 3px;
-    background: transparent;
-    font-family: inherit;
+    min-height: 38px;
+    padding: 10px;
+    border: 1px solid var(--border-color, #E2DCD0);
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    color: var(--text-dark, #1E1B18);
+    font: 400 14px var(--font-family-primary, sans-serif);
+    line-height: 16px;
     text-align: left;
-    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .employee-contact-value:hover,
-.employee-contact-value:focus-visible {
-    color: var(--blue-700, #1D4ED8);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+.employee-contact-value:focus {
+    border-color: var(--blue-600, #2563EB);
+    box-shadow: 0 0 0 3px var(--blue-100, #EFF6FF);
 }
+
+.employee-contact-value::placeholder { color: var(--text-subtle, #8C847E); }
 
 .ticket-agenda-picker {
     width: 100%;
@@ -669,9 +690,11 @@
 .agenda-calendar-day.is-other-month { color: var(--text-subtle); }
 .agenda-calendar-day.is-today { border-color: var(--blue-600); }
 .agenda-calendar-day.is-selected { border-color: var(--blue-600); background: var(--blue-600); color: #FFFFFF; font-weight: 700; }
-.ticket-agenda-time-field { display: grid; gap: 6px; padding: 0 22px 14px; }
-.ticket-agenda-time-field label { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
-.ticket-agenda-time-field input { min-height: 38px; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-dark); font: 500 14px var(--font-family-primary); }
+.ticket-agenda-time-field { display: grid; gap: 8px; padding: 0 22px 14px; }
+.ticket-agenda-time-field label { color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.ticket-agenda-time-field input { width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--white); color: var(--text-dark); font: 500 14px var(--font-family-primary); }
+.ticket-agenda-time-field input:focus-visible { border-color: var(--blue-600); outline: none; box-shadow: 0 0 0 3px var(--blue-100); }
+.ticket-agenda-time-hint { color: var(--text-subtle); font-size: 11px; }
 .agenda-calendar-footer { display: flex; justify-content: space-between; padding: 13px 20px; border-top: 1px solid var(--border-color); background: var(--bg-beige-light); }
 .agenda-calendar-today, .agenda-calendar-confirm { border: 0; background: transparent; cursor: pointer; font: 700 12px var(--font-family-primary); }
 .agenda-calendar-today { color: var(--blue-700); }

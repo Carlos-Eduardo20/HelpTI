@@ -323,6 +323,10 @@ class TicketEmailTests(unittest.TestCase):
             )
             self.assertEqual(resolved.status_code, 200, resolved.get_json())
             self.assertTrue(resolved.get_json()['email_enviado'])
+            self.assertEqual(resolved.get_json()['status'], 'RESOLVIDO')
+            reports = self.client.get('/api/relatorios?periodo=todos')
+            self.assertEqual(reports.status_code, 200, reports.get_json())
+            self.assertEqual(reports.get_json()['total_resolvidos'], 1)
             self.assertEqual(smtp.call_count, 2)
 
     def test_ticket_is_saved_and_warning_returned_when_smtp_is_not_configured(self):

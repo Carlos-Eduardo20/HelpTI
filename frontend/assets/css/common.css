@@ -12,6 +12,37 @@ body {
   color: var(--text-primary, #111827);
 }
 
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 5000;
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.success-toast {
+  padding: 14px 18px;
+  border: 1px solid var(--green-dark, #15803D);
+  border-radius: 8px;
+  background: var(--green-light, #F0FDF4);
+  color: var(--green-dark, #15803D);
+  box-shadow: 0 8px 24px rgba(21, 128, 61, 0.14);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.success-toast.is-hiding {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
 .top-navbar {
   background-color: var(--card-bg, #FFFFFF);
   border-bottom: 1px solid var(--border-color, #E5E7EB);

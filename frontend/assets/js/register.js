@@ -1,3 +1,5 @@
+import { mostrarNotificacaoNaProximaPagina } from './notifications.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializa os ícones do Lucide
     if (window.lucide) {
@@ -39,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionStorage.setItem('grupoId', String(dados.id));
             sessionStorage.setItem('perfilNome', dados.nome);
             sessionStorage.setItem('empresaNome', dados.empresaNome);
+            mostrarNotificacaoNaProximaPagina('Conta criada com sucesso.');
             window.location.href = 'dashboard.html';
         } catch (error) {
             feedback.textContent = error.message;
