@@ -1,5 +1,9 @@
 import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
 import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina } from './notifications.js';
+import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
+
+initializePhoneInputs();
+initializeCnpjInputs();
 
 const loginExpiraEm = Number(localStorage.getItem('loginExpiraEm') || 0);
 if (localStorage.getItem('grupoId') && (!loginExpiraEm || loginExpiraEm <= Date.now())) {
@@ -95,7 +99,7 @@ function renderizarClientes(clientes) {
   if (!tabela) return;
   tabela.innerHTML = clientes.map((cliente) => {
     const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
-    return `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${cliente.cnpj || '-'}</td><td>${cliente.contato || '-'}</td><td>${cliente.telefone_empresa || cliente.telefone || '-'}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${cliente.id_usuario}" aria-label="Excluir cliente ${cliente.nome || ''}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
+    return `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${detailEscape(formatBrazilianCnpj(cliente.cnpj) || '-')}</td><td>${cliente.contato || '-'}</td><td>${cliente.telefone_empresa || cliente.telefone || '-'}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${cliente.id_usuario}" aria-label="Excluir cliente ${cliente.nome || ''}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
   }).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
 }
 
@@ -163,13 +167,13 @@ async function salvarCliente(event) {
   const contatos = [...form.querySelectorAll('[data-contato-row]')].map((linha) => ({
     email: linha.querySelector('[data-contato-email]').value.trim(),
     nome: linha.querySelector('[data-contato-nome]').value.trim(),
-    telefone: linha.querySelector('[data-contato-telefone]').value.trim()
+    telefone: formatBrazilianPhone(linha.querySelector('[data-contato-telefone]').value)
   }));
   const primeiroContato = contatos[0];
   const dados = {
     nome: form.elements.nome.value.trim(),
-    cnpj: form.elements.cnpj.value.trim(),
-    telefone_empresa: form.elements.telefone_empresa.value.trim(),
+    cnpj: formatBrazilianCnpj(form.elements.cnpj.value),
+    telefone_empresa: formatBrazilianPhone(form.elements.telefone_empresa.value),
     endereco: form.elements.endereco.value.trim(),
     email: primeiroContato.email,
     contato: primeiroContato.nome,
@@ -210,13 +214,7 @@ function resetarContatosCliente() {
 }
 
 function formatarTelefoneEmpresa(valor) {
-  const digitos = valor.replace(/\D/g, '').slice(0, 11);
-  if (digitos.length <= 2) return digitos ? `(${digitos}` : '';
-  const ddd = `(${digitos.slice(0, 2)}) `;
-  const tamanhoPrefixo = digitos[2] === '9' ? 5 : 4;
-  const numero = digitos.slice(2);
-  if (numero.length <= tamanhoPrefixo) return ddd + numero;
-  return `${ddd}${numero.slice(0, tamanhoPrefixo)}-${numero.slice(tamanhoPrefixo)}`;
+  return formatBrazilianPhone(valor);
 }
 
 async function carregarEquipe() {
@@ -502,7 +500,7 @@ async function salvarMembro(event) {
       email: form.elements.email.value.trim(),
       cargo: form.elements.cargo.value,
       permissoes: [...form.querySelectorAll('[name="permissoes"]:checked')].map((checkbox) => checkbox.value),
-      telefone: form.elements.telefone.value.trim(),
+      telefone: formatBrazilianPhone(form.elements.telefone.value),
       valor_hora: form.elements.valor_hora.value,
       id_setor: setor.id_setor,
       nivel: form.elements.nivel.value,
@@ -689,7 +687,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setDetailText(id, value) {
   const element = document.getElementById(id);
   if (!element) return;
-  if (element instanceof HTMLInputElement) element.value = value || '';
+  if (element instanceof HTMLInputElement) {
+    const text = value || '';
+    element.value = element.type === 'tel' && text !== 'Não informado'
+      ? formatBrazilianPhone(text)
+      : text;
+  }
   else element.textContent = value || '-';
 }
 
@@ -823,13 +826,18 @@ function iniciarEdicaoDetalhe(scope, registro) {
     const input = document.createElement('input');
     input.className = 'info-value detail-editing';
     input.id = campo.id;
-    input.value = valor;
+    input.value = campo.dataset.editField === 'cnpj' ? formatBrazilianCnpj(valor) : valor;
     input.dataset.editField = campo.dataset.editField;
+    if (campo.dataset.editField === 'cnpj') {
+      input.inputMode = 'numeric';
+      input.maxLength = 18;
+      input.pattern = '\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}';
+    }
     campo.replaceWith(input);
     input.addEventListener('keydown', async (event) => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      const dados = { [input.dataset.editField]: input.value.trim() };
+      const dados = { [input.dataset.editField]: input.dataset.editField === 'cnpj' ? formatBrazilianCnpj(input.value) : input.value.trim() };
       if (input.dataset.editField === 'valor_hora') dados.valor_hora = input.value.replace(/[^\d,.]/g, '').replace(',', '.') || null;
       if (input.dataset.editField === 'data_inicio') dados.data_inicio = input.value;
       if (scope === 'equipe' && input.dataset.editField === 'id_setor') {
@@ -843,7 +851,11 @@ function iniciarEdicaoDetalhe(scope, registro) {
         span.className = 'info-value';
         span.id = input.id;
         span.dataset.editField = input.dataset.editField;
-        span.textContent = input.dataset.editField === 'id_setor' ? (atualizado.setor_nome || input.value) : (atualizado[input.dataset.editField] || input.value);
+        span.textContent = input.dataset.editField === 'id_setor'
+          ? (atualizado.setor_nome || input.value)
+          : input.dataset.editField === 'cnpj'
+            ? formatBrazilianCnpj(atualizado.cnpj || input.value)
+            : (atualizado[input.dataset.editField] || input.value);
         input.replaceWith(span);
         mostrarNotificacao('Alterações salvas com sucesso.');
       } catch (error) { alert(`Não foi possível salvar: ${error.message}`); input.focus(); }
@@ -1127,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDetailText('cli-nome', cliente.nome);
       setDetailText('cli-breadcrumb', cliente.nome);
       setDetailText('cli-avatar', detailInitials(cliente.nome));
-      setDetailText('cli-cnpj', cliente.cnpj);
+      setDetailText('cli-cnpj', formatBrazilianCnpj(cliente.cnpj));
       setDetailText('cli-email', cliente.email);
       setDetailText('cli-telefone', cliente.telefone_empresa || cliente.telefone);
       setDetailText('cli-endereco', cliente.endereco);
@@ -1163,6 +1175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         event.preventDefault();
         const dados = Object.fromEntries(new FormData(formularioContato).entries());
         try {
+          dados.telefone = formatBrazilianPhone(dados.telefone);
           const resultado = await criarContatoCliente(cliente.id_usuario, dados);
           cliente.contatos = resultado.contatos;
           renderizarContatosCliente();

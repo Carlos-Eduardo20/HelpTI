@@ -292,7 +292,7 @@
 
         <div class="form-group">
           <label for="telefoneClienteChamado">Telefone da Empresa</label>
-          <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(00) 00000-0000" required
+          <input type="tel" id="telefoneClienteChamado" name="telefone_cliente" placeholder="(11) 12345-1234" required
             readonly>
         </div>
 
@@ -305,7 +305,7 @@
           <div class="form-group">
             <label for="telefoneFuncionarioChamado">Telefone do Funcionário</label>
             <input type="tel" id="telefoneFuncionarioChamado" name="telefone_contato"
-              placeholder="(00) 00000-0000" autocomplete="tel" required>
+              placeholder="(11) 12345-1234" inputmode="numeric" maxlength="15" pattern="\(\d{2}\) (\d{5}|\d{4})-\d{4}" autocomplete="tel" required>
           </div>
         </div>
 

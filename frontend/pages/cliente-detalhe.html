@@ -216,7 +216,7 @@
       <label for="novoContatoEmail">E-mail</label>
       <input id="novoContatoEmail" name="email" type="email" autocomplete="email" required>
       <label for="novoContatoTelefone">Telefone</label>
-      <input id="novoContatoTelefone" name="telefone" type="tel" autocomplete="tel" required>
+      <input id="novoContatoTelefone" name="telefone" type="tel" inputmode="numeric" maxlength="15" pattern="\(\d{2}\) (\d{5}|\d{4})-\d{4}" placeholder="(11) 12345-1234" autocomplete="tel" required>
       <p class="contact-modal-message" id="mensagemContatoCliente" role="alert"></p>
       <div class="contact-modal-actions">
         <button type="button" class="contact-modal-cancel" id="cancelarContatoCliente">Cancelar</button>

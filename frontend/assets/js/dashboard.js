@@ -1,5 +1,6 @@
 import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
 import { mostrarNotificacao } from './notifications.js';
+import { formatBrazilianPhone } from './phone.js';
 
 let chamadosEmMemoria = [];
 let agendaPagina = 0;
@@ -369,7 +370,7 @@ function selecionarClienteChamado(cliente) {
   campoBusca.value = cliente.nome || '';
   campoCliente.value = cliente.nome || '';
   if (campoEmail) campoEmail.value = cliente.email || '';
-  if (campoTelefone) campoTelefone.value = cliente.telefone || '';
+  if (campoTelefone) campoTelefone.value = formatBrazilianPhone(cliente.telefone || '');
   const campoContato = document.querySelector('#funcionarioSearchInput');
   if (campoContato) campoContato.value = cliente.contato || '';
   document.querySelector('#clienteDropdownList')?.classList.add('hidden');
@@ -554,9 +555,9 @@ async function salvarChamado(event) {
     await criarChamado({
       cliente: campos.cliente.value.trim(),
       email_cliente: campos.email_cliente.value.trim(),
-      telefone_cliente: campos.telefone_cliente.value.trim(),
+      telefone_cliente: formatBrazilianPhone(campos.telefone_cliente.value),
       contato_cliente: campos.contato_cliente.value.trim(),
-      telefone_contato: campos.telefone_contato.value.trim(),
+      telefone_contato: formatBrazilianPhone(campos.telefone_contato.value),
       id_setor: campos.id_setor.value,
       id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
       descricao: campos.descricao.value.trim()
