@@ -5,11 +5,11 @@
 	align-items: center;
 	gap: 6px;
 	font-size: 13px;
-	color: var(--text-subtle, #8C847E);
+	color: var(--text-subtle, var(--palette-8c847e));
 }
 
 .breadcrumb-trail a {
-	color: var(--blue-600, #2563EB);
+	color: var(--blue-600, var(--palette-2563eb));
 	text-decoration: none;
 }
 
@@ -39,15 +39,15 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: #FFFFFF;
-	color: #111827;
+	background: var(--card-bg);
+	color: var(--text-primary);
 	border: none;
 }
 
 .detail-edit-button:hover {
-	background: #EFF6FF;
-	border-color: #2563EB;
-	color: #1D4ED8;
+	background: var(--blue-100);
+	border-color: var(--blue-600);
+	color: var(--blue-700);
 }
 
 .detail-edit-button svg {
@@ -57,32 +57,32 @@
 
 .detail-danger-button {
 	width: 100%;
-	background: #DC2626;
-	border: 1px solid #B91C1C;
-	color: #FFFFFF;
+	background: var(--red-dark);
+	border: 1px solid var(--palette-b91c1c);
+	color: var(--white);
 }
 
 .detail-danger-button:hover {
-	background: #B91C1C;
+	background: var(--palette-b91c1c);
 }
 
 .detail-danger-button.is-activate {
-	background: #15803D;
-	border-color: #166534;
+	background: var(--green-dark);
+	border-color: var(--palette-166534);
 }
 
 .detail-danger-button.is-activate:hover {
-	background: #166534;
+	background: var(--palette-166534);
 }
 
 .info-value.detail-editing {
 	width: 100%;
 	min-height: 32px;
 	padding: 6px 8px;
-	border: 1px solid #9CA3AF;
+	border: 1px solid var(--text-subtle);
 	border-radius: 5px;
 	font: inherit;
-	color: var(--text-dark, #1E1B18);
+	color: var(--text-dark, var(--palette-1e1b18));
 }
 
 .client-detail-grid {
@@ -98,7 +98,7 @@
 	align-items: center;
 	gap: 14px;
 	padding-bottom: 16px;
-	border-bottom: 1px solid var(--border-color, #E2DCD0);
+	border-bottom: 1px solid var(--border-color, var(--palette-e2dcd0));
 	margin-bottom: 16px;
 }
 
@@ -106,8 +106,8 @@
 	width: 48px;
 	height: 48px;
 	border-radius: 8px;
-	background-color: var(--blue-100, #EFF6FF);
-	color: var(--blue-600, #2563EB);
+	background-color: var(--blue-100, var(--palette-eff6ff));
+	color: var(--blue-600, var(--palette-2563eb));
 	font-weight: 700;
 	display: flex;
 	align-items: center;
@@ -156,13 +156,13 @@
 	font-size: 10px;
 	font-weight: 700;
 	letter-spacing: 0.05em;
-	color: var(--text-subtle, #8C847E);
+	color: var(--text-subtle, var(--palette-8c847e));
 	text-transform: uppercase;
 }
 
 .info-value {
 	font-size: 13px;
-	color: var(--text-dark, #1E1B18);
+	color: var(--text-dark, var(--palette-1e1b18));
 	font-weight: 500;
 }
 
@@ -180,8 +180,8 @@
 }
 
 .stat-box {
-	background-color: var(--bg-beige-light, #FAF8F5);
-	border: 1px solid var(--border-color, #E2DCD0);
+	background-color: var(--bg-beige-light, var(--palette-faf8f5));
+	border: 1px solid var(--border-color, var(--palette-e2dcd0));
 	border-radius: 8px;
 	padding: 16px;
 	display: flex;
@@ -193,14 +193,14 @@
 	font-size: 10px;
 	font-weight: 700;
 	letter-spacing: 0.05em;
-	color: var(--text-subtle, #8C847E);
+	color: var(--text-subtle, var(--palette-8c847e));
 	text-transform: uppercase;
 }
 
 .stat-box-number {
 	font-size: 18px;
 	font-weight: 700;
-	color: var(--text-dark, #1E1B18);
+	color: var(--text-dark, var(--palette-1e1b18));
 }
 
 .skills-tags-container {
@@ -211,9 +211,9 @@
 }
 
 .skill-tag {
-	background-color: var(--blue-100, #EFF6FF);
-	color: var(--blue-600, #2563EB);
-	border: 1px solid var(--blue-200, #DBEAFE);
+	background-color: var(--blue-100, var(--palette-eff6ff));
+	color: var(--blue-600, var(--palette-2563eb));
+	border: 1px solid var(--blue-200, var(--palette-dbeafe));
 	border-radius: 20px;
 	padding: 6px 14px;
 	font-size: 12px;
@@ -221,23 +221,23 @@
 }
 
 .badge-green {
-	background: #DCFCE7;
-	color: #15803D;
+	background: var(--green-badge-bg);
+	color: var(--green-dark);
 }
 
 .badge-yellow {
-	background: #FEF3C7;
-	color: #D97706;
+	background: var(--yellow-light);
+	color: var(--orange-dark);
 }
 
 .badge-blue {
-	background: #EFF6FF;
-	color: #1D4ED8;
+	background: var(--blue-100);
+	color: var(--blue-700);
 }
 
 .badge-red {
-	background: #FEE2E2;
-	color: #DC2626;
+	background: var(--red-badge-bg);
+	color: var(--red-dark);
 }
 
 @media (max-width: 900px) {

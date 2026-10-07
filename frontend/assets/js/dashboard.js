@@ -1,4 +1,5 @@
 import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
+import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao } from './notifications.js';
 import { formatBrazilianPhone } from './phone.js';
 
@@ -53,14 +54,14 @@ function atualizarSlasVisiveis() {
 async function atualizarPerfil() {
   let nome = localStorage.getItem('workspaceName') || localStorage.getItem('perfilNome') || sessionStorage.getItem('perfilNome') || 'Usuário';
   document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
-  document.querySelectorAll('.user-avatar img').forEach((image) => image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`);
+  document.querySelectorAll('.user-avatar img').forEach((image) => { image.src = gerarUrlAvatar(nome); });
   try {
     const configuracoes = await buscarConfiguracoes();
     nome = configuracoes.workspaceName || nome;
     localStorage.setItem('workspaceName', nome);
     localStorage.setItem('supportEmail', configuracoes.supportEmail || '');
     document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
-    document.querySelectorAll('.user-avatar img').forEach((image) => image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`);
+    document.querySelectorAll('.user-avatar img').forEach((image) => { image.src = gerarUrlAvatar(nome); });
   } catch (error) {
   }
 }

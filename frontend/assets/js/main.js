@@ -1,4 +1,5 @@
 import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
+import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina } from './notifications.js';
 import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
 
@@ -36,10 +37,46 @@ function mostrarPerfil() {
   const empresa = localStorage.getItem('empresaNome') || sessionStorage.getItem('empresaNome') || 'HelpTI';
   document.querySelectorAll('.brand-name').forEach((element) => element.textContent = empresa);
   document.querySelectorAll('.user-role').forEach((element) => element.textContent = nome);
-  document.querySelectorAll('.user-avatar img').forEach((image) => {
-    image.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=E5E7EB&color=374151`;
-  });
+  document.querySelectorAll('.user-avatar img').forEach((image) => { image.src = gerarUrlAvatar(nome); });
 }
+
+function configurarTema() {
+  const root = document.documentElement;
+  const temaInicial = localStorage.getItem('helpti-theme') === 'dark' ? 'dark' : 'light';
+  root.dataset.theme = temaInicial;
+
+  const perfil = document.querySelector('.user-profile-wrapper');
+  if (!perfil?.parentNode) return;
+
+  const controles = document.createElement('div');
+  controles.className = 'user-controls';
+  perfil.parentNode.insertBefore(controles, perfil);
+  controles.append(perfil);
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'theme-toggle';
+  botao.addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('helpti-theme', root.dataset.theme);
+    atualizarBotaoTema();
+  });
+
+  function atualizarBotaoTema() {
+    const temaEscuro = root.dataset.theme === 'dark';
+    botao.setAttribute('aria-label', temaEscuro ? 'Ativar modo claro' : 'Ativar modo escuro');
+    botao.setAttribute('aria-pressed', String(temaEscuro));
+    botao.title = temaEscuro ? 'Ativar modo claro' : 'Ativar modo escuro';
+    botao.innerHTML = temaEscuro
+      ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.42 1.42"/><path d="m17.65 17.65 1.42 1.42"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.35 17.65-1.42 1.42"/><path d="m19.07 4.93-1.42 1.42"/></svg>'
+      : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6.5 6.5 0 0 0 8.268 8.268c.344-.215.825-.003.803.401"/></svg>';
+  }
+
+  atualizarBotaoTema();
+  controles.append(botao);
+}
+
+configurarTema();
 
 let clientesEmMemoria = [];
 let chamadosEmMemoria = [];

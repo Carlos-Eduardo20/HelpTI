@@ -1,7 +1,7 @@
 import { buscarRelatorios } from './api.js';
 
 const nomesPeriodo = { todos: 'Todos os períodos', dia: 'Hoje', mes: 'Este mês' };
-const coresClassificacao = ['#10B981', '#2563EB', '#1E3A8A', '#F59E0B', '#DB2777', '#0891B2'];
+const coresClassificacao = ['var(--green-main)', 'var(--blue-600)', 'var(--navy-main)', 'var(--orange-main)', 'var(--pink-main)', 'var(--cyan-main)'];
 
 function atualizarGraficoClassificacao(classificacoes = []) {
   const total = classificacoes.reduce((soma, item) => soma + Number(item.total || 0), 0);
@@ -11,7 +11,7 @@ function atualizarGraficoClassificacao(classificacoes = []) {
   legenda.replaceChildren();
 
   if (!total) {
-    anel.style.background = 'conic-gradient(#E5E7EB 0% 100%)';
+    anel.style.background = 'conic-gradient(var(--border-color) 0% 100%)';
     const vazio = document.createElement('span');
     vazio.className = 'empty-legend';
     vazio.textContent = 'Sem chamados no período';

@@ -12,14 +12,14 @@
     align-items: center;
     gap: 32px;
     padding: 36px;
-    border: 1px solid #DDE5E8;
+    border: 1px solid var(--border-color);
     border-radius: 12px;
-    background: linear-gradient(120deg, #F0F9FA 0%, #FFFFFF 62%, #FFF7E7 100%);
+    background: linear-gradient(120deg, var(--palette-f0f9fa) 0%, var(--card-bg) 62%, var(--palette-fff7e7) 100%);
 }
 
 .eyebrow {
     margin-bottom: 10px;
-    color: #0F766E;
+    color: var(--palette-0f766e);
     font-size: 11px;
     font-weight: 800;
     letter-spacing: .12em;
@@ -28,7 +28,7 @@
 
 .education-intro h1 {
     max-width: 650px;
-    color: #16323A;
+    color: var(--text-primary);
     font-family: var(--font-family-secondary);
     font-size: clamp(30px, 4vw, 52px);
     font-weight: 600;
@@ -38,7 +38,7 @@
 .intro-copy {
     max-width: 570px;
     margin-top: 16px;
-    color: #587078;
+    color: var(--text-secondary);
     font-size: 16px;
     line-height: 1.6;
 }
@@ -50,9 +50,9 @@
     min-width: 150px;
     height: 130px;
     padding: 20px;
-    border: 1px solid #B8D9D9;
+    border: 1px solid var(--palette-b8d9d9);
     border-radius: 50%;
-    background: #E5F4F1;
+    background: var(--palette-e5f4f1);
     transform: rotate(-12deg);
 }
 
@@ -60,22 +60,22 @@
     display: block;
     width: 28px;
     border-radius: 4px 4px 0 0;
-    background: #0F766E;
+    background: var(--palette-0f766e);
 }
 
 .intro-mark span:nth-child(1) {
     height: 42px;
-    background: #2563EB;
+    background: var(--blue-600);
 }
 
 .intro-mark span:nth-child(2) {
     height: 78px;
-    background: #F59E0B;
+    background: var(--orange-main);
 }
 
 .intro-mark span:nth-child(3) {
     height: 58px;
-    background: #10B981;
+    background: var(--green-main);
 }
 
 .education-grid {
@@ -88,56 +88,56 @@
 .lesson-card {
     min-height: 220px;
     padding: 24px;
-    border: 1px solid #DDE5E8;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    background: #FFFFFF;
+    background: var(--card-bg);
 }
 
 .lesson-featured {
     grid-row: span 2;
-    background: #173F46;
-    color: #FFFFFF;
+    background: var(--palette-173f46);
+    color: var(--white);
 }
 
 .lesson-number {
-    color: #0F766E;
+    color: var(--palette-0f766e);
     font-size: 12px;
     font-weight: 800;
     letter-spacing: .1em;
 }
 
 .lesson-featured .lesson-number {
-    color: #8EE0D0;
+    color: var(--palette-8ee0d0);
 }
 
 .lesson-card h2 {
     margin-top: 34px;
-    color: #16323A;
+    color: var(--text-primary);
     font-family: var(--font-family-secondary);
     font-size: 23px;
     font-weight: 600;
 }
 
 .lesson-featured h2 {
-    color: #FFFFFF;
+    color: var(--white);
 }
 
 .lesson-card p {
     margin-top: 12px;
-    color: #667980;
+    color: var(--text-secondary);
     font-size: 14px;
     line-height: 1.6;
 }
 
 .lesson-featured p {
-    color: #C6D8D9;
+    color: var(--palette-c6d8d9);
 }
 
 .lesson-card a {
     display: inline-flex;
     gap: 8px;
     margin-top: 24px;
-    color: #2563EB;
+    color: var(--blue-600);
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
@@ -156,18 +156,18 @@
     align-items: center;
     gap: 8px;
     margin-top: 36px;
-    color: #A9DCD5;
+    color: var(--palette-a9dcd5);
     font-size: 12px;
 }
 
 .pipeline span {
     padding: 8px 10px;
-    border: 1px solid #4D7778;
+    border: 1px solid var(--palette-4d7778);
     border-radius: 5px;
 }
 
 .pipeline i {
-    color: #F5B942;
+    color: var(--palette-f5b942);
     font-style: normal;
 }
 
@@ -177,11 +177,11 @@
     gap: 24px;
     margin-top: 22px;
     padding: 28px;
-    border-top: 1px solid #DDE5E8;
+    border-top: 1px solid var(--border-color);
 }
 
 .glossary h2 {
-    color: #16323A;
+    color: var(--text-primary);
     font-family: var(--font-family-secondary);
     font-size: 24px;
     font-weight: 600;
@@ -195,20 +195,20 @@
 
 .glossary-list div {
     padding: 16px;
-    border-left: 3px solid #F5B942;
-    background: #FFFDF7;
+    border-left: 3px solid var(--palette-f5b942);
+    background: var(--palette-fffdf7);
 }
 
 .glossary-list strong {
     display: block;
-    color: #16323A;
+    color: var(--text-primary);
     font-size: 14px;
 }
 
 .glossary-list span {
     display: block;
     margin-top: 6px;
-    color: #667980;
+    color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.5;
 }
@@ -268,23 +268,23 @@
 }
 
 .card-torre, .card-diagnostico {
-    background: #FFFFFF;
-    border: 1px solid #E2DCD0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px var(--palette-rgba-0-0-0-0-04);
 }
 
 .card-torre h3, .card-diagnostico h3 {
     font-size: 16px;
     font-weight: 700;
-    color: #1E1B18;
+    color: var(--text-dark);
     margin-bottom: 16px;
 }
 
 .legenda-instrucao {
     font-size: 12px;
-    color: #6B7280;
+    color: var(--text-secondary);
     margin-top: 12px;
     text-align: center;
 }
@@ -295,26 +295,26 @@
     align-items: center;
     justify-content: center;
     height: 300px;
-    color: #9CA3AF;
+    color: var(--text-subtle);
     text-align: center;
 }
 
 .diagnostico-info h4 {
     font-size: 18px;
-    color: #1E1B18;
+    color: var(--text-dark);
     margin-bottom: 12px;
 }
 
 .diagnostico-info h5 {
     font-size: 14px;
-    color: #EF4444;
+    color: var(--red-main);
     margin-top: 16px;
     margin-bottom: 6px;
 }
 
 .diagnostico-info p {
     font-size: 13px;
-    color: #4B5563;
+    color: var(--text-secondary);
     line-height: 1.5;
 }
 
