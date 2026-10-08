@@ -22,4 +22,4 @@ USER help-ti
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--workers", "1", "--threads", "4", "--bind", "0.0.0.0:5000", "wsgi:app"]
+CMD ["sh", "-c", "exec gunicorn --workers ${WEB_CONCURRENCY:-2} --threads ${GUNICORN_THREADS:-4} --timeout 60 --access-logfile - --bind 0.0.0.0:${PORT:-5000} wsgi:app"]

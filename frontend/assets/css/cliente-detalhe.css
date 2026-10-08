@@ -112,6 +112,17 @@
 	gap: 12px;
 }
 
+.assets-empty {
+	grid-column: 1 / -1;
+	margin: 0;
+	padding: 24px 12px;
+	border: 1px dashed var(--border-color, var(--palette-e2dcd0));
+	border-radius: 8px;
+	color: var(--text-muted, var(--palette-5c5650));
+	font-size: 13px;
+	text-align: center;
+}
+
 .asset-item {
 	background-color: var(--bg-beige-light, var(--palette-faf8f5));
 	border: 1px solid var(--border-color, var(--palette-e2dcd0));

@@ -64,6 +64,13 @@
           </div>
 
           <button type="submit" class="btn-login">Entrar</button>
+
+          <div class="login-divider" aria-hidden="true"><span>ou</span></div>
+          <a class="btn-microsoft-login" href="/auth/microsoft">
+            <span class="microsoft-logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            Entrar com Microsoft
+          </a>
+          <p class="login-feedback" id="loginFeedback" role="status" aria-live="polite"></p>
         
         </form>
 
@@ -77,7 +84,8 @@
 
   </div>
 
-  <script>
+  <script type="module">
+    import { comCarregamento, mostrarErro } from '../assets/js/notifications.js';
     const DURACAO_LOGIN_DIAS = 30;
     let verificacaoSessaoLembrada;
 
@@ -131,10 +139,23 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+      if (await continuarLoginMicrosoft()) return;
       limparSessaoExpirada();
       if (await abrirSessaoLembrada()) return;
       limparEstadoBotao();
       limparCamposLogin();
+      const errosMicrosoft = {
+        microsoft_nao_configurado: 'O acesso Microsoft ainda não foi configurado pelo administrador.',
+        microsoft_cancelado: 'A autenticação Microsoft foi cancelada ou não autorizada.',
+        microsoft_identidade_invalida: 'A Microsoft não retornou um endereço de e-mail válido.',
+        microsoft_sem_conta: 'Crie e confirme primeiro sua conta HelpTI com o mesmo e-mail.',
+        microsoft_conta_vinculada: 'Esta conta já está vinculada a outra identidade Microsoft.',
+        conta_inativa: 'Esta conta está inativa.'
+      };
+      const codigoErro = new URLSearchParams(window.location.search).get('erro');
+      if (errosMicrosoft[codigoErro]) {
+        document.getElementById('loginFeedback').textContent = errosMicrosoft[codigoErro];
+      }
     });
     window.addEventListener('pageshow', async (event) => {
       if (event.persisted) verificacaoSessaoLembrada = undefined;
@@ -143,15 +164,34 @@
       limparCamposLogin();
     });
 
-    async function realizarLogin(event) {
+    async function continuarLoginMicrosoft() {
+      if (new URLSearchParams(window.location.search).get('microsoft') !== 'ok') return false;
+      const feedback = document.getElementById('loginFeedback');
+      try {
+        const response = await fetch(`${window.location.origin}/api/sessao`, {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('Não foi possível confirmar a sessão Microsoft.');
+        const dados = await response.json();
+        sessionStorage.setItem('grupoId', String(dados.id));
+        sessionStorage.setItem('perfilNome', dados.nome || '');
+        sessionStorage.setItem('empresaNome', dados.empresaNome || 'HelpTI');
+        window.location.replace('dashboard.html');
+      } catch (error) {
+        feedback.textContent = error.message;
+      }
+      return true;
+    }
+
+    window.realizarLogin = async function realizarLogin(event) {
       event.preventDefault();
       const email = document.getElementById('email').value.trim();
       const senha = document.getElementById('password').value;
       const lembrar = document.getElementById('remember').checked;
       const botao = event.target.querySelector('button[type="submit"]');
 
-      botao.disabled = true;
-      botao.textContent = 'Verificando...';
+      await comCarregamento(botao, async () => {
       try {
         const response = await fetch(`${window.location.origin}/api/login`, {
           method: 'POST',
@@ -181,11 +221,10 @@
         }
         window.location.href = 'dashboard.html';
       } catch (error) {
-        alert(error.message);
-        botao.disabled = false;
-        botao.textContent = 'Entrar';
+        mostrarErro(error.message);
       }
-    }
+      }, 'Verificando...');
+    };
   </script>
 
 </body>

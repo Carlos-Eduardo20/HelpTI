@@ -156,6 +156,66 @@ body, html {
   background-color: var(--blue-700);
 }
 
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--border-color);
+}
+
+.btn-microsoft-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn-microsoft-login:hover {
+  background: var(--bg-beige-light);
+}
+
+.microsoft-logo {
+  display: grid;
+  grid-template-columns: repeat(2, 9px);
+  grid-template-rows: repeat(2, 9px);
+  gap: 2px;
+}
+
+.microsoft-logo i:nth-child(1) { background: #f25022; }
+.microsoft-logo i:nth-child(2) { background: #7fba00; }
+.microsoft-logo i:nth-child(3) { background: #00a4ef; }
+.microsoft-logo i:nth-child(4) { background: #ffb900; }
+
+.login-feedback {
+  margin: 12px 0 0;
+  color: var(--red-dark);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.login-feedback:empty { display: none; }
+
 .form-footer {
   margin-top: 24px;
   text-align: center;

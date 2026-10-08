@@ -117,6 +117,25 @@
   line-height: 1.4;
 }
 
+.resend-code-button,
+.edit-registration-button {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue-600);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resend-code-button:disabled,
+.edit-registration-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 /* Botão de Cadastro */
 .btn-primary-auth {
   width: 100%;

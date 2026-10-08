@@ -46,12 +46,14 @@ Respondendo `N`, o app inicia outra base vazia, separada da demonstração, para
 | `cliente` | `id_cliente INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK); `nome`, `email`, `telefone TEXT NOT NULL`. Contatos associados a uma empresa. |
 | `tipo_chamado` | `id_tipo_chamado INTEGER` (PK); `nome TEXT NOT NULL`; `classificacao`, `descricao TEXT`. Os tipos iniciais são Suporte Geral, Hardware, Software e Rede. |
 | `setor` | `id_setor INTEGER` (PK); `nome TEXT NOT NULL UNIQUE`; `descricao TEXT`; `niveis TEXT` (JSON). |
-| `grupo_solucionadores` | `id_grupo_solucionadores INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK do workspace); `descricao`, `nome`, `email`, `cargo`, `telefone TEXT`; `nivel INTEGER`; `data_inicio`, `data_fim TEXT`; `valor_hora NUMERIC`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `senha TEXT NOT NULL DEFAULT ''`; `permissoes TEXT NOT NULL DEFAULT '[]'` (JSON); `id_setor INTEGER` (FK opcional). Apesar do nome legado, representa administradores e funcionários da equipe. |
+| `grupo_solucionadores` | `id_grupo_solucionadores INTEGER` (PK); `id_usuario INTEGER NOT NULL` (FK do workspace); `descricao`, `nome`, `email`, `cargo`, `telefone TEXT`; `nivel INTEGER`; `data_inicio`, `data_fim TEXT`; `valor_hora NUMERIC`; `status TEXT NOT NULL DEFAULT 'ATIVO'`; `email_verificado INTEGER NOT NULL DEFAULT 1`; `senha TEXT NOT NULL DEFAULT ''`; `permissoes TEXT NOT NULL DEFAULT '[]'` (JSON); `id_setor INTEGER` (FK opcional). Apesar do nome legado, representa administradores e funcionários da equipe. |
 | `chamado` | `id_chamado INTEGER` (PK); `id_tipo_chamado INTEGER NOT NULL` (FK); `id_setor`, `id_grupo_solucionadores INTEGER` (FKs opcionais); `status TEXT NOT NULL DEFAULT 'ABERTO'`; `cliente TEXT NOT NULL`; `assunto`, `descricao`, `email_cliente`, `telefone_cliente`, `contato_cliente`, `telefone_contato`, `descricao_final`, `documentacao`, `tempo_inicio`, `data_agendada`, `hora_agendada`, `classificacao TEXT`; `tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0`; `data_abertura TEXT NOT NULL` (data/hora local). |
 | `escalonamento` | `id_escalonamento INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `motivo TEXT`; `nivel INTEGER`; `id_setor_destino`, `id_grupo_destino INTEGER` (FKs opcionais); `data_escalonamento TEXT`. |
 | `historico_chamado` | `id_historico INTEGER` (PK); `id_chamado INTEGER NOT NULL` (FK); `evento`, `descricao`, `data_evento TEXT NOT NULL`. Mantém a timeline de abertura, início, pausa, escalonamento, encerramento e alterações. |
 | `configuracao` | `id_configuracao INTEGER` (PK); `workspace_name`, `support_email TEXT NOT NULL`. Guarda as configurações gerais do workspace. |
 | `codigo_recuperacao_senha` | Código de recuperação armazenado como hash, com validade, contador de tentativas e marca de uso único; expira após 10 minutos. |
+| `verificacao_cadastro_email` | Cadastro ainda pendente com hash da senha e do código de confirmação; código descartável de seis dígitos, validade de 10 minutos e limite de tentativas. |
+| `identidade_microsoft` | Vínculo único da conta HelpTI confirmada à identidade OpenID Connect Microsoft (`tenant_id` + `object_id`), sem armazenar senha Microsoft. |
 
 ### Diagrama entidade-relacionamento
 
@@ -204,7 +206,17 @@ No modelo conceitual do case, o setor fica registrado como atributo do grupo sol
 
 Cada clone ou Codespace recebe o mesmo esquema e a mesma conta de teste vazia. Depois disso, as alterações feitas em uma máquina não são sincronizadas com as outras: compartilhar o login não compartilha o banco local. Para trabalhar sobre os mesmos registros, todos precisariam acessar uma única instalação hospedada e seu banco central, o que é diferente do fluxo isolado descrito neste projeto. Não coloque arquivos SQLite, `.env` ou credenciais no Git. O `.gitignore` já mantém esses arquivos locais fora do repositório, enquanto os scripts `.sql` permanecem versionados.
 
-Em uma instalação sem workspace, o primeiro cadastro cria a empresa e a conta administradora. Depois que existe um workspace, o cadastro público é recusado; o administrador deve criar os outros acessos pela área Equipe. O primeiro cadastro de uma instalação nova deve ser feito e validado antes de publicar o endereço do site. Cada instalação representa somente um workspace; não use a mesma instalação para empresas diferentes. O cookie de sessão é assinado por uma chave local em `instance/`, persistida no volume quando executado via Docker.
+Em uma instalação sem workspace, o primeiro cadastro envia um código ao e-mail informado; somente depois de confirmar o código o sistema cria a empresa e a conta administradora. Isso demonstra acesso à caixa postal, não faz uma consulta que prove que qualquer endereço existe. Depois que existe um workspace, o cadastro público é recusado; o administrador deve criar os outros acessos pela área Equipe. O primeiro cadastro de uma instalação nova deve ser feito e validado antes de expor o endereço público. Cada instalação representa somente um workspace; não use a mesma instalação para empresas diferentes. O cookie de sessão é assinado por uma chave local em `instance/`, persistida no volume quando executado via Docker.
+
+### Tipos de conta e confirmação do e-mail
+
+- **Outlook pessoal:** endereços Outlook.com, Hotmail e Live podem ser usados no cadastro e receber o código de confirmação. Depois de confirmar o cadastro, a pessoa também pode usar **Entrar com Microsoft**.
+- **E-mail empresarial:** endereços de domínio próprio, incluindo Microsoft 365 e outros provedores empresariais, podem ser usados no cadastro e verificados pelo código enviado à caixa postal. Gmail e Yahoo continuam bloqueados no cadastro inicial.
+- **Entrar com Microsoft:** o botão usa OpenID Connect da Microsoft e aceita contas pessoais Microsoft e contas corporativas/escolares Microsoft Entra ID, desde que o aplicativo Microsoft do HelpTI esteja configurado. No primeiro acesso, a identidade Microsoft é vinculada a uma conta HelpTI já cadastrada e com o mesmo e-mail confirmado. Contas de outros provedores continuam usando e-mail e senha do HelpTI.
+
+O código é aleatório, expira em 10 minutos e só pode ser usado uma vez; há limite de tentativas e intervalo entre reenvios. Se não houver SMTP configurado, um cadastro novo falha claramente e não cria a empresa. Configure um provedor SMTP autorizado antes do cadastro. A senha enviada ao HelpTI é armazenada como hash; ela não é a senha do Outlook. O HelpTI não consulta a existência de endereços por fora nem acessa a caixa postal: somente quem recebe o código consegue provar que a controla.
+
+Para ativar a entrada Microsoft, registre o aplicativo no Microsoft Entra ID, habilite a plataforma **Web**, configure contas organizacionais e pessoais Microsoft, cadastre o URI de retorno `/auth/microsoft/callback` e informe `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID=common` e `MICROSOFT_REDIRECT_URI` no ambiente. O URI cadastrado precisa ser idêntico ao endereço externo do aplicativo, inclusive `https://` e caminho. Em desenvolvimento, use `http://localhost:5000/auth/microsoft/callback`; em hospedagem, use o domínio HTTPS publicado. Nunca coloque o segredo do aplicativo no Git ou no Dockerfile.
 
 A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criação/edição de funcionários e setores. Quem tem acesso a Chamados também recebe leituras auxiliares limitadas de clientes, técnicos e setores para preencher chamados; isso não libera as páginas de Clientes ou Equipe nem operações de escrita nesses módulos.
 
@@ -219,17 +231,24 @@ O projeto roda com um único processo. O Flask serve as páginas do frontend, di
 1. Instale Python 3.8 ou superior.
 2. Clone ou copie o projeto para o computador.
 3. Abra o projeto no VS Code e abra um terminal na raiz da pasta `HelpTI`.
-4. Instale as dependências no Python disponível no sistema, sem criar ou ativar `.venv`:
+4. Crie um ambiente virtual e instale nele as dependências do projeto:
 
 ```powershell
-python -m pip install -r backend\requirements.txt
+python -m venv .venv
+& ".\.venv\Scripts\python.exe" -m pip install -r backend\requirements.txt
 ```
 
-5. Não é necessário criar o banco nem configurar `DB_*` no `.env`. Ao executar `python app.py`, escolha `S` para a conta de demonstração ou `N` para criar uma empresa; o SQLite e as tabelas são inicializados automaticamente.
+5. Inicie com o mesmo interpretador que recebeu as dependências:
 
-O arquivo `backend/.env` é opcional e local; use-o para as configurações `SMTP_*`. Com SMTP configurado, o HelpTI envia uma confirmação quando um chamado é aberto ou resolvido e também um código de recuperação de senha. O código expira em 10 minutos, pode ser usado uma vez e aceita no máximo cinco tentativas. A conta de teste usa `test@helpiti.com`, que é um endereço demonstrativo, não uma caixa postal real; redefina a senha de uma conta com email ao qual você tenha acesso. Sem SMTP, o chamado continua sendo salvo, mas email e recuperação de senha não serão enviados. Receber emails e convertê-los em chamados ainda não está implementado. Nunca envie credenciais ao Git.
+```powershell
+& ".\.venv\Scripts\python.exe" app.py
+```
 
-Para configurar SMTP, copie `backend/.env.example` para `backend/.env` e preencha os campos com os dados fornecidos pelo seu provedor de email. Use a senha de aplicativo quando o provedor exigir; não coloque sua senha pessoal no Git. O envio deve ser testado com uma conta de email autorizada pelo provedor.
+   Se preferir executar `python app.py`, primeiro ative o ambiente com `.\.venv\Scripts\Activate.ps1` e confirme que `python` aponta para `.venv`. Não é necessário criar o banco nem configurar `DB_*` no `.env`; o SQLite e as tabelas são inicializados automaticamente.
+
+O arquivo `backend/.env` é opcional e local; use-o para as configurações `SMTP_*` e Microsoft. Com SMTP configurado, o HelpTI envia o código obrigatório para confirmar um cadastro, códigos de recuperação de senha e avisos de chamados. O código de confirmação expira em 10 minutos, pode ser usado uma vez e aceita no máximo cinco tentativas. A conta de teste usa `test@helpiti.com`, que é um endereço demonstrativo, não uma caixa postal real; ela continua funcionando sem verificação de e-mail. Sem SMTP, o chamado continua sendo salvo, mas cadastro, recuperação de senha e envio de avisos não funcionam. Receber emails e convertê-los em chamados ainda não está implementado. Nunca envie credenciais ao Git.
+
+Para executar diretamente com Python, copie `backend/.env.example` para `backend/.env` e preencha os campos com os dados fornecidos pelo seu provedor de email. Use uma credencial SMTP autorizada (não sua senha pessoal) e teste com uma caixa à qual você tenha acesso. Para executar com Docker Compose, use o `.env.example` da raiz como modelo para o `.env` da raiz; o Compose lê esse arquivo e passa as configurações ao container.
 
 ### Iniciar o projeto
 
@@ -259,7 +278,7 @@ Se responder `S`, abra `http://127.0.0.1:5000/` e entre com `test@helpiti.com` e
 
 Para testar um chamado com a conta de demonstração, primeiro cadastre um cliente na aba **Clientes**. O setor **Suporte** e o técnico **Conta teste HelpTI** já estarão criados e associados pelo seed de demonstração. Em **Chamados**, inicie o cadastro, selecione o cliente, escolha o setor **Suporte** e o técnico **Conta teste HelpTI**, informe contato, telefone e descrição, e crie o chamado. O email de confirmação só é enviado se SMTP estiver configurado.
 
-Se escolheu `N`, cadastre a empresa com nome, email e senha. Gmail e Yahoo são recusados; Outlook é permitido. Para abrir chamados nessa instalação, cadastre clientes na aba **Clientes** e, em **Equipe**, pelo menos um técnico com um setor associado. Cada instalação aceita uma empresa/workspace.
+Se escolheu `N`, abra **Criar conta**, informe nome, empresa, e-mail e senha. O sistema envia um código; informe-o para provar acesso à caixa postal e então concluir o cadastro. Gmail e Yahoo são recusados; Outlook e e-mails empresariais são aceitos. SMTP precisa estar configurado para essa etapa. Para abrir chamados nessa instalação, cadastre clientes na aba **Clientes** e, em **Equipe**, pelo menos um técnico com um setor associado. Cada instalação aceita uma empresa/workspace.
 
 ### GitHub Codespaces
 
@@ -295,8 +314,14 @@ cd HelpTI
 ```
 
    Se já tiver uma cópia, entre na pasta e execute `git pull`.
-3. Abra o PowerShell/terminal na pasta raiz do HelpTI, onde estão `Dockerfile` e `compose.yaml`.
-4. Inicie a aplicação:
+3. Na raiz do projeto, crie seu arquivo de configuração local:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+   Para usar a demonstração, mantenha `HELPTI_DEMO_MODE=true`. Para experimentar o cadastro por e-mail ou o botão Microsoft, configure SMTP e os dados Microsoft no `.env`; sem SMTP, entre com a conta demonstrativa.
+4. Abra o PowerShell/terminal na pasta raiz do HelpTI, onde estão `Dockerfile` e `compose.yaml`, e inicie:
 
 ```powershell
 docker compose up --build -d
@@ -305,11 +330,27 @@ docker compose up --build -d
 5. Abra `http://localhost:5000` e entre com `test@helpiti.com` e `HelpTI2026!`.
 6. Para acompanhar a inicialização, use `docker compose logs -f help-ti` (Ctrl+C sai dos logs). Para parar o container sem apagar o banco, use `docker compose down`.
 
-Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A conta e as opções de referência vêm do seed versionado; chamados e clientes fictícios não são criados. `HELPTI_DEMO_MODE=false` desativa o seed e bloqueia o login da conta de teste; essa opção é obrigatória em um ambiente público. O arquivo SQLite e a chave de sessão ficam no volume persistente, não na imagem nem no Git.
+Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A conta e as opções de referência vêm do seed versionado; chamados e clientes fictícios não são criados. O SQLite e a chave de sessão ficam no volume persistente `help-ti-data`, não na imagem nem no Git. Esse volume é local ao computador; não sincroniza dados com a nuvem nem com outras instalações.
 
-Em uma instalação criada com `HELPTI_DEMO_MODE=false`, o primeiro cadastro cria o workspace. Depois disso, cadastros públicos são recusados; o administrador deve criar os acessos pela área de Equipe. Isso evita que visitantes se adicionem à empresa já cadastrada. O cadastro inicial exige nome da empresa e recusa Gmail/Yahoo; Outlook é permitido. Para criar uma empresa própria, use um SQLite novo e desative o seed, em vez de cadastrar outra empresa no banco da demonstração.
+Em uma instalação criada com `HELPTI_DEMO_MODE=false`, o primeiro cadastro cria o workspace depois que a pessoa confirma o código enviado por e-mail. Depois disso, cadastros públicos são recusados; o administrador deve criar os acessos pela área de Equipe. Isso evita que visitantes se adicionem à empresa já cadastrada. O cadastro inicial exige nome da empresa e recusa Gmail/Yahoo; Outlook é permitido. Para criar uma empresa própria, use um SQLite novo e desative o seed, em vez de cadastrar outra empresa no banco da demonstração.
 
 O container roda como usuário sem privilégios e usa Gunicorn em vez do servidor de desenvolvimento do Flask. `HELPTI_HTTPS_ONLY=true` ativa o atributo `Secure` do cookie de sessão quando a aplicação está atrás de um proxy HTTPS. Não publique a porta HTTP do Compose diretamente na internet.
+
+#### Publicar um piloto privado com Docker
+
+O Docker Desktop é ótimo para **desenvolver e testar no seu computador**, mas não é a hospedagem: para o site ficar disponível continuamente, escolha um serviço de nuvem que aceite Dockerfile/container, forneça armazenamento persistente e permita restringir quem acessa. O computador com Docker Desktop não precisa ficar ligado quando a imagem estiver hospedada na nuvem. Antes de contratar, confira preço, região, limites de armazenamento e se o disco persistente sobrevive a atualizações e recriações.
+
+1. **Prepare o repositório.** Envie o código ao GitHub sem `.env`, banco SQLite ou senhas. O arquivo `.dockerignore` exclui `.env` e os bancos do contexto da imagem. Nunca copie segredos para o Dockerfile.
+2. **Proteja o endereço antes da primeira inicialização.** No painel do serviço, configure acesso privado, VPN ou lista de IPs permitidos. O login do HelpTI não torna privado o endereço público, e o primeiro cadastro cria o administrador; não deixe essa primeira tela aberta à internet sem proteção de acesso.
+3. **Configure a execução do container.** Selecione o Dockerfile da raiz do projeto e contexto de build na raiz. O serviço deve encaminhar tráfego HTTPS para a porta interna `5000` (o container também respeita a variável `PORT` do provedor), verificar `GET /api/health`, montar um disco/volume persistente em `/app/instance` e manter **uma única réplica**. Não use SQLite em armazenamento efêmero nem inicie duas réplicas.
+4. **Cadastre as variáveis no painel seguro do provedor, não no Git.** Para uma base nova de piloto, configure `HELPTI_DEMO_MODE=false`, `HELPTI_HTTPS_ONLY=true`, `HELPTI_DB_PATH=/app/instance/helpti-piloto.sqlite3` e uma `FLASK_SECRET_KEY` longa, aleatória e estável entre deploys. Configure também `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e opcionalmente `SMTP_FROM`. O SMTP deve permitir autenticação por usuário/senha com STARTTLS; se a empresa desativar SMTP AUTH, use um provedor SMTP transacional autorizado. Para não apagar acidentalmente a demonstração local ou os dados do piloto, mantenha um disco separado e não altere o caminho do SQLite de uma instalação já em uso.
+5. **Configure a entrada Microsoft.** Registre um aplicativo no Microsoft Entra ID para contas organizacionais e pessoais Microsoft. Cadastre como Redirect URI Web o endereço HTTPS público seguido de `/auth/microsoft/callback`. No painel do host, defina `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID=common` e `MICROSOFT_REDIRECT_URI` com esse URI exato. Guarde o segredo no painel e planeje renová-lo antes de expirar. Se ainda não tiver domínio, use o endereço HTTPS fornecido pelo host.
+6. **Faça o primeiro cadastro protegido.** Depois do deploy, acesse o site por um canal privado, abra **Criar conta**, preencha nome, empresa, e-mail e senha. Informe o código enviado à caixa de e-mail. Esse primeiro cadastro cria o workspace e entra como administrador. Depois, crie os demais usuários pela área **Equipe**; o cadastro público de outra empresa será recusado.
+7. **Teste e monitore.** Confirme login por senha, recebimento de e-mail, recuperação de senha, botão Microsoft, `/api/health` e persistência após reiniciar o container. Faça backup periódico do arquivo SQLite no volume e ensaie a restauração. Não divulgue o URL até terminar essas verificações.
+
+O modo `S/N` continua disponível ao iniciar localmente com `python app.py`: `S` seleciona a base de demonstração e `N` cria/usa a base vazia para a empresa. Esse processo local é interativo. Um serviço de hospedagem não tem terminal interativo, então use `HELPTI_DEMO_MODE=false` e a tela de cadastro protegida; não espere que o host mostre a pergunta `S/N`. A conta de teste segue ativa na base de demonstração local, mas não deve ser usada ou habilitada no piloto público.
+
+O caminho do piloto é: navegador → HTTPS do provedor → container HelpTI → volume persistente. O Docker Desktop pode construir/testar a mesma imagem localmente; o provedor executa o container no servidor de nuvem. Para dados importantes, uso intenso ou alta disponibilidade, migre o SQLite para PostgreSQL gerenciado antes de escalar para múltiplas réplicas. O sistema atual atende um workspace por instalação e não oferece isolamento entre empresas diferentes.
 
 #### Docker, Dev Container e hospedagem não são a mesma coisa
 
@@ -318,7 +359,7 @@ O container roda como usuário sem privilégios e usa Gunicorn em vez do servido
 - **Dev Container** (`.devcontainer/devcontainer.json`) prepara um ambiente para editar e desenvolver com VS Code. Localmente usa Docker; no GitHub Codespaces, roda na infraestrutura do Codespaces. A tarefa do VS Code inicia o HelpTI ao abrir a pasta.
 - **Hospedagem** é um computador/serviço na internet que mantém o container ligado. Um domínio aponta para esse serviço; HTTPS protege a conexão entre o navegador e a aplicação. O domínio, o Docker e o volume não sincronizam nem substituem um banco de dados central.
 
-O caminho de hospedagem será: navegador → domínio/DNS → hospedagem com certificado HTTPS → proxy/entrada HTTPS → container HelpTI → armazenamento persistente do banco. O sistema suporta um workspace por instalação, não várias empresas isoladas. O primeiro cadastro cria o workspace; depois, o administrador deve cadastrar os demais acessos. Crie e valide o administrador inicial antes de expor o site publicamente. Até implementar isolamento para múltiplas empresas, não permita que empresas diferentes compartilhem a mesma instalação. Na hospedagem, `HELPTI_DEMO_MODE=false` e `HELPTI_HTTPS_ONLY=true` são configurações necessárias. O SQLite é adequado para uma demonstração de instância única; para vários servidores ou usuários simultâneos em produção, planeje migrar para um banco gerenciado como PostgreSQL. Não reutilize o volume local dos amigos como banco hospedado.
+O caminho de hospedagem será: navegador → domínio/DNS → hospedagem com certificado HTTPS → proxy/entrada HTTPS → container HelpTI → armazenamento persistente do banco. O sistema suporta um workspace por instalação, não várias empresas isoladas. O primeiro cadastro confirmado cria o workspace; depois, o administrador deve cadastrar os demais acessos. Crie e valide o administrador inicial antes de expor o site publicamente. Até implementar isolamento para múltiplas empresas, não permita que empresas diferentes compartilhem a mesma instalação. Na hospedagem, `HELPTI_DEMO_MODE=false` e `HELPTI_HTTPS_ONLY=true` são configurações necessárias. O SQLite é adequado para uma demonstração de instância única; para vários servidores ou usuários simultâneos em produção, planeje migrar para um banco gerenciado como PostgreSQL. Não reutilize o volume local dos amigos como banco hospedado.
 
 ### Acesso pela rede local
 
@@ -348,3 +389,9 @@ Cada integrante trabalha com seu próprio banco SQLite local. Os dados não são
 Antes de alterar o código, consulte [INTEGRACAO.md](INTEGRACAO.md) e a modelagem de dados acima. Faça mudanças pequenas, teste a API e o fluxo da tela correspondente e descreva no pull request o que foi alterado e como testar. Para dados locais, pare o servidor antes de copiar o arquivo de banco como backup.
 
 ---
+
+## Modo produ��o (WSGI)
+
+- Docker/Linux: Gunicorn (WEB_CONCURRENCY, GUNICORN_THREADS).
+- Sem Docker: FLASK_ENV=production python app.py usa Waitress no Windows e Gunicorn no Linux (HELPTI_THREADS, HELPTI_HOST=0.0.0.0 para acesso externo).
+- Com SQLite mantenha poucos workers; para escalar, migre para PostgreSQL.

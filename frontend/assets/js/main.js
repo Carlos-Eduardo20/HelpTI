@@ -1,6 +1,6 @@
 import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
 import { gerarUrlAvatar } from './avatar.js';
-import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina } from './notifications.js';
+import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
 
 initializePhoneInputs();
@@ -217,11 +217,13 @@ async function salvarCliente(event) {
     telefone: primeiroContato.telefone,
     contatos
   };
-  try {
-    const { criarCliente } = await import('./api.js');
-    await criarCliente(dados);
-    closeModal('modal-cliente'); form.reset(); resetarContatosCliente(); await carregarClientes(); mostrarNotificacao('Cliente cadastrado com sucesso.');
-  } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
+  await comCarregamento(form.querySelector('[type="submit"]'), async () => {
+    try {
+      const { criarCliente } = await import('./api.js');
+      await criarCliente(dados);
+      closeModal('modal-cliente'); form.reset(); resetarContatosCliente(); await carregarClientes(); mostrarNotificacao('Cliente cadastrado com sucesso.');
+    } catch (error) { mostrarErro(`Não foi possível cadastrar: ${error.message}`); }
+  }, 'Salvando...');
 }
 
 function atualizarBotoesRemoverContato() {
@@ -380,11 +382,26 @@ function equipamentosDoCliente(id) {
   return [];
 }
 
+function limparEquipamentosLegados() {
+  const chaveMigracao = 'helpti-migracao-equipamentos-mapa-vazio-v1';
+  if (localStorage.getItem(chaveMigracao) === 'concluida') return;
+
+  const chavesDeEquipamentos = [];
+  for (let indice = 0; indice < localStorage.length; indice += 1) {
+    const chave = localStorage.key(indice);
+    if (chave?.startsWith('helpti-equipamentos-')) chavesDeEquipamentos.push(chave);
+  }
+  chavesDeEquipamentos.forEach((chave) => localStorage.removeItem(chave));
+  localStorage.setItem(chaveMigracao, 'concluida');
+}
+
 function renderizarEquipamentos(id) {
   const lista = document.querySelector('#mapa-equipamentos');
   if (!lista) return;
   const equipamentos = equipamentosDoCliente(id);
-  lista.innerHTML = equipamentos.map((equipamento, indice) => `<div class="asset-item"><span class="asset-name">${detailEscape(equipamento.nome)}</span><strong class="asset-count">${Number(equipamento.quantidade) || 0} un</strong><div class="asset-actions"><button type="button" data-editar-equipamento="${indice}" aria-label="Editar ${detailEscape(equipamento.nome)}">Editar</button><button type="button" data-apagar-equipamento="${indice}" aria-label="Apagar ${detailEscape(equipamento.nome)}">Apagar</button></div></div>`).join('');
+  lista.innerHTML = equipamentos.length
+    ? equipamentos.map((equipamento, indice) => `<div class="asset-item"><span class="asset-name">${detailEscape(equipamento.nome)}</span><strong class="asset-count">${Number(equipamento.quantidade) || 0} un</strong><div class="asset-actions"><button type="button" data-editar-equipamento="${indice}" aria-label="Editar ${detailEscape(equipamento.nome)}">Editar</button><button type="button" data-apagar-equipamento="${indice}" aria-label="Apagar ${detailEscape(equipamento.nome)}">Apagar</button></div></div>`).join('')
+    : '<p class="assets-empty">Nenhum equipamento cadastrado. Use o botão + para adicionar.</p>';
   const total = equipamentos.reduce((soma, equipamento) => soma + (Number(equipamento.quantidade) || 0), 0);
   document.querySelector('#equipamentos-total').textContent = `Total: ${total} equipamento(s) cadastrado(s)`;
 }
@@ -395,7 +412,7 @@ function salvarEquipamento(id, indice = null) {
   const nome = window.prompt('Nome do equipamento:', atual.nome);
   if (nome === null || !nome.trim()) return;
   const quantidade = window.prompt('Número de equipamentos:', atual.quantidade);
-  if (quantidade === null || !/^\d+$/.test(quantidade) || Number(quantidade) < 0) return alert('Informe uma quantidade inteira válida.');
+  if (quantidade === null || !/^\d+$/.test(quantidade) || Number(quantidade) < 0) return mostrarErro('Informe uma quantidade inteira válida.');
   const equipamento = { nome: nome.trim(), quantidade: Number(quantidade) };
   if (indice === null) equipamentos.push(equipamento); else equipamentos[indice] = equipamento;
   localStorage.setItem(`helpti-equipamentos-${id}`, JSON.stringify(equipamentos));
@@ -404,6 +421,7 @@ function salvarEquipamento(id, indice = null) {
 }
 
 function configurarEquipamentos(id) {
+  limparEquipamentosLegados();
   renderizarEquipamentos(id);
   document.querySelector('#adicionar-equipamento')?.addEventListener('click', () => salvarEquipamento(id));
   document.querySelector('#editar-equipamentos')?.addEventListener('click', () => {
@@ -429,7 +447,7 @@ async function excluirSetor(idSetor) {
     await remover(idSetor);
     await carregarSetores();
     mostrarNotificacao('Setor apagado com sucesso.');
-  } catch (error) { alert(`Não foi possível apagar o setor: ${error.message}`); }
+  } catch (error) { mostrarErro(`Não foi possível apagar o setor: ${error.message}`); }
 }
 
 async function alterarNivelFuncionario(id, setorId, nivel) {
@@ -439,7 +457,7 @@ async function alterarNivelFuncionario(id, setorId, nivel) {
     await carregarSetores();
     abrirDetalhesNivel(setorId, Number(nivel));
     mostrarNotificacao('Nível do funcionário atualizado com sucesso.');
-  } catch (error) { alert(`Não foi possível alterar o nível: ${error.message}`); }
+  } catch (error) { mostrarErro(`Não foi possível alterar o nível: ${error.message}`); }
 }
 
 async function removerFuncionarioNivel(id) {
@@ -450,7 +468,7 @@ async function removerFuncionarioNivel(id) {
     await carregarSetores();
     abrirDetalhesNivel(setorId, nivel);
     mostrarNotificacao('Funcionário removido do nível com sucesso.');
-  } catch (error) { alert(`Não foi possível remover o funcionário do nível: ${error.message}`); }
+  } catch (error) { mostrarErro(`Não foi possível remover o funcionário do nível: ${error.message}`); }
 }
 
 async function adicionarFuncionariosSelecionados() {
@@ -463,7 +481,7 @@ async function adicionarFuncionariosSelecionados() {
     closeModal('modal-adicionar-nivel');
     await carregarSetores();
     mostrarNotificacao('Funcionário(s) adicionado(s) ao nível com sucesso.');
-  } catch (error) { alert(`Não foi possível adicionar os funcionários: ${error.message}`); }
+  } catch (error) { mostrarErro(`Não foi possível adicionar os funcionários: ${error.message}`); }
 }
 
 function mostrarParticipantes(idSetor) {
@@ -480,19 +498,21 @@ async function salvarSetor(event) {
   const possuiNivel = form.querySelector('#possui-nivel').checked;
   const niveis = possuiNivel ? [...form.querySelectorAll('#levels-list input')].map((input) => input.value.trim()).filter(Boolean) : [];
   if (possuiNivel && !niveis.length) {
-    alert('Adicione pelo menos um nível para este setor.');
+    mostrarErro('Adicione pelo menos um nível para este setor.');
     return;
   }
-  try {
-    const { criarSetor } = await import('./api.js');
-    await criarSetor({ nome: form.elements.nome.value.trim(), niveis });
-    closeModal('modal-setor');
-    form.reset();
-    document.querySelector('#levels-list').innerHTML = '';
-    document.querySelector('#levels-editor').hidden = true;
-    await carregarSetores();
-    mostrarNotificacao('Setor criado com sucesso.');
-  } catch (error) { alert(`Não foi possível criar o setor: ${error.message}`); }
+  await comCarregamento(form.querySelector('[type="submit"]'), async () => {
+    try {
+      const { criarSetor } = await import('./api.js');
+      await criarSetor({ nome: form.elements.nome.value.trim(), niveis });
+      closeModal('modal-setor');
+      form.reset();
+      document.querySelector('#levels-list').innerHTML = '';
+      document.querySelector('#levels-editor').hidden = true;
+      await carregarSetores();
+      mostrarNotificacao('Setor criado com sucesso.');
+    } catch (error) { mostrarErro(`Não foi possível criar o setor: ${error.message}`); }
+  }, 'Salvando...');
 }
 
 function adicionarNivel() {
@@ -528,23 +548,25 @@ async function salvarMembro(event) {
     form.reportValidity();
     return;
   }
-  try {
-    const { criarMembro, criarSetor } = await import('./api.js');
-    let setor = setoresEmMemoria.find((item) => item.nome.trim().toLowerCase() === setorNome.toLowerCase());
-    if (!setor) setor = await criarSetor({ nome: setorNome, descricao: '' });
-    await criarMembro({
-      nome: form.elements.nome.value.trim(),
-      email: form.elements.email.value.trim(),
-      cargo: form.elements.cargo.value,
-      permissoes: [...form.querySelectorAll('[name="permissoes"]:checked')].map((checkbox) => checkbox.value),
-      telefone: formatBrazilianPhone(form.elements.telefone.value),
-      valor_hora: form.elements.valor_hora.value,
-      id_setor: setor.id_setor,
-      nivel: form.elements.nivel.value,
-      senha: form.elements.senha.value
-    });
-    closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); mostrarNotificacao('Membro cadastrado com sucesso.');
-  } catch (error) { alert(`Não foi possível cadastrar: ${error.message}`); }
+  await comCarregamento(form.querySelector('[type="submit"]'), async () => {
+    try {
+      const { criarMembro, criarSetor } = await import('./api.js');
+      let setor = setoresEmMemoria.find((item) => item.nome.trim().toLowerCase() === setorNome.toLowerCase());
+      if (!setor) setor = await criarSetor({ nome: setorNome, descricao: '' });
+      await criarMembro({
+        nome: form.elements.nome.value.trim(),
+        email: form.elements.email.value.trim(),
+        cargo: form.elements.cargo.value,
+        permissoes: [...form.querySelectorAll('[name="permissoes"]:checked')].map((checkbox) => checkbox.value),
+        telefone: formatBrazilianPhone(form.elements.telefone.value),
+        valor_hora: form.elements.valor_hora.value,
+        id_setor: setor.id_setor,
+        nivel: form.elements.nivel.value,
+        senha: form.elements.senha.value
+      });
+      closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); mostrarNotificacao('Membro cadastrado com sucesso.');
+    } catch (error) { mostrarErro(`Não foi possível cadastrar: ${error.message}`); }
+  }, 'Salvando...');
 }
 
 async function salvarConfiguracoes(event) {
@@ -556,26 +578,22 @@ async function salvarConfiguracoes(event) {
     supportEmail: document.getElementById('supportEmail')?.value.trim()
   };
   if (!dados.workspaceName || !dados.supportEmail) {
-    alert('Preencha o nome do workspace e o e-mail de suporte.');
+    mostrarErro('Preencha o nome do workspace e o e-mail de suporte.');
     return;
   }
-  botao.disabled = true;
-  botao.textContent = 'Salvando...';
-  try {
-    const { salvarConfiguracoes: salvar } = await import('./api.js');
-    const configuracoesSalvas = await salvar(dados);
-    document.getElementById('workspaceName').value = configuracoesSalvas.workspaceName;
-    document.getElementById('supportEmail').value = configuracoesSalvas.supportEmail;
-    localStorage.setItem('workspaceName', configuracoesSalvas.workspaceName);
-    localStorage.setItem('supportEmail', configuracoesSalvas.supportEmail);
-    mostrarNotificacaoNaProximaPagina('Configurações salvas com sucesso.');
-    window.location.href = 'dashboard.html';
-  } catch (error) {
-    alert(`Não foi possível salvar: ${error.message}`);
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Salvar alterações';
-  }
+  await comCarregamento(botao, async () => {
+    try {
+      const { salvarConfiguracoes: salvar } = await import('./api.js');
+      const configuracoesSalvas = await salvar(dados);
+      document.getElementById('workspaceName').value = configuracoesSalvas.workspaceName;
+      document.getElementById('supportEmail').value = configuracoesSalvas.supportEmail;
+      localStorage.setItem('workspaceName', configuracoesSalvas.workspaceName);
+      localStorage.setItem('supportEmail', configuracoesSalvas.supportEmail);
+      mostrarNotificacao('Configurações salvas com sucesso.');
+    } catch (error) {
+      mostrarErro(`Não foi possível salvar: ${error.message}`);
+    }
+  }, 'Salvando...');
 }
 
 function cancelarConfigurações() {
@@ -658,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await excluirCliente(botao.dataset.excluirCliente);
       await carregarClientes();
     } catch (error) {
-      alert(`Não foi possível excluir o cliente: ${error.message}`);
+      mostrarErro(`Não foi possível excluir o cliente: ${error.message}`);
     }
   });
   configurarFiltroClientes();
@@ -895,7 +913,7 @@ function iniciarEdicaoDetalhe(scope, registro) {
             : (atualizado[input.dataset.editField] || input.value);
         input.replaceWith(span);
         mostrarNotificacao('Alterações salvas com sucesso.');
-      } catch (error) { alert(`Não foi possível salvar: ${error.message}`); input.focus(); }
+      } catch (error) { mostrarErro(`Não foi possível salvar: ${error.message}`); input.focus(); }
     });
     input.focus();
   });
@@ -990,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (sucesso) mostrarNotificacao(sucesso);
           return true;
         } catch (error) {
-          alert(`Não foi possível atualizar o chamado: ${error.message}`);
+          mostrarErro(`Não foi possível atualizar o chamado: ${error.message}`);
           return false;
         }
       }
@@ -1049,7 +1067,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           atualizarTelaChamado();
           definirMenuContatos(false);
           mostrarNotificacao('Contato do chamado alterado com sucesso.');
-        } catch (error) { alert(`Não foi possível alterar o contato: ${error.message}`); }
+        } catch (error) { mostrarErro(`Não foi possível alterar o contato: ${error.message}`); }
       });
       menuContatos?.addEventListener('pointerdown', (event) => {
         if (event.target.closest('[data-contato-indice]')) event.preventDefault();
@@ -1135,25 +1153,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.querySelector('#formEscalonar')?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const dados = Object.fromEntries(new FormData(event.currentTarget));
-        if (await executarAcao({ acao: 'escalonar', ...dados }, 'Chamado escalonado.')) modalEscalonar?.classList.remove('active');
+        await comCarregamento(event.currentTarget.querySelector('[type="submit"]'), async () => {
+          if (await executarAcao({ acao: 'escalonar', ...dados }, 'Chamado escalonado.')) modalEscalonar?.classList.remove('active');
+        }, 'Escalonando...');
       });
       document.querySelector('#formEncerrar')?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
-        const botaoSubmit = form.querySelector('[type="submit"]');
-        botaoSubmit.disabled = true;
-        try {
-          chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: new FormData(form).get('descricao_final') });
-          atualizarTelaChamado();
-          modalEncerrar?.classList.remove('active');
-          form.reset();
-          mostrarNotificacao('Chamado resolvido com sucesso.');
-          if (!chamado.email_enviado && chamado.aviso_email) alert(chamado.aviso_email);
-        } catch (error) {
-          alert(`Não foi possível encerrar o chamado: ${error.message}`);
-        } finally {
-          botaoSubmit.disabled = false;
-        }
+        await comCarregamento(form.querySelector('[type="submit"]'), async () => {
+          try {
+            chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: new FormData(form).get('descricao_final') });
+            atualizarTelaChamado();
+            modalEncerrar?.classList.remove('active');
+            form.reset();
+            mostrarNotificacao('Chamado resolvido com sucesso.');
+            if (!chamado.email_enviado && chamado.aviso_email) mostrarErro(chamado.aviso_email);
+          } catch (error) {
+            mostrarErro(`Não foi possível encerrar o chamado: ${error.message}`);
+          }
+        }, 'Encerrando...');
       });
       document.querySelector('#salvarAgendamento')?.addEventListener('click', async () => {
         const data = campoAgendamento?.value.split('T')[0];
@@ -1211,16 +1229,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       formularioContato?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const dados = Object.fromEntries(new FormData(formularioContato).entries());
-        try {
-          dados.telefone = formatBrazilianPhone(dados.telefone);
-          const resultado = await criarContatoCliente(cliente.id_usuario, dados);
-          cliente.contatos = resultado.contatos;
-          renderizarContatosCliente();
-          modalContato?.close();
-          mostrarNotificacao('Contato cadastrado com sucesso.');
-        } catch (error) {
-          if (mensagemContato) mensagemContato.textContent = `Não foi possível adicionar o contato: ${error.message}`;
-        }
+        await comCarregamento(formularioContato.querySelector('[type="submit"]'), async () => {
+          try {
+            dados.telefone = formatBrazilianPhone(dados.telefone);
+            const resultado = await criarContatoCliente(cliente.id_usuario, dados);
+            cliente.contatos = resultado.contatos;
+            renderizarContatosCliente();
+            modalContato?.close();
+            if (mensagemContato) mensagemContato.textContent = '';
+            mostrarNotificacao('Contato cadastrado com sucesso.');
+          } catch (error) {
+            if (mensagemContato) mensagemContato.textContent = `Não foi possível adicionar o contato: ${error.message}`;
+            mostrarErro(`Não foi possível adicionar o contato: ${error.message}`);
+          }
+        }, 'Salvando...');
       });
       configurarEquipamentos(id);
       const botaoStatusCliente = document.querySelector('#desativarCliente');
@@ -1246,7 +1268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           cliente = await atualizarCliente(cliente.id_usuario, { status: novoStatus });
           atualizarStatusCliente();
           mostrarNotificacao(`Cliente ${novoStatus === 'ATIVO' ? 'ativado' : 'desativado'} com sucesso.`);
-        } catch (error) { alert(`Não foi possível atualizar o status: ${error.message}`); }
+        } catch (error) { mostrarErro(`Não foi possível atualizar o status: ${error.message}`); }
       });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
       const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
@@ -1296,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           membro.status = atualizado.status;
           atualizarStatusMembro();
           mostrarNotificacao(`Técnico ${novoStatus === 'ATIVO' ? 'ativado' : 'desativado'} com sucesso.`);
-        } catch (error) { alert(`Não foi possível atualizar o status: ${error.message}`); }
+        } catch (error) { mostrarErro(`Não foi possível atualizar o status: ${error.message}`); }
       });
       setDetailText('membro-certificacoes', 'Não informado');
       document.querySelectorAll('.team-stats-grid .stat-box-number').forEach((element) => { element.textContent = '—'; });

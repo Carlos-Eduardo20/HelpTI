@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     valor_hora NUMERIC,
     telefone TEXT,
     status TEXT NOT NULL DEFAULT 'ATIVO',
+    email_verificado INTEGER NOT NULL DEFAULT 1,
     senha TEXT NOT NULL DEFAULT '',
     permissoes TEXT NOT NULL DEFAULT '[]',
     id_usuario INTEGER NOT NULL,
@@ -125,6 +126,28 @@ CREATE TABLE IF NOT EXISTS codigo_recuperacao_senha (
         REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS verificacao_cadastro_email (
+    id_verificacao INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    empresa TEXT NOT NULL,
+    email TEXT NOT NULL,
+    senha_hash TEXT NOT NULL,
+    codigo_hash TEXT NOT NULL,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    expira_em TEXT NOT NULL,
+    tentativas INTEGER NOT NULL DEFAULT 0,
+    usado INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS identidade_microsoft (
+    id_identidade INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_grupo_solucionadores INTEGER NOT NULL UNIQUE,
+    tenant_id TEXT NOT NULL,
+    object_id TEXT NOT NULL,
+    FOREIGN KEY (id_grupo_solucionadores)
+        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor ON grupo_solucionadores(id_setor);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario ON grupo_solucionadores(id_usuario);
@@ -134,6 +157,10 @@ CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado(status, data_abert
 CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado(id_setor);
 CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado ON escalonamento(id_chamado);
 CREATE INDEX IF NOT EXISTS idx_historico_chamado_data ON historico_chamado(id_chamado, data_evento);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_identidade_microsoft_tenant_object
+ON identidade_microsoft(tenant_id, object_id);
+CREATE INDEX IF NOT EXISTS idx_verificacao_cadastro_email
+ON verificacao_cadastro_email(email, criado_em);
 
 INSERT OR IGNORE INTO configuracao (id_configuracao, workspace_name, support_email)
 VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br');

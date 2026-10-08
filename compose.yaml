@@ -7,10 +7,23 @@ services:
       - "${HELPTI_BIND_ADDRESS:-127.0.0.1}:${HELPTI_PORT:-5000}:5000"
     environment:
       HELPTI_HOST: "0.0.0.0"
+      FLASK_ENV: "production"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-2}"
+      GUNICORN_THREADS: "${GUNICORN_THREADS:-4}"
       HELPTI_DEBUG: "false"
-      HELPTI_DB_PATH: "/app/instance/helpti.sqlite3"
+      HELPTI_DB_PATH: "${HELPTI_DB_PATH:-/app/instance/helpti.sqlite3}"
       HELPTI_DEMO_MODE: "${HELPTI_DEMO_MODE:-true}"
       HELPTI_HTTPS_ONLY: "${HELPTI_HTTPS_ONLY:-false}"
+      FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      MICROSOFT_CLIENT_ID: "${MICROSOFT_CLIENT_ID:-}"
+      MICROSOFT_CLIENT_SECRET: "${MICROSOFT_CLIENT_SECRET:-}"
+      MICROSOFT_TENANT_ID: "${MICROSOFT_TENANT_ID:-common}"
+      MICROSOFT_REDIRECT_URI: "${MICROSOFT_REDIRECT_URI:-}"
     volumes:
       - help-ti-data:/app/instance
     healthcheck:

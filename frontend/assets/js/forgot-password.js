@@ -1,3 +1,4 @@
+import { comCarregamento } from './notifications.js';
 document.addEventListener('DOMContentLoaded', () => {
     if (window.lucide) {
         lucide.createIcons();
@@ -13,8 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = requestForm.querySelector('button[type="submit"]');
         email = document.getElementById('email').value.trim().toLowerCase();
         feedback.textContent = '';
-        button.disabled = true;
-
+        await comCarregamento(button, async () => {
         try {
             const response = await fetch(`${window.location.origin}/api/solicitar-codigo-recuperacao`, {
                 method: 'POST',
@@ -30,8 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('resetFeedback').textContent = data.mensagem;
         } catch (error) {
             feedback.textContent = error.message;
-            button.disabled = false;
         }
+        }, 'Enviando...');
     });
 
     resetForm.addEventListener('submit', async (event) => {
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        button.disabled = true;
+        await comCarregamento(button, async () => {
         try {
             const response = await fetch(`${window.location.origin}/api/redefinir-senha`, {
                 method: 'POST',
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1800);
         } catch (error) {
             feedback.textContent = error.message;
-            button.disabled = false;
         }
+        }, 'Salvando...');
     });
 });

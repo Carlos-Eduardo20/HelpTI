@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, send_from_directory, session, g
+from flask import Flask, request, jsonify, redirect, send_from_directory, session, g, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 from sqlite3 import Error
 import os
@@ -9,9 +9,36 @@ import hashlib
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 import webbrowser
 from threading import Timer
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs):
+        return False
+
+try:
+    from authlib.integrations.base_client.errors import OAuthError
+    from authlib.integrations.flask_client import OAuth
+    from joserfc.errors import JoseError
+    import requests
+    MICROSOFT_DISPONIVEL = True
+except ImportError:
+    OAuth = None
+    MICROSOFT_DISPONIVEL = False
+
+    class OAuthError(Exception):
+        pass
+
+    class JoseError(Exception):
+        pass
+
+    class _RequestsAusente:
+        class RequestException(Exception):
+            pass
+
+    requests = _RequestsAusente()
 
 try:
     from .database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
@@ -28,6 +55,7 @@ load_dotenv()
 
 
 app = Flask(__name__)
+oauth = OAuth(app) if OAuth else None
 
 
 def _get_session_secret():
@@ -121,9 +149,12 @@ def _carregar_membro_da_sessao():
     try:
         cursor = connection.cursor()
         cursor.execute('''
-            SELECT id_grupo_solucionadores, id_usuario, nome, email, cargo, status, permissoes
-            FROM grupo_solucionadores
-            WHERE id_grupo_solucionadores = %s
+            SELECT membro.id_grupo_solucionadores, membro.id_usuario, membro.nome,
+                   membro.email, membro.cargo, membro.status, membro.permissoes,
+                   usuario.nome AS empresa_nome
+            FROM grupo_solucionadores AS membro
+            LEFT JOIN usuario ON usuario.id_usuario = membro.id_usuario
+            WHERE membro.id_grupo_solucionadores = %s
         ''', (membro_id,))
         membro = dict_fetchone(cursor)
         cursor.close()
@@ -145,7 +176,8 @@ def proteger_paginas_e_api():
     caminho = request.path
     if caminho in (
         '/api/health', '/api/login', '/api/contas',
-        '/api/solicitar-codigo-recuperacao', '/api/redefinir-senha'
+        '/api/confirmar-conta', '/api/solicitar-codigo-recuperacao',
+        '/api/redefinir-senha', '/auth/microsoft', '/auth/microsoft/callback'
     ):
         return None
 
@@ -200,7 +232,7 @@ FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'fr
 
 @app.route('/')
 def frontend_entrypoint():
-    return redirect('/frontend/pages/login.html')
+    return redirect('/frontend/planos.html')
 
 
 @app.route('/frontend/<path:filename>')
@@ -271,12 +303,44 @@ def enviar_email(destinatario, assunto, conteudo):
         return False, f'O e-mail não foi enviado: {error}'
 
 
+def codigo_no_terminal_permitido():
+    local = os.getenv('HELPTI_HOST', '127.0.0.1') in ('127.0.0.1', 'localhost', '::1')
+    producao = os.getenv('HELPTI_HTTPS_ONLY', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
+    return local and not producao and not os.getenv('PORT')
+
+
 def smtp_configurado():
     return all((
         os.getenv('SMTP_HOST'),
         os.getenv('SMTP_USER'),
         ''.join((os.getenv('SMTP_PASSWORD') or '').split()),
     ))
+
+
+def cliente_microsoft():
+    client_id = os.getenv('MICROSOFT_CLIENT_ID', '').strip()
+    client_secret = os.getenv('MICROSOFT_CLIENT_SECRET', '').strip()
+    if not MICROSOFT_DISPONIVEL or not client_id or not client_secret:
+        return None
+
+    client = oauth.create_client('microsoft')
+    if client:
+        return client
+
+    tenant_id = os.getenv('MICROSOFT_TENANT_ID', 'common').strip() or 'common'
+    if not re.fullmatch(r'[A-Za-z0-9.-]+', tenant_id):
+        raise ValueError('MICROSOFT_TENANT_ID contém caracteres inválidos.')
+
+    return oauth.register(
+        name='microsoft',
+        client_id=client_id,
+        client_secret=client_secret,
+        server_metadata_url=(
+            f'https://login.microsoftonline.com/{tenant_id}/v2.0/'
+            '.well-known/openid-configuration'
+        ),
+        client_kwargs={'scope': 'openid profile email'},
+    )
 
 
 def dominio_email_bloqueado(email):
@@ -948,12 +1012,14 @@ def criar_conta():
         return jsonify({'erro': 'Use um e-mail empresarial; Gmail e Yahoo não são aceitos.'}), 400
     if len(senha) < 8:
         return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres'}), 400
+    if not smtp_configurado() and not codigo_no_terminal_permitido():
+        return jsonify({
+            'erro': 'O envio de códigos não está configurado. Configure SMTP no backend/.env.'
+        }), 503
 
     conn = get_db_connection()
-    if not conn:
-        return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
-
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
+    email = email.lower()
     try:
         conn.execute('BEGIN IMMEDIATE')
         cursor.execute('SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1', (email,))
@@ -966,41 +1032,168 @@ def criar_conta():
                 'erro': 'Este HelpTI já possui uma empresa cadastrada. Peça ao administrador para criar seu acesso.'
             }), 409
 
+        cursor.execute('''
+            SELECT criado_em FROM verificacao_cadastro_email
+            WHERE email = %s
+            ORDER BY id_verificacao DESC LIMIT 1
+        ''', (email,))
+        anterior = cursor.fetchone()
+        agora = datetime.now()
+        if anterior and agora - datetime.fromisoformat(anterior['criado_em']) < timedelta(seconds=60):
+            conn.rollback()
+            return jsonify({
+                'erro': 'Aguarde um minuto antes de solicitar outro código.'
+            }), 429
+
+        codigo = f'{secrets.randbelow(1_000_000):06d}'
+        cursor.execute('''
+            UPDATE verificacao_cadastro_email SET usado = 1
+            WHERE email = %s AND usado = 0
+        ''', (email,))
+        cursor.execute('''
+            INSERT INTO verificacao_cadastro_email
+                (nome, empresa, email, senha_hash, codigo_hash, criado_em, expira_em)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ''', (
+            nome, empresa, email, generate_password_hash(senha),
+            _hash_codigo_recuperacao(codigo),
+            agora.isoformat(timespec='seconds'),
+            (agora + timedelta(minutes=10)).isoformat(timespec='seconds')
+        ))
+        conn.commit()
+    except Error as error:
+        conn.rollback()
+        app.logger.exception('Não foi possível iniciar o cadastro da conta.', exc_info=error)
+        return jsonify({'erro': 'Não foi possível iniciar o cadastro da conta.'}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+    if not smtp_configurado():
+        print(f'\n[HelpTI - desenvolvimento] Código de confirmação para {email}: {codigo}\n', flush=True)
+        return jsonify({
+            'mensagem': 'Modo de desenvolvimento: o código foi exibido no terminal onde o HelpTI está rodando.'
+        }), 202
+
+    enviado, aviso = enviar_email(
+        email,
+        'Confirme seu e-mail para criar a conta HelpTI',
+        f'Olá, {nome}.\n\n'
+        f'Seu código de confirmação é: {codigo}\n'
+        'Ele expira em 10 minutos e pode ser usado uma única vez.'
+    )
+    if not enviado:
+        conexao = get_db_connection()
+        try:
+            cursor = conexao.cursor()
+            cursor.execute('''
+                UPDATE verificacao_cadastro_email SET usado = 1
+                WHERE email = %s AND usado = 0
+            ''', (email,))
+            conexao.commit()
+        finally:
+            conexao.close()
+        app.logger.error('Falha ao enviar código de confirmação: %s', aviso)
+        return jsonify({
+            'erro': 'Não foi possível enviar o código. Confira as configurações SMTP e tente novamente.'
+        }), 503
+    return jsonify({
+        'mensagem': 'Enviamos um código para esse endereço. Informe-o para confirmar o cadastro.'
+    }), 202
+
+
+@app.route('/api/confirmar-conta', methods=['POST'])
+def confirmar_conta():
+    dados = request.get_json() or {}
+    email = (dados.get('email') or '').strip().lower()
+    codigo = (dados.get('codigo') or '').strip()
+    if not email_valido(email) or not re.fullmatch(r'[0-9]{6}', codigo):
+        return jsonify({'erro': 'Informe o e-mail e o código de seis dígitos.'}), 400
+
+    conexao = get_db_connection()
+    try:
+        conexao.execute('BEGIN IMMEDIATE')
+        cursor = conexao.cursor()
+        cursor.execute('''
+            SELECT id_verificacao, nome, empresa, senha_hash, codigo_hash, expira_em, tentativas
+            FROM verificacao_cadastro_email
+            WHERE email = %s AND usado = 0
+            ORDER BY id_verificacao DESC LIMIT 1
+        ''', (email,))
+        registro = cursor.fetchone()
+        agora = datetime.now()
+        if not registro or datetime.fromisoformat(registro['expira_em']) <= agora:
+            conexao.rollback()
+            return jsonify({'erro': 'Código inválido ou expirado. Solicite um novo código.'}), 400
+        if registro['tentativas'] >= 5:
+            cursor.execute(
+                'UPDATE verificacao_cadastro_email SET usado = 1 WHERE id_verificacao = %s',
+                (registro['id_verificacao'],)
+            )
+            conexao.commit()
+            return jsonify({'erro': 'Limite de tentativas excedido. Solicite um novo código.'}), 400
+        if not secrets.compare_digest(
+            registro['codigo_hash'], _hash_codigo_recuperacao(codigo)
+        ):
+            cursor.execute(
+                'UPDATE verificacao_cadastro_email SET tentativas = tentativas + 1 '
+                'WHERE id_verificacao = %s',
+                (registro['id_verificacao'],)
+            )
+            conexao.commit()
+            return jsonify({'erro': 'Código inválido ou expirado. Solicite um novo código.'}), 400
+
+        cursor.execute(
+            'SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1',
+            (email,)
+        )
+        if cursor.fetchone():
+            conexao.rollback()
+            return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail.'}), 409
+        cursor.execute("SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' LIMIT 1")
+        if cursor.fetchone():
+            conexao.rollback()
+            return jsonify({
+                'erro': 'Este HelpTI já possui uma empresa cadastrada. Peça ao administrador para criar seu acesso.'
+            }), 409
+
         cursor.execute(
             "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (%s, %s, 'ATIVO', 'WORKSPACE')",
-            (empresa, email)
+            (registro['empresa'], email)
         )
         workspace_id = cursor.lastrowid
-        nome_empresa = empresa
-
-        nome_membro = nome or re.sub(r'[-_.]+', ' ', email.split('@', 1)[0]).title()
-        cargo = 'Administrador'
+        nome_membro = registro['nome'] or re.sub(r'[-_.]+', ' ', email.split('@', 1)[0]).title()
         permissoes = sorted(PERMISSOES_VALIDAS)
         cursor.execute('''
             INSERT INTO grupo_solucionadores
-                (descricao, nome, email, cargo, status, senha, id_usuario, permissoes)
-            VALUES (%s, %s, %s, %s, 'ATIVO', %s, %s, %s)
-        ''', (nome_empresa, nome_membro, email, cargo, generate_password_hash(senha), workspace_id,
-              json.dumps(permissoes)))
+                (descricao, nome, email, cargo, status, email_verificado, senha, id_usuario, permissoes)
+            VALUES (%s, %s, %s, 'Administrador', 'ATIVO', 1, %s, %s, %s)
+        ''', (
+            registro['empresa'], nome_membro, email, registro['senha_hash'],
+            workspace_id, json.dumps(permissoes)
+        ))
         membro_id = cursor.lastrowid
-        conn.commit()
+        cursor.execute(
+            'UPDATE verificacao_cadastro_email SET usado = 1 WHERE email = %s',
+            (email,)
+        )
+        conexao.commit()
         session.clear()
         session['grupo_id'] = membro_id
         return jsonify({
             'id': membro_id,
             'nome': nome_membro,
             'email': email,
-            'empresaNome': nome_empresa,
-            'cargo': cargo,
+            'empresaNome': registro['empresa'],
+            'cargo': 'Administrador',
             'permissoes': permissoes
         }), 201
     except Error as error:
-        conn.rollback()
-        print(f'Erro ao criar conta: {error}')
-        return jsonify({'erro': 'Não foi possível criar a conta'}), 500
+        conexao.rollback()
+        app.logger.exception('Não foi possível confirmar o cadastro da conta.', exc_info=error)
+        return jsonify({'erro': 'Não foi possível confirmar o cadastro da conta.'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        conexao.close()
 
 
 @app.route('/api/login', methods=['POST'])
@@ -1055,6 +1248,104 @@ def login():
         'empresaNome': usuario.get('empresa_nome') or obter_nome_empresa(usuario['email']),
         'permissoes': permissoes
     }), 200
+
+
+@app.route('/auth/microsoft')
+def entrar_com_microsoft():
+    client = cliente_microsoft()
+    if not client:
+        return redirect('/frontend/pages/login.html?erro=microsoft_nao_configurado')
+    redirect_uri = os.getenv('MICROSOFT_REDIRECT_URI') or url_for(
+        'callback_microsoft', _external=True
+    )
+    return client.authorize_redirect(redirect_uri)
+
+
+@app.route('/auth/microsoft/callback')
+def callback_microsoft():
+    client = cliente_microsoft()
+    if not client:
+        return redirect('/frontend/pages/login.html?erro=microsoft_nao_configurado')
+    try:
+        token = client.authorize_access_token(claims_options={
+            'iss': {'essential': True, 'validate': _validar_issuer_microsoft},
+            'tid': {'essential': True, 'validate': _tenant_microsoft_valido},
+        })
+    except (OAuthError, JoseError, requests.RequestException):
+        app.logger.warning('A autenticação Microsoft foi cancelada ou recusada.')
+        return redirect('/frontend/pages/login.html?erro=microsoft_cancelado')
+
+    identidade = token.get('userinfo')
+    if not identidade:
+        identidade = client.userinfo(token=token)
+    subject = identidade.get('sub')
+    tenant_id = identidade.get('tid')
+    email = (identidade.get('email') or identidade.get('preferred_username') or '').strip().lower()
+    if not subject or not tenant_id or not email_valido(email):
+        app.logger.warning('A resposta de identidade Microsoft não incluiu os identificadores esperados.')
+        return redirect('/frontend/pages/login.html?erro=microsoft_identidade_invalida')
+
+    conexao = get_db_connection()
+    try:
+        cursor = conexao.cursor()
+        cursor.execute('''
+            SELECT membro.id_grupo_solucionadores AS id, membro.email, membro.cargo,
+                   membro.status, membro.email_verificado, membro.id_usuario,
+                   membro.nome, usuario.nome AS empresa_nome
+            FROM identidade_microsoft AS identidade
+            JOIN grupo_solucionadores AS membro
+              ON membro.id_grupo_solucionadores = identidade.id_grupo_solucionadores
+            JOIN usuario ON usuario.id_usuario = membro.id_usuario
+            WHERE identidade.tenant_id = %s AND identidade.object_id = %s
+        ''', (tenant_id, subject))
+        membro = cursor.fetchone()
+        if not membro:
+            cursor.execute('''
+                SELECT membro.id_grupo_solucionadores AS id, membro.email, membro.cargo,
+                       membro.status, membro.email_verificado, membro.id_usuario,
+                       membro.nome, usuario.nome AS empresa_nome
+                FROM grupo_solucionadores AS membro
+                JOIN usuario ON usuario.id_usuario = membro.id_usuario
+                WHERE LOWER(membro.email) = %s
+                ORDER BY membro.id_grupo_solucionadores DESC LIMIT 1
+            ''', (email,))
+            membro = cursor.fetchone()
+            if not membro or not membro['email_verificado']:
+                return redirect('/frontend/pages/login.html?erro=microsoft_sem_conta')
+            try:
+                cursor.execute('''
+                    INSERT INTO identidade_microsoft
+                        (id_grupo_solucionadores, tenant_id, object_id)
+                    VALUES (%s, %s, %s)
+                ''', (membro['id'], tenant_id, subject))
+                conexao.commit()
+            except Error:
+                conexao.rollback()
+                return redirect('/frontend/pages/login.html?erro=microsoft_conta_vinculada')
+    finally:
+        conexao.close()
+
+    if membro['status'] not in (None, 'ATIVO'):
+        return redirect('/frontend/pages/login.html?erro=conta_inativa')
+    session.clear()
+    session['grupo_id'] = membro['id']
+    session.permanent = True
+    return redirect('/frontend/pages/login.html?microsoft=ok')
+
+
+def _tenant_microsoft_valido(_claims, tenant_id):
+    return isinstance(tenant_id, str) and bool(re.fullmatch(
+        r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+        tenant_id.lower()
+    ))
+
+
+def _validar_issuer_microsoft(claims, issuer):
+    tenant_id = claims.get('tid')
+    return (
+        _tenant_microsoft_valido(claims, tenant_id)
+        and issuer == f'https://login.microsoftonline.com/{tenant_id.lower()}/v2.0'
+    )
 
 
 def _hash_codigo_recuperacao(codigo):
@@ -1213,6 +1504,7 @@ def obter_sessao():
         'nome': membro['nome'],
         'email': membro['email'],
         'cargo': membro['cargo'],
+        'empresaNome': membro['empresa_nome'],
         'permissoes': sorted(_permissoes_do_membro(membro))
     }), 200
 

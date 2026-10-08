@@ -42,14 +42,25 @@ class TicketEmailTests(unittest.TestCase):
         self.client = app_module.app.test_client()
 
     def _create_account(self):
-        response = self.client.post('/api/contas', json={
+        cadastro = {
             'nome': 'Ana Teste',
             'empresa': 'Empresa Teste',
             'email': 'admin@outlook.com',
             'senha': 'senha-segura-123',
+        }
+        smtp_context = MagicMock()
+        smtp_server = smtp_context.__enter__.return_value
+        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
+            response = self.client.post('/api/contas', json=cadastro)
+        self.assertEqual(response.status_code, 202, response.get_json())
+        message = smtp_server.send_message.call_args.args[0]
+        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
+        confirmation = self.client.post('/api/confirmar-conta', json={
+            'email': cadastro['email'],
+            'codigo': code,
         })
-        self.assertEqual(response.status_code, 201, response.get_json())
-        return response.get_json()
+        self.assertEqual(confirmation.status_code, 201, confirmation.get_json())
+        return confirmation.get_json()
 
     def _prepare_ticket(self):
         account = self._create_account()
@@ -180,8 +191,118 @@ class TicketEmailTests(unittest.TestCase):
             self.assertEqual(response.status_code, 400)
             self.assertIn('Gmail e Yahoo', response.get_json()['erro'])
 
+        smtp_context = MagicMock()
+        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
+            response = self.client.post('/api/contas', json={
+                'nome': 'Admin',
+                'empresa': 'Empresa',
+                'email': 'admin@outlook.com',
+                'senha': 'senha-segura-123',
+            })
+        self.assertEqual(response.status_code, 202, response.get_json())
+        message = smtp_context.__enter__.return_value.send_message.call_args.args[0]
+        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
+        account = self.client.post('/api/confirmar-conta', json={
+            'email': 'admin@outlook.com',
+            'codigo': code,
+        })
+        self.assertEqual(account.status_code, 201, account.get_json())
+        self.assertEqual(account.get_json()['email'], 'admin@outlook.com')
+
+    def test_signup_requires_mailbox_code_before_creating_workspace(self):
+        smtp_context = MagicMock()
+        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
+            signup = self.client.post('/api/contas', json={
+                'nome': 'Ana Teste',
+                'empresa': 'Empresa Teste',
+                'email': 'admin@outlook.com',
+                'senha': 'senha-segura-123',
+            })
+        self.assertEqual(signup.status_code, 202, signup.get_json())
+        connection = database.get_db_connection()
+        try:
+            self.assertEqual(
+                connection.execute(
+                    "SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'WORKSPACE'"
+                ).fetchone()[0],
+                0,
+            )
+        finally:
+            connection.close()
+
+        message = smtp_context.__enter__.return_value.send_message.call_args.args[0]
+        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
+        codigo_incorreto = f'{(int(code) + 1) % 1_000_000:06d}'
+        invalid = self.client.post('/api/confirmar-conta', json={
+            'email': 'admin@outlook.com',
+            'codigo': codigo_incorreto,
+        })
+        self.assertEqual(invalid.status_code, 400)
+
+        confirmed = self.client.post('/api/confirmar-conta', json={
+            'email': 'admin@outlook.com',
+            'codigo': code,
+        })
+        self.assertEqual(confirmed.status_code, 201, confirmed.get_json())
+        self.assertEqual(self.client.get('/api/sessao').status_code, 200)
+
+    def test_microsoft_sign_in_links_verified_email_and_starts_session(self):
         account = self._create_account()
-        self.assertEqual(account['email'], 'admin@outlook.com')
+        microsoft = MagicMock()
+        microsoft.authorize_access_token.return_value = {
+            'userinfo': {
+                'sub': 'microsoft-subject-123',
+                'tid': 'microsoft-tenant-456',
+                'email': account['email'],
+                'name': account['nome'],
+            }
+        }
+
+        with patch.object(app_module, 'cliente_microsoft', return_value=microsoft):
+            response = self.client.get('/auth/microsoft/callback')
+
+        claims_options = microsoft.authorize_access_token.call_args.kwargs['claims_options']
+        self.assertTrue(claims_options['iss']['essential'])
+        self.assertTrue(claims_options['tid']['essential'])
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers['Location'].endswith(
+            '/frontend/pages/login.html?microsoft=ok'
+        ))
+        session_response = self.client.get('/api/sessao')
+        self.assertEqual(session_response.status_code, 200)
+        self.assertEqual(session_response.get_json()['empresaNome'], 'Empresa Teste')
+
+        connection = database.get_db_connection()
+        try:
+            self.assertEqual(
+                connection.execute('SELECT COUNT(*) FROM identidade_microsoft').fetchone()[0],
+                1,
+            )
+        finally:
+            connection.close()
+
+    def test_microsoft_issuer_validation_matches_only_the_token_tenant(self):
+        tenant_id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        claims = {'tid': tenant_id}
+        self.assertTrue(app_module._validar_issuer_microsoft(
+            claims, f'https://login.microsoftonline.com/{tenant_id}/v2.0'
+        ))
+        self.assertFalse(app_module._validar_issuer_microsoft(
+            claims, 'https://attacker.example/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        ))
+        self.assertFalse(app_module._tenant_microsoft_valido({}, 'not-a-tenant-id'))
+
+    def test_microsoft_sign_in_without_configuration_returns_to_login_with_explanation(self):
+        with patch.dict(os.environ, {
+            'MICROSOFT_CLIENT_ID': '',
+            'MICROSOFT_CLIENT_SECRET': '',
+        }):
+            response = self.client.get('/auth/microsoft')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers['Location'].endswith(
+            '/frontend/pages/login.html?erro=microsoft_nao_configurado'
+        ))
 
     def test_documented_demo_account_can_log_in(self):
         self.database_path.unlink(missing_ok=True)

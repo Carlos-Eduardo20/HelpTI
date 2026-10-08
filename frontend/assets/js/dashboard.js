@@ -1,6 +1,6 @@
 import { buscarChamados, criarChamado, atualizarChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
 import { gerarUrlAvatar } from './avatar.js';
-import { mostrarNotificacao } from './notifications.js';
+import { mostrarNotificacao, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianPhone } from './phone.js';
 
 let chamadosEmMemoria = [];
@@ -532,7 +532,8 @@ async function salvarNovoClienteDoChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  try {
+  const botao = form.querySelector('[type="submit"]');
+  await comCarregamento(botao, async () => { try {
     const cliente = await criarCliente({ nome: campos.nome.value.trim(), telefone: campos.telefone.value.trim(), contato: campos.contato.value.trim(), email: campos.email.value.trim() });
     await carregarClientesNoChamado();
     document.querySelector('#clienteChamado').value = cliente.nome;
@@ -541,7 +542,7 @@ async function salvarNovoClienteDoChamado(event) {
     form.reset();
     cancelarNovoClienteDoChamado();
     mostrarNotificacao('Cliente cadastrado com sucesso.');
-  } catch (error) { alert(`Não foi possível cadastrar o cliente: ${error.message}`); }
+  } catch (error) { mostrarErro(`Não foi possível cadastrar o cliente: ${error.message}`); } }, 'Salvando...');
 }
 
 async function salvarChamado(event) {
@@ -552,7 +553,8 @@ async function salvarChamado(event) {
     form.reportValidity();
     return;
   }
-  try {
+  const botao = form.querySelector('[type="submit"]');
+  await comCarregamento(botao, async () => { try {
     await criarChamado({
       cliente: campos.cliente.value.trim(),
       email_cliente: campos.email_cliente.value.trim(),
@@ -564,7 +566,7 @@ async function salvarChamado(event) {
       descricao: campos.descricao.value.trim()
     });
     fecharModalChamado(); form.reset(); await carregarChamados(); mostrarNotificacao('Chamado criado com sucesso.');
-  } catch (error) { alert(`Não foi possível criar o chamado: ${error.message}`); }
+  } catch (error) { mostrarErro(`Não foi possível criar o chamado: ${error.message}`); } }, 'Abrindo chamado...');
 }
 
 window.abrirModalChamado = abrirModalChamado;
@@ -667,7 +669,7 @@ document.addEventListener('click', async (event) => {
     } catch (error) {
       select.value = statusAnterior;
       await carregarChamados();
-      alert(`Não foi possível atualizar o status: ${error.message}`);
+      mostrarErro(`Não foi possível atualizar o status: ${error.message}`);
     }
     return;
   }

@@ -74,6 +74,7 @@ def initialize_database():
     try:
         _migrate_legacy_schema(connection)
         connection.executescript(schema_path.read_text(encoding='utf-8'))
+        _migrate_email_auth_schema(connection)
         if demo_mode_enabled():
             connection.executescript(demo_seed_path.read_text(encoding='utf-8'))
         _migrate_plaintext_passwords(connection)
@@ -89,6 +90,18 @@ def initialize_database():
         connection.commit()
     finally:
         connection.close()
+
+
+def _migrate_email_auth_schema(connection):
+    columns = {
+        row['name']
+        for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')
+    }
+    if 'email_verificado' not in columns:
+        connection.execute(
+            'ALTER TABLE grupo_solucionadores '
+            'ADD COLUMN email_verificado INTEGER NOT NULL DEFAULT 1'
+        )
 
 
 def _migrate_plaintext_passwords(connection):
