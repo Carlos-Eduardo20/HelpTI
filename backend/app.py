@@ -41,11 +41,13 @@ except ImportError:
     requests = _RequestsAusente()
 
 try:
-    from .database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
+    from .database import (DATABASE_PATH, DEMO_EMAIL, SCHEMA_VERSION, apply_demo_seed,
+                           demo_mode_enabled, get_db_connection, initialize_database)
     from .pc_explorer_3d import render_pc_explorer, render_pc_svg
     from .security_check import run_security_checks
 except ImportError:
-    from database import DATABASE_PATH, demo_mode_enabled, get_db_connection, initialize_database
+    from database import (DATABASE_PATH, DEMO_EMAIL, SCHEMA_VERSION, apply_demo_seed,
+                          demo_mode_enabled, get_db_connection, initialize_database)
     from pc_explorer_3d import render_pc_explorer, render_pc_svg
     from security_check import run_security_checks
 
@@ -105,6 +107,7 @@ PERMISSAO_API = {
     '/api/setores': 'equipe',
     '/api/relatorios': 'relatorios',
     '/api/configuracoes': 'configuracoes',
+    '/api/admin': 'configuracoes',
 }
 PERMISSOES_PADRAO_CARGO = {
     'rh': {'dashboard', 'clientes', 'equipe'},
@@ -1749,6 +1752,127 @@ def update_configuracoes():
         return jsonify({'workspaceName': workspace_name, 'supportEmail': support_email}), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
+
+# ============ GERENCIAMENTO DO BANCO (ADMIN) ============
+
+# Tabelas do workspace e a cláusula que as restringe à empresa ativa.
+_WS_TABELAS_BACKUP = (
+    ('usuario', 'id_usuario = ? OR id_workspace = ?', 2),
+    ('configuracao', 'id_usuario = ?', 1),
+    ('setor', 'id_usuario = ?', 1),
+    ('grupo_solucionadores', 'id_usuario = ?', 1),
+    ('cliente', 'id_workspace = ? OR id_usuario IN (SELECT id_usuario FROM usuario WHERE id_workspace = ?)', 2),
+    ('chamado', 'id_usuario = ?', 1),
+    ('historico_chamado', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = ?)', 1),
+    ('escalonamento', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = ?)', 1),
+)
+_COLUNAS_SECRETAS = {('usuario', 'senha_hash'), ('grupo_solucionadores', 'senha')}
+
+
+def _exigir_administrador():
+    if (g.membro.get('cargo') or '').strip().lower() != 'administrador':
+        return jsonify({'erro': 'Somente o administrador pode gerenciar o banco de dados.'}), 403
+    return None
+
+
+def _sql_literal(valor):
+    if valor is None:
+        return 'NULL'
+    if isinstance(valor, (int, float)):
+        return repr(valor)
+    if isinstance(valor, bytes):
+        return "X'" + valor.hex() + "'"
+    return "'" + str(valor).replace("'", "''") + "'"
+
+
+def _contagens_do_workspace(conn, ws):
+    consultas = {
+        'chamados': ('SELECT COUNT(*) FROM chamado WHERE id_usuario = ?', (ws,)),
+        'clientes': ("SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = ?", (ws,)),
+        'equipe': ('SELECT COUNT(*) FROM grupo_solucionadores WHERE id_usuario = ?', (ws,)),
+        'historico': ('SELECT COUNT(*) FROM historico_chamado WHERE id_chamado IN '
+                      '(SELECT id_chamado FROM chamado WHERE id_usuario = ?)', (ws,)),
+    }
+    return {nome: conn.execute(sql, params).fetchone()[0] for nome, (sql, params) in consultas.items()}
+
+
+@app.route('/api/admin/db/stats', methods=['GET'])
+def admin_db_stats():
+    negado = _exigir_administrador()
+    if negado:
+        return negado
+    conn = get_db_connection()
+    try:
+        caminho = os.path.abspath(str(DATABASE_PATH))
+        return jsonify({
+            'tamanhoBytes': os.path.getsize(caminho) if os.path.exists(caminho) else 0,
+            'registros': _contagens_do_workspace(conn, _ws()),
+            'caminho': caminho,
+            'versaoSchema': conn.execute('PRAGMA user_version').fetchone()[0] or SCHEMA_VERSION,
+            'contaTeste': str(g.membro.get('email') or '').lower() == DEMO_EMAIL,
+        }), 200
+    finally:
+        conn.close()
+
+
+@app.route('/api/admin/db/backup', methods=['GET'])
+def admin_db_backup():
+    negado = _exigir_administrador()
+    if negado:
+        return negado
+    ws = _ws()
+    conn = get_db_connection()
+    try:
+        linhas = [
+            '-- Backup HelpTI (somente dados deste workspace)',
+            f'-- Gerado em {datetime.now().isoformat(timespec="seconds")}',
+            f'-- Versão do schema: {SCHEMA_VERSION}',
+            'PRAGMA foreign_keys = OFF;',
+            'BEGIN;',
+        ]
+        for tabela, filtro, qtd in _WS_TABELAS_BACKUP:
+            colunas = [c['name'] for c in conn.execute(f'PRAGMA table_info({tabela})')]
+            lista = ', '.join(colunas)
+            for registro in conn.execute(f'SELECT {lista} FROM {tabela} WHERE {filtro}', (ws,) * qtd):
+                valores = ', '.join(
+                    "''" if (tabela, col) in _COLUNAS_SECRETAS else _sql_literal(registro[col])
+                    for col in colunas
+                )
+                linhas.append(f'INSERT OR REPLACE INTO {tabela} ({lista}) VALUES ({valores});')
+        linhas += ['COMMIT;', 'PRAGMA foreign_keys = ON;', '']
+    finally:
+        conn.close()
+    nome = f'helpti-backup-{ws}-{datetime.now():%Y%m%d-%H%M%S}.sql'
+    return app.response_class(
+        '\n'.join(linhas), mimetype='application/sql',
+        headers={'Content-Disposition': f'attachment; filename="{nome}"'}
+    )
+
+
+@app.route('/api/admin/db/reset-demo', methods=['POST'])
+def admin_db_reset_demo():
+    negado = _exigir_administrador()
+    if negado:
+        return negado
+    if str(g.membro.get('email') or '').lower() != DEMO_EMAIL or not demo_mode_enabled():
+        return jsonify({'erro': 'A redefinição só está disponível na conta de teste.'}), 403
+    ws = _ws()
+    conn = get_db_connection()
+    try:
+        conn.execute('DELETE FROM chamado WHERE id_usuario = ?', (ws,))
+        conn.execute("DELETE FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = ?", (ws,))
+        conn.execute('DELETE FROM grupo_solucionadores WHERE id_usuario = ? AND LOWER(email) <> ?', (ws, DEMO_EMAIL))
+        conn.execute("DELETE FROM setor WHERE id_usuario = ? AND LOWER(nome) <> 'suporte'", (ws,))
+        conn.execute('DELETE FROM configuracao WHERE id_usuario = ?', (ws,))
+        conn.commit()
+        apply_demo_seed(conn)
+        return jsonify({
+            'mensagem': 'Demonstração restaurada ao estado inicial.',
+            'registros': _contagens_do_workspace(conn, ws),
+        }), 200
+    finally:
+        conn.close()
+
 
 # ============ ROTA DE HEALTH CHECK ============
 

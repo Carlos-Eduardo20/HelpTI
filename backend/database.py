@@ -61,6 +61,15 @@ def get_db_connection():
     return SQLiteConnection(connection)
 
 
+SCHEMA_VERSION = 3
+DEMO_EMAIL = 'test@helpiti.com'
+
+
+def apply_demo_seed(connection):
+    """Reaplica o seed idempotente da conta de demonstração."""
+    connection.executescript(Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8'))
+
+
 def demo_mode_enabled():
     """Whether startup should create the public demonstration data and account."""
     return os.getenv('HELPTI_DEMO_MODE', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
@@ -89,6 +98,7 @@ def initialize_database():
             )
         ''')
         connection.commit()
+        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
     finally:
         connection.close()
 

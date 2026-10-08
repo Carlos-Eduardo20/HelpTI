@@ -45,9 +45,26 @@
       </form>
     </section>
 
+    <!-- Gerenciamento de Banco de Dados (somente administrador) -->
+    <section class="content-card settings-card db-admin" id="dbAdminSection" hidden>
+      <h2>Gerenciamento de Banco de Dados</h2>
+      <div class="db-cards">
+        <div class="db-card"><span>Total de Chamados</span><strong id="dbTotalChamados">-</strong></div>
+        <div class="db-card"><span>Tamanho do Banco</span><strong id="dbTamanho">-</strong></div>
+        <div class="db-card"><span>Versão do Schema</span><strong id="dbVersaoSchema">-</strong></div>
+      </div>
+      <p class="db-info" id="dbRegistros"></p>
+      <p class="db-info">Arquivo: <code id="dbCaminho"></code></p>
+      <div class="form-actions">
+        <button type="button" class="btn-primary" id="btnExportBackup">Exportar Backup SQL</button>
+        <button type="button" class="btn-cancel" id="btnResetDemo" hidden>Restaurar demonstração</button>
+      </div>
+    </section>
+
   </main>
 
   <script type="module" src="../assets/js/main.js"></script>
+  <script type="module" src="../assets/js/db-admin.js"></script>
 
 </body>
 </html>
