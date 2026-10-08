@@ -3,7 +3,7 @@ BEGIN;
 INSERT INTO usuario (nome, email, status, tipo_usuario)
 SELECT 'HelpTI', 'test@helpiti.com', 'ATIVO', 'WORKSPACE'
 WHERE NOT EXISTS (
-    SELECT 1 FROM usuario WHERE tipo_usuario = 'WORKSPACE'
+    SELECT 1 FROM usuario WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = 'test@helpiti.com'
 );
 
 INSERT INTO grupo_solucionadores
@@ -19,6 +19,7 @@ SELECT
     workspace.id_usuario
 FROM usuario AS workspace
 WHERE workspace.tipo_usuario = 'WORKSPACE'
+  AND LOWER(workspace.email) = 'test@helpiti.com'
   AND NOT EXISTS (
       SELECT 1 FROM grupo_solucionadores
       WHERE LOWER(email) = 'test@helpiti.com'
@@ -39,15 +40,30 @@ SET senha = 'pbkdf2:sha256:600000$1j6gGx0UQMD8MGph$d4ac7cb3f5e59731d547e9d8f0a4e
 WHERE LOWER(email) = 'test@helpiti.com'
   AND senha = 'pbkdf2:sha256:600000$helpti-demo-salt$ed4fcd7c8cb5bf394a9afaf63f2d687d4dd9a68e5728307f9ab8291b4a671aac';
 
-INSERT INTO setor (nome, descricao)
-SELECT 'Suporte', 'Setor inicial para testar o fluxo de chamados.'
-WHERE NOT EXISTS (
-    SELECT 1 FROM setor WHERE LOWER(nome) = 'suporte'
-);
+INSERT INTO setor (nome, descricao, id_usuario)
+SELECT 'Suporte', 'Setor inicial para testar o fluxo de chamados.', workspace.id_usuario
+FROM usuario AS workspace
+WHERE workspace.tipo_usuario = 'WORKSPACE'
+  AND LOWER(workspace.email) = 'test@helpiti.com'
+  AND NOT EXISTS (
+      SELECT 1 FROM setor
+      WHERE setor.id_usuario = workspace.id_usuario AND LOWER(setor.nome) = 'suporte'
+  );
+
+INSERT INTO configuracao (workspace_name, support_email, id_usuario)
+SELECT 'HelpTI', 'test@helpiti.com', workspace.id_usuario
+FROM usuario AS workspace
+WHERE workspace.tipo_usuario = 'WORKSPACE'
+  AND LOWER(workspace.email) = 'test@helpiti.com'
+  AND NOT EXISTS (
+      SELECT 1 FROM configuracao WHERE configuracao.id_usuario = workspace.id_usuario
+  );
 
 UPDATE grupo_solucionadores
 SET id_setor = (
-    SELECT id_setor FROM setor WHERE LOWER(nome) = 'suporte' ORDER BY id_setor LIMIT 1
+    SELECT setor.id_setor FROM setor
+    WHERE setor.id_usuario = grupo_solucionadores.id_usuario AND LOWER(setor.nome) = 'suporte'
+    ORDER BY setor.id_setor LIMIT 1
 )
 WHERE LOWER(email) = 'test@helpiti.com'
   AND id_setor IS NULL;

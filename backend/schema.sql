@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     cnpj TEXT,
     plano TEXT,
     acoes TEXT,
-    senha_hash TEXT
+    senha_hash TEXT,
+    id_workspace INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS cliente (
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS cliente (
     nome TEXT NOT NULL,
     email TEXT NOT NULL,
     telefone TEXT NOT NULL,
+    id_workspace INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE,
     FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
 );
 
@@ -34,9 +36,11 @@ CREATE TABLE IF NOT EXISTS tipo_chamado (
 
 CREATE TABLE IF NOT EXISTS setor (
     id_setor INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL UNIQUE,
+    nome TEXT NOT NULL,
     descricao TEXT,
-    niveis TEXT
+    niveis TEXT,
+    id_usuario INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    UNIQUE (id_usuario, nome)
 );
 
 CREATE TABLE IF NOT EXISTS grupo_solucionadores (
@@ -81,6 +85,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     data_agendada TEXT,
     hora_agendada TEXT,
     classificacao TEXT,
+    id_usuario INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE,
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
     FOREIGN KEY (id_setor) REFERENCES setor(id_setor) ON DELETE SET NULL,
     FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
@@ -109,9 +114,10 @@ CREATE TABLE IF NOT EXISTS escalonamento (
 );
 
 CREATE TABLE IF NOT EXISTS configuracao (
-    id_configuracao INTEGER PRIMARY KEY,
+    id_configuracao INTEGER PRIMARY KEY AUTOINCREMENT,
     workspace_name TEXT NOT NULL,
-    support_email TEXT NOT NULL
+    support_email TEXT NOT NULL,
+    id_usuario INTEGER UNIQUE REFERENCES usuario(id_usuario) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS codigo_recuperacao_senha (
@@ -162,14 +168,14 @@ ON identidade_microsoft(tenant_id, object_id);
 CREATE INDEX IF NOT EXISTS idx_verificacao_cadastro_email
 ON verificacao_cadastro_email(email, criado_em);
 
-INSERT OR IGNORE INTO configuracao (id_configuracao, workspace_name, support_email)
-VALUES (1, 'HelpTI Suporte', 'suporte@helpti.com.br');
-
 INSERT OR IGNORE INTO tipo_chamado (id_tipo_chamado, nome, classificacao, descricao) VALUES
 (1, 'Suporte Geral', 'Suporte', 'Chamados gerais de suporte'),
 (2, 'Hardware', 'Técnico', 'Problemas com hardware'),
 (3, 'Software', 'Técnico', 'Problemas com software'),
 (4, 'Rede', 'Infraestrutura', 'Problemas de rede');
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_workspace_unico
-ON usuario(tipo_usuario) WHERE tipo_usuario = 'WORKSPACE';
+DROP INDEX IF EXISTS idx_usuario_workspace_unico;
+CREATE INDEX IF NOT EXISTS idx_chamado_workspace ON chamado(id_usuario, id_chamado);
+CREATE INDEX IF NOT EXISTS idx_setor_workspace ON setor(id_usuario);
+CREATE INDEX IF NOT EXISTS idx_cliente_workspace ON cliente(id_workspace);
+CREATE INDEX IF NOT EXISTS idx_usuario_workspace_cliente ON usuario(id_workspace, tipo_usuario);

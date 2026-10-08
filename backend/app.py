@@ -343,9 +343,21 @@ def cliente_microsoft():
     )
 
 
+DOMINIOS_EMAIL_BLOQUEADOS = {
+    'gmail.com', 'googlemail.com',
+    'mailinator.com', 'tempmail.com', 'temp-mail.org', 'yopmail.com',
+    'teste.com', 'test.com', 'example.com', 'example.org', 'example.net',
+    'dispostable.com', 'trashmail.com', 'guerrillamail.com', '10minutemail.com',
+    'sharklasers.com', 'getnada.com', 'maildrop.cc', 'throwawaymail.com',
+}
+
+
 def dominio_email_bloqueado(email):
-    dominio = email.rsplit('@', 1)[-1].lower()
-    return dominio in {'gmail.com', 'googlemail.com'} or dominio.startswith('yahoo.')
+    dominio = email.rsplit('@', 1)[-1].strip().lower().rstrip('.')
+    if dominio.startswith('yahoo.') or dominio in DOMINIOS_EMAIL_BLOQUEADOS:
+        return True
+    # Cobre subdomínios, ex.: foo.mailinator.com
+    return any(dominio.endswith('.' + bloqueado) for bloqueado in DOMINIOS_EMAIL_BLOQUEADOS)
 
 
 def normalize_record(record):
@@ -358,6 +370,11 @@ def normalize_record(record):
         elif hasattr(value, 'isoformat'):
             record[key] = value.isoformat()
     return record
+
+def _ws():
+    """Id of the active workspace (company) for the authenticated session."""
+    return g.membro['id_usuario']
+
 
 # ============ ROTAS DE CHAMADOS ============
 
@@ -375,8 +392,9 @@ def get_chamados():
             FROM chamado
             LEFT JOIN setor ON setor.id_setor = chamado.id_setor
             LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
+            WHERE chamado.id_usuario = %s
             ORDER BY chamado.id_chamado DESC;
-        ''')
+        ''', (_ws(),))
         chamados = dict_fetchall(cursor)
         
         cursor.close()
@@ -399,8 +417,8 @@ def get_chamado(id):
             FROM chamado
             LEFT JOIN setor ON setor.id_setor = chamado.id_setor
             LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
-            WHERE chamado.id_chamado = %s;
-        ''', (id,))
+            WHERE chamado.id_chamado = %s AND chamado.id_usuario = %s;
+        ''', (id, _ws()))
         chamado = dict_fetchone(cursor)
         if chamado:
             cursor.execute('''
@@ -450,7 +468,8 @@ def create_chamado():
             SELECT id_grupo_solucionadores
             FROM grupo_solucionadores
             WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'
-        ''', (id_grupo_solucionadores, id_setor))
+              AND id_usuario = %s
+        ''', (id_grupo_solucionadores, id_setor, _ws()))
         if not cursor.fetchone():
             cursor.close()
             conn.close()
@@ -467,11 +486,11 @@ def create_chamado():
         query = """
             INSERT INTO chamado
                 (id_chamado, id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, descricao,
-                 email_cliente, telefone_cliente, contato_cliente, telefone_contato)
-            VALUES (%s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s);
+                 email_cliente, telefone_cliente, contato_cliente, telefone_contato, id_usuario)
+            VALUES (%s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
         """
         cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, descricao,
-                               email_cliente, telefone_cliente, contato_cliente, telefone_contato))
+                               email_cliente, telefone_cliente, contato_cliente, telefone_contato, _ws()))
         registrar_historico(cursor, novo_id, 'aberto', 'Chamado criado no sistema.')
         conn.commit()
 
@@ -508,7 +527,7 @@ def update_chamado(id):
         
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s FOR UPDATE', (id,))
+        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s AND id_usuario = %s FOR UPDATE', (id, _ws()))
         chamado = dict_fetchone(cursor)
         if not chamado:
             cursor.close()
@@ -563,13 +582,13 @@ def update_chamado(id):
                 return jsonify({'erro': 'Pause o chamado antes de escaloná-lo'}), 400
             if not id_setor or not id_tecnico or not motivo:
                 return jsonify({'erro': 'Informe o setor, o técnico e a descrição do escalonamento'}), 400
-            cursor.execute("SELECT nivel, nome FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'", (id_tecnico, id_setor))
+            cursor.execute("SELECT nivel, nome FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO' AND id_usuario = %s", (id_tecnico, id_setor, _ws()))
             tecnico = cursor.fetchone()
             if not tecnico:
                 return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
             cursor.execute('UPDATE chamado SET id_setor = %s, id_grupo_solucionadores = %s WHERE id_chamado = %s', (id_setor, id_tecnico, id))
             cursor.execute('INSERT INTO escalonamento (id_chamado, motivo, nivel, data_escalonamento, id_setor_destino, id_grupo_destino) VALUES (%s, %s, %s, %s, %s, %s)', (id, motivo, tecnico[0], agora.date(), id_setor, id_tecnico))
-            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s', (id_setor,))
+            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
             setor = cursor.fetchone()
             evento_historico = 'escalonado'
             descricao_historico = f'Escalonado para {setor[0] if setor else "setor"} / {tecnico[1] or "técnico"}. Motivo: {motivo}'
@@ -643,8 +662,13 @@ def delete_chamado(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
 
         cursor = conn.cursor()
+        cursor.execute('SELECT 1 FROM chamado WHERE id_chamado = %s AND id_usuario = %s;', (id, _ws()))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Chamado não encontrado'}), 404
         cursor.execute('DELETE FROM escalonamento WHERE id_chamado = %s;', (id,))
-        cursor.execute('DELETE FROM chamado WHERE id_chamado = %s;', (id,))
+        cursor.execute('DELETE FROM chamado WHERE id_chamado = %s AND id_usuario = %s;', (id, _ws()))
         removido = cursor.rowcount
         conn.commit()
 
@@ -667,7 +691,7 @@ def get_clientes():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM usuario WHERE tipo_usuario = 'CLIENTE';")
+        cursor.execute("SELECT * FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = %s;", (_ws(),))
         clientes = dict_fetchall(cursor)
 
         if clientes:
@@ -729,17 +753,17 @@ def create_cliente():
         cursor = conn.cursor()
         
         query = """
-            INSERT INTO usuario (nome, cnpj, telefone_empresa, endereco, email, telefone, contato, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO');
+            INSERT INTO usuario (nome, cnpj, telefone_empresa, endereco, email, telefone, contato, status, id_workspace)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s);
         """
         cnpj = (dados.get('cnpj') or '').strip() or None
         telefone_empresa = (dados.get('telefone_empresa') or '').strip() or None
         endereco = (dados.get('endereco') or '').strip() or None
-        cursor.execute(query, (nome, cnpj, telefone_empresa, endereco, primeiro_contato['email'], primeiro_contato['telefone'], primeiro_contato['nome']))
+        cursor.execute(query, (nome, cnpj, telefone_empresa, endereco, primeiro_contato['email'], primeiro_contato['telefone'], primeiro_contato['nome'], _ws()))
         novo_id = cursor.lastrowid
         cursor.executemany(
-            'INSERT INTO cliente (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
-            [(novo_id, contato['nome'], contato['email'], contato['telefone']) for contato in contatos]
+            'INSERT INTO cliente (id_usuario, nome, email, telefone, id_workspace) VALUES (%s, %s, %s, %s, %s)',
+            [(novo_id, contato['nome'], contato['email'], contato['telefone'], _ws()) for contato in contatos]
         )
         conn.commit()
         
@@ -769,10 +793,10 @@ def update_cliente(id):
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        valores = list(campos.values()) + [id]
-        cursor.execute(f"UPDATE usuario SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'", valores)
+        valores = list(campos.values()) + [id, _ws()]
+        cursor.execute(f"UPDATE usuario SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE' AND id_workspace = %s", valores)
         conn.commit()
-        cursor.execute("SELECT * FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'", (id,))
+        cursor.execute("SELECT * FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE' AND id_workspace = %s", (id, _ws()))
         cliente = dict_fetchone(cursor)
         cursor.close()
         conn.close()
@@ -796,8 +820,8 @@ def create_contato_cliente(id):
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT email, telefone, contato FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'",
-            (id,)
+            "SELECT email, telefone, contato FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE' AND id_workspace = %s",
+            (id, _ws())
         )
         cliente = cursor.fetchone()
         if not cliente:
@@ -806,13 +830,13 @@ def create_contato_cliente(id):
         cursor.execute('SELECT id_cliente FROM cliente WHERE id_usuario = %s LIMIT 1', (id,))
         if not cursor.fetchone() and any(cliente[indice] for indice in range(3)):
             cursor.execute(
-                'INSERT INTO cliente (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
-                (id, cliente[2] or 'Contato', cliente[0] or '', cliente[1] or '')
+                'INSERT INTO cliente (id_usuario, nome, email, telefone, id_workspace) VALUES (%s, %s, %s, %s, %s)',
+                (id, cliente[2] or 'Contato', cliente[0] or '', cliente[1] or '', _ws())
             )
 
         cursor.execute(
-            'INSERT INTO cliente (id_usuario, nome, email, telefone) VALUES (%s, %s, %s, %s)',
-            (id, contato['nome'], contato['email'], contato['telefone'])
+            'INSERT INTO cliente (id_usuario, nome, email, telefone, id_workspace) VALUES (%s, %s, %s, %s, %s)',
+            (id, contato['nome'], contato['email'], contato['telefone'], _ws())
         )
         conn.commit()
 
@@ -835,7 +859,7 @@ def delete_cliente(id):
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE'", (id,))
+        cursor.execute("DELETE FROM usuario WHERE id_usuario = %s AND tipo_usuario = 'CLIENTE' AND id_workspace = %s", (id, _ws()))
         conn.commit()
         removido = cursor.rowcount
         cursor.close()
@@ -907,6 +931,12 @@ def create_equipe():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
+        if id_setor:
+            cursor.execute('SELECT 1 FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
+            if not cursor.fetchone():
+                cursor.close()
+                conn.close()
+                return jsonify({'erro': 'Setor inválido para esta empresa'}), 400
         cursor.execute('SELECT 1 FROM grupo_solucionadores WHERE LOWER(email) = LOWER(%s)', (email,))
         if cursor.fetchone():
             cursor.close()
@@ -950,6 +980,12 @@ def update_equipe(id):
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
+        if campos.get('id_setor'):
+            cursor.execute('SELECT 1 FROM setor WHERE id_setor = %s AND id_usuario = %s', (campos['id_setor'], _ws()))
+            if not cursor.fetchone():
+                cursor.close()
+                conn.close()
+                return jsonify({'erro': 'Setor inválido para esta empresa'}), 400
         valores = list(campos.values()) + [id]
         cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s AND id_usuario = %s", valores + [g.membro['id_usuario']])
         conn.commit()
@@ -1026,11 +1062,9 @@ def criar_conta():
         if cursor.fetchone():
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
 
-        cursor.execute("SELECT id_usuario, nome FROM usuario WHERE tipo_usuario = 'WORKSPACE' LIMIT 1")
+        cursor.execute("SELECT id_usuario, nome FROM usuario WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = %s LIMIT 1", (email,))
         if cursor.fetchone():
-            return jsonify({
-                'erro': 'Este HelpTI já possui uma empresa cadastrada. Peça ao administrador para criar seu acesso.'
-            }), 409
+            return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
 
         cursor.execute('''
             SELECT criado_em FROM verificacao_cadastro_email
@@ -1070,7 +1104,12 @@ def criar_conta():
         conn.close()
 
     if not smtp_configurado():
-        print(f'\n[HelpTI - desenvolvimento] Código de confirmação para {email}: {codigo}\n', flush=True)
+        print(
+            '\n' + '=' * 60 +
+            f'\n[DEV MODE] Código de confirmação gerado para {email}: {codigo}\n' +
+            '=' * 60 + '\n',
+            flush=True,
+        )
         return jsonify({
             'mensagem': 'Modo de desenvolvimento: o código foi exibido no terminal onde o HelpTI está rodando.'
         }), 202
@@ -1150,18 +1189,20 @@ def confirmar_conta():
         if cursor.fetchone():
             conexao.rollback()
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail.'}), 409
-        cursor.execute("SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' LIMIT 1")
+        cursor.execute("SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = %s LIMIT 1", (email,))
         if cursor.fetchone():
             conexao.rollback()
-            return jsonify({
-                'erro': 'Este HelpTI já possui uma empresa cadastrada. Peça ao administrador para criar seu acesso.'
-            }), 409
+            return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail.'}), 409
 
         cursor.execute(
             "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (%s, %s, 'ATIVO', 'WORKSPACE')",
             (registro['empresa'], email)
         )
         workspace_id = cursor.lastrowid
+        cursor.execute(
+            'INSERT INTO configuracao (id_usuario, workspace_name, support_email) VALUES (%s, %s, %s)',
+            (workspace_id, registro['empresa'], email)
+        )
         nome_membro = registro['nome'] or re.sub(r'[-_.]+', ' ', email.split('@', 1)[0]).title()
         permissoes = sorted(PERMISSOES_VALIDAS)
         cursor.execute('''
@@ -1521,7 +1562,7 @@ def get_setores():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor ORDER BY nome;')
+        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_usuario = %s ORDER BY nome;', (_ws(),))
         setores = dict_fetchall(cursor)
         for setor in setores:
             try:
@@ -1550,10 +1591,10 @@ def create_setor():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE LOWER(nome) = LOWER(%s) LIMIT 1;', (nome,))
+        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_usuario = %s AND LOWER(nome) = LOWER(%s) LIMIT 1;', (_ws(), nome))
         setor = dict_fetchone(cursor)
         if not setor:
-            cursor.execute('INSERT INTO setor (nome, descricao, niveis) VALUES (%s, %s, %s);', (nome, descricao, json.dumps(niveis, ensure_ascii=False)))
+            cursor.execute('INSERT INTO setor (nome, descricao, niveis, id_usuario) VALUES (%s, %s, %s, %s);', (nome, descricao, json.dumps(niveis, ensure_ascii=False), _ws()))
             conn.commit()
             cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_setor = %s;', (cursor.lastrowid,))
             setor = dict_fetchone(cursor)
@@ -1575,9 +1616,14 @@ def delete_setor(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
 
         cursor = conn.cursor()
-        cursor.execute('UPDATE grupo_solucionadores SET id_setor = NULL, nivel = NULL WHERE id_setor = %s;', (id,))
-        cursor.execute('UPDATE chamado SET id_setor = NULL WHERE id_setor = %s;', (id,))
-        cursor.execute('DELETE FROM setor WHERE id_setor = %s;', (id,))
+        cursor.execute('SELECT 1 FROM setor WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Setor não encontrado'}), 404
+        cursor.execute('UPDATE grupo_solucionadores SET id_setor = NULL, nivel = NULL WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
+        cursor.execute('UPDATE chamado SET id_setor = NULL WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
+        cursor.execute('DELETE FROM setor WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
         removido = cursor.rowcount
         conn.commit()
 
@@ -1602,18 +1648,18 @@ def get_relatorios():
         cursor = conn.cursor()
         
         periodo = request.args.get('periodo', 'todos')
-        filtro_data = ''
+        filtro_data = 'WHERE id_usuario = %s'
         if periodo == 'mes':
-            filtro_data = "WHERE strftime('%Y-%m', data_abertura) = strftime('%Y-%m', 'now', 'localtime')"
+            filtro_data += " AND strftime('%Y-%m', data_abertura) = strftime('%Y-%m', 'now', 'localtime')"
         elif periodo == 'dia':
-            filtro_data = "WHERE date(data_abertura) = date('now', 'localtime')"
+            filtro_data += " AND date(data_abertura) = date('now', 'localtime')"
 
         cursor.execute("""
             SELECT UPPER(TRIM(status)) AS status, COUNT(*) AS total
             FROM chamado
             """ + filtro_data + """
             GROUP BY status;
-        """)
+        """, (_ws(),))
         chamados_status = dict_fetchall(cursor)
 
         cursor.execute("""
@@ -1625,10 +1671,10 @@ def get_relatorios():
             COUNT(*) AS total
             FROM chamado ch
             LEFT JOIN tipo_chamado tc ON tc.id_tipo_chamado = ch.id_tipo_chamado
-            """ + filtro_data.replace('data_abertura', 'ch.data_abertura') + """
+            """ + filtro_data.replace('id_usuario', 'ch.id_usuario').replace('data_abertura', 'ch.data_abertura') + """
             GROUP BY 1
             ORDER BY total DESC, classificacao ASC;
-        """)
+        """, (_ws(),))
         chamados_classificacao = dict_fetchall(cursor)
 
         total_chamados = sum(int(item['total']) for item in chamados_status)
@@ -1666,7 +1712,7 @@ def get_configuracoes():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor(dictionary=True)
-        cursor.execute('SELECT workspace_name, support_email FROM configuracao WHERE id_configuracao = 1')
+        cursor.execute('SELECT workspace_name, support_email FROM configuracao WHERE id_usuario = %s', (_ws(),))
         registro = cursor.fetchone()
         cursor.close()
         conn.close()
@@ -1692,11 +1738,11 @@ def update_configuracoes():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
         cursor.execute("""INSERT INTO configuracao
-            (id_configuracao, workspace_name, support_email) VALUES (1, %s, %s)
-            ON CONFLICT(id_configuracao) DO UPDATE SET
+            (id_usuario, workspace_name, support_email) VALUES (%s, %s, %s)
+            ON CONFLICT(id_usuario) DO UPDATE SET
                 workspace_name = excluded.workspace_name,
                 support_email = excluded.support_email""",
-            (workspace_name, support_email))
+            (_ws(), workspace_name, support_email))
         conn.commit()
         cursor.close()
         conn.close()

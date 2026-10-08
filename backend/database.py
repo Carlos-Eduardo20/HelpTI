@@ -73,6 +73,7 @@ def initialize_database():
     connection = get_db_connection()
     try:
         _migrate_legacy_schema(connection)
+        _migrate_multitenant_schema(connection)
         connection.executescript(schema_path.read_text(encoding='utf-8'))
         _migrate_email_auth_schema(connection)
         if demo_mode_enabled():
@@ -90,6 +91,98 @@ def initialize_database():
         connection.commit()
     finally:
         connection.close()
+
+
+def _columns(connection, table):
+    return {row['name'] for row in connection.execute(f'PRAGMA table_info({table})')}
+
+
+def _migrate_multitenant_schema(connection):
+    """Adds per-workspace ownership columns to existing databases without losing data."""
+    tables = {
+        row['name']
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if 'usuario' not in tables:
+        return
+
+    connection.commit()
+    connection.execute('PRAGMA foreign_keys = OFF')
+    try:
+        workspace = connection.execute(
+            "SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' "
+            'ORDER BY id_usuario LIMIT 1'
+        ).fetchone()
+        workspace_id = workspace['id_usuario'] if workspace else None
+
+        ref = 'INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE'
+        for table, column in (
+            ('usuario', 'id_workspace'),
+            ('cliente', 'id_workspace'),
+            ('chamado', 'id_usuario'),
+            ('configuracao', 'id_usuario'),
+        ):
+            if table in tables and column not in _columns(connection, table):
+                connection.execute(f'ALTER TABLE {table} ADD COLUMN {column} {ref}')
+
+        if 'setor' in tables and 'id_usuario' not in _columns(connection, 'setor'):
+            connection.execute('DROP TABLE IF EXISTS setor_new')
+            connection.execute(f'''
+                CREATE TABLE setor_new (
+                    id_setor INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT NOT NULL,
+                    descricao TEXT,
+                    niveis TEXT,
+                    id_usuario {ref},
+                    UNIQUE (id_usuario, nome)
+                )
+            ''')
+            connection.execute('''
+                INSERT INTO setor_new (id_setor, nome, descricao, niveis, id_usuario)
+                SELECT id_setor, nome, descricao, niveis, ? FROM setor
+            ''', (workspace_id,))
+            connection.execute('DROP TABLE setor')
+            connection.execute('ALTER TABLE setor_new RENAME TO setor')
+
+        if workspace_id is not None:
+            connection.execute(
+                "UPDATE usuario SET id_workspace = ? "
+                "WHERE tipo_usuario = 'CLIENTE' AND id_workspace IS NULL",
+                (workspace_id,)
+            )
+            if 'cliente' in tables:
+                connection.execute(
+                    'UPDATE cliente SET id_workspace = ? WHERE id_workspace IS NULL',
+                    (workspace_id,)
+                )
+            if 'chamado' in tables:
+                connection.execute(
+                    'UPDATE chamado SET id_usuario = ? WHERE id_usuario IS NULL',
+                    (workspace_id,)
+                )
+            if 'setor' in tables:
+                connection.execute(
+                    'UPDATE setor SET id_usuario = ? WHERE id_usuario IS NULL',
+                    (workspace_id,)
+                )
+            if 'configuracao' in tables:
+                connection.execute(
+                    'UPDATE configuracao SET id_usuario = ? '
+                    'WHERE id_configuracao = (SELECT MIN(id_configuracao) FROM configuracao '
+                    'WHERE id_usuario IS NULL) AND NOT EXISTS '
+                    '(SELECT 1 FROM configuracao WHERE id_usuario = ?)',
+                    (workspace_id, workspace_id)
+                )
+
+        if 'configuracao' in tables:
+            connection.execute(
+                'CREATE UNIQUE INDEX IF NOT EXISTS idx_configuracao_workspace '
+                'ON configuracao(id_usuario)'
+            )
+        connection.execute('DROP INDEX IF EXISTS idx_usuario_workspace_unico')
+        connection.commit()
+    finally:
+        connection.execute('PRAGMA foreign_keys = ON')
 
 
 def _migrate_email_auth_schema(connection):
