@@ -1,7 +1,4 @@
 # HelpTI
-
-Sistema web de gestão operacional para suporte técnico, com foco em acompanhar chamados, clientes, equipe e indicadores do atendimento de TI.
-
 ## Visão geral
 
 O HelpTI é uma aplicação web para gestão de suporte técnico. O frontend usa HTML, CSS e JavaScript; o backend usa Flask e expõe uma API REST. Os dados são persistidos em SQLite, criado automaticamente na primeira inicialização.
@@ -21,14 +18,6 @@ O projeto reúne telas de login, dashboard, chamados, clientes, equipe, setores,
 A visualização interativa de componentes 3D da página Educação é desenhada em Python pelo Flask. Para iniciar o sistema e acessar a visualização, execute `python app.py` na raiz do projeto; não é necessário iniciar um aplicativo Tkinter separado.
 
 ---
-
-## Estado atual do projeto
-
-### Backend
-
-- [backend/database.py](backend/database.py): conexão SQLite e inicialização automática
-- [backend/demo_seed.sql](backend/demo_seed.sql): única conta administradora local de teste
-- [backend/requirements.txt](backend/requirements.txt): dependências Python da aplicação
 
 ## Banco de dados
 
@@ -73,15 +62,15 @@ erDiagram
 	USUARIO {
 		INTEGER id_usuario PK
 		TEXT nome
-		TEXT contato
-		TEXT email
-		TEXT telefone
-		TEXT telefone_empresa
+		INT contato
+		Email email
+		INT telefone
+		INT telefone_empresa
 		TEXT endereco
-		TEXT status
+		BOL status
 		TEXT tipo_usuario
-		TEXT cnpj
-		TEXT plano
+		INT cnpj
+		INT plano
 		TEXT acoes
 		TEXT senha_hash
 	}
@@ -233,16 +222,6 @@ O projeto roda com um único processo. O Flask serve as páginas do frontend, di
 3. Abra o projeto no VS Code e abra um terminal na raiz da pasta `HelpTI`.
 4. Crie um ambiente virtual e instale nele as dependências do projeto:
 
-```powershell
-python -m venv .venv
-& ".\.venv\Scripts\python.exe" -m pip install -r backend\requirements.txt
-```
-
-5. Inicie com o mesmo interpretador que recebeu as dependências:
-
-```powershell
-& ".\.venv\Scripts\python.exe" app.py
-```
 
    Se preferir executar `python app.py`, primeiro ative o ambiente com `.\.venv\Scripts\Activate.ps1` e confirme que `python` aponta para `.venv`. Não é necessário criar o banco nem configurar `DB_*` no `.env`; o SQLite e as tabelas são inicializados automaticamente.
 
@@ -383,15 +362,3 @@ Para parar o container, execute `docker compose down` na pasta do projeto. O vol
 ## Conclusão
 
 Cada integrante trabalha com seu próprio banco SQLite local. Os dados não são enviados ao repositório nem sincronizados por `git pull`.
-
-## Como contribuir
-
-Antes de alterar o código, consulte [INTEGRACAO.md](INTEGRACAO.md) e a modelagem de dados acima. Faça mudanças pequenas, teste a API e o fluxo da tela correspondente e descreva no pull request o que foi alterado e como testar. Para dados locais, pare o servidor antes de copiar o arquivo de banco como backup.
-
----
-
-## Modo produ��o (WSGI)
-
-- Docker/Linux: Gunicorn (WEB_CONCURRENCY, GUNICORN_THREADS).
-- Sem Docker: FLASK_ENV=production python app.py usa Waitress no Windows e Gunicorn no Linux (HELPTI_THREADS, HELPTI_HOST=0.0.0.0 para acesso externo).
-- Com SQLite mantenha poucos workers; para escalar, migre para PostgreSQL.
