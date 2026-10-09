@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>document.documentElement.dataset.theme = localStorage.getItem('helpti-theme') === 'dark' ? 'dark' : 'light';</script>
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('helpti-theme') === 'dark' ? 'dark' : 'light';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
     <link rel="shortcut icon" href="../assets/images/cpu.png" type="imagem de icon">
     <!-- CSS -->
     <link rel="stylesheet" href="../assets/css/login.css">
@@ -97,6 +103,18 @@
       localStorage.removeItem('emailLembrado');
     }
 
+    // Garante que nenhum overlay/loader fique preso na tela se algum script falhar.
+    function removerOverlays() {
+      document.querySelectorAll('.modal-overlay, .agenda-calendar-overlay, .loading-overlay, .loader, .backdrop')
+        .forEach((el) => {
+          el.classList.remove('active', 'show', 'open');
+          el.hidden = true;
+          el.style.display = 'none';
+        });
+    }
+    window.addEventListener('error', removerOverlays);
+    window.addEventListener('unhandledrejection', removerOverlays);
+
     function limparEstadoBotao() {
       const formulario = document.getElementById('loginForm');
       const botao = formulario?.querySelector('button[type="submit"]');
@@ -173,13 +191,13 @@
           cache: 'no-store'
         });
         if (!response.ok) throw new Error('Não foi possível confirmar a sessão Microsoft.');
-        const dados = await response.json();
-        sessionStorage.setItem('grupoId', String(dados.id));
+        const dados = (await response.json()) ?? {};
+        sessionStorage.setItem('grupoId', String(dados.id ?? ''));
         sessionStorage.setItem('perfilNome', dados.nome || '');
         sessionStorage.setItem('empresaNome', dados.empresaNome || 'HelpTI');
         window.location.replace('dashboard.html');
       } catch (error) {
-        feedback.textContent = error.message;
+        if (feedback) feedback.textContent = error.message;
       }
       return true;
     }
