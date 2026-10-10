@@ -504,6 +504,56 @@ class TicketEmailTests(unittest.TestCase):
             'senha': 'outra-senha-segura-789',
         }).status_code, 400)
 
+    def test_microsoft_redirect_uses_https_forwarded_by_proxy(self):
+        with patch.dict(os.environ, {'MICROSOFT_REDIRECT_URI': ''}):
+            with patch.object(app_module, 'cliente_microsoft') as microsoft_client:
+                microsoft_client.return_value.authorize_redirect.return_value = (
+                    'redirect', 302
+                )
+                self.client.get(
+                    '/auth/microsoft',
+                    headers={'X-Forwarded-Proto': 'https'},
+                )
+
+        redirect_uri = microsoft_client.return_value.authorize_redirect.call_args.args[0]
+        self.assertEqual(redirect_uri, 'https://localhost/auth/microsoft/callback')
+
+    def test_mutating_requests_reject_cross_site_origins(self):
+        response = self.client.post(
+            '/api/logout',
+            headers={
+                'Origin': 'https://attacker.example',
+                'Sec-Fetch-Site': 'cross-site',
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_login_attempts_are_rate_limited_per_client(self):
+        for _ in range(10):
+            response = self.client.post('/api/login', json={
+                'email': 'unknown@example.test',
+                'senha': 'wrong-password',
+            })
+            self.assertEqual(response.status_code, 401)
+
+        limited = self.client.post('/api/login', json={
+            'email': 'unknown@example.test',
+            'senha': 'wrong-password',
+        })
+
+        self.assertEqual(limited.status_code, 429)
+
+    def test_security_headers_are_set_on_responses(self):
+        response = self.client.get('/api/health')
+
+        self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(response.headers['X-Frame-Options'], 'DENY')
+        self.assertEqual(
+            response.headers['Referrer-Policy'],
+            'strict-origin-when-cross-origin',
+        )
+
     def test_password_recovery_requests_are_rate_limited(self):
         account = self._create_account()
         smtp_context = MagicMock()

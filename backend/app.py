@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, redirect, send_from_directory, session, g, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 from sqlite3 import Error
 import os
@@ -9,6 +10,7 @@ import hashlib
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 import webbrowser
 from threading import Timer
 
@@ -57,6 +59,7 @@ load_dotenv()
 
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 oauth = OAuth(app) if OAuth else None
 
 
@@ -80,6 +83,87 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.getenv('HELPTI_HTTPS_ONLY', 'false').strip().lower() in ('1', 'true', 'yes', 'on'),
 )
 app.permanent_session_lifetime = timedelta(days=30)
+
+
+def _same_origin(value):
+    try:
+        provided = urlsplit(value)
+        expected = urlsplit(request.host_url)
+        provided_port = provided.port or (443 if provided.scheme.lower() == 'https' else 80)
+        expected_port = expected.port or (443 if expected.scheme.lower() == 'https' else 80)
+    except ValueError:
+        return False
+    return (
+        provided.scheme.lower() in {'http', 'https'}
+        and provided.hostname is not None
+        and provided.username is None
+        and provided.password is None
+        and provided.scheme.lower() == expected.scheme.lower()
+        and provided.hostname.lower() == (expected.hostname or '').lower()
+        and provided_port == expected_port
+    )
+
+
+def _registrar_tentativa_login():
+    client = request.remote_addr or 'unknown'
+    client_hash = hashlib.sha256(
+        f'{app.config["SECRET_KEY"]}:{client}'.encode('utf-8')
+    ).hexdigest()
+    agora = datetime.now()
+    conexao = get_db_connection()
+    try:
+        conexao.execute('BEGIN IMMEDIATE')
+        cursor = conexao.cursor()
+        cursor.execute(
+            'SELECT window_started, attempts FROM login_rate_limit WHERE client_hash = %s',
+            (client_hash,)
+        )
+        registro = cursor.fetchone()
+        if registro and agora - datetime.fromisoformat(
+            registro['window_started']
+        ) < timedelta(minutes=15):
+            if registro['attempts'] >= 10:
+                conexao.rollback()
+                return False
+            cursor.execute(
+                'UPDATE login_rate_limit SET attempts = attempts + 1 '
+                'WHERE client_hash = %s',
+                (client_hash,)
+            )
+        else:
+            cursor.execute(
+                'INSERT OR REPLACE INTO login_rate_limit '
+                '(client_hash, window_started, attempts) VALUES (%s, %s, 1)',
+                (client_hash, agora.isoformat(timespec='seconds'))
+            )
+        conexao.commit()
+        return True
+    finally:
+        conexao.close()
+
+
+@app.before_request
+def reject_cross_site_mutations():
+    if request.method in {'GET', 'HEAD', 'OPTIONS'}:
+        return None
+    if request.headers.get('Sec-Fetch-Site', '').lower() == 'cross-site':
+        return jsonify({'erro': 'Requisição entre sites não permitida.'}), 403
+    origin = request.headers.get('Origin') or request.headers.get('Referer')
+    if origin and not _same_origin(origin):
+        return jsonify({'erro': 'Origem da requisição não permitida.'}), 403
+    return None
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault(
+        'Permissions-Policy', 'camera=(), microphone=(), geolocation=()'
+    )
+    return response
+
 
 PERMISSOES_VALIDAS = {
     'dashboard', 'chamados', 'clientes', 'equipe', 'relatorios',
@@ -1247,6 +1331,10 @@ def login():
     senha = dados.get('senha') or ''
     if not email or not senha:
         return jsonify({'erro': 'E-mail e senha são obrigatórios'}), 400
+    if not _registrar_tentativa_login():
+        return jsonify({
+            'erro': 'Muitas tentativas de login. Aguarde 15 minutos e tente novamente.'
+        }), 429
     if not demo_mode_enabled() and email.lower() in ('test@helpiti.com', 'teste@helpiti.com'):
         return jsonify({'erro': 'E-mail ou senha inválidos'}), 401
 

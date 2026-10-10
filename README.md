@@ -205,7 +205,7 @@ Em uma instalação sem workspace, o primeiro cadastro envia um código ao e-mai
 
 O código é aleatório, expira em 10 minutos e só pode ser usado uma vez; há limite de tentativas e intervalo entre reenvios. Se não houver SMTP configurado, um cadastro novo falha claramente e não cria a empresa. Configure um provedor SMTP autorizado antes do cadastro. A senha enviada ao HelpTI é armazenada como hash; ela não é a senha do Outlook. O HelpTI não consulta a existência de endereços por fora nem acessa a caixa postal: somente quem recebe o código consegue provar que a controla.
 
-Para ativar a entrada Microsoft, registre o aplicativo no Microsoft Entra ID, habilite a plataforma **Web**, configure contas organizacionais e pessoais Microsoft, cadastre o URI de retorno `/auth/microsoft/callback` e informe `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID=common` e `MICROSOFT_REDIRECT_URI` no ambiente. O URI cadastrado precisa ser idêntico ao endereço externo do aplicativo, inclusive `https://` e caminho. Em desenvolvimento, use `http://localhost:5000/auth/microsoft/callback`; em hospedagem, use o domínio HTTPS publicado. Nunca coloque o segredo do aplicativo no Git ou no Dockerfile.
+Para ativar a entrada Microsoft, registre o aplicativo no Microsoft Entra ID, habilite a plataforma **Web**, configure contas organizacionais e pessoais Microsoft, cadastre o URI de retorno `/auth/microsoft/callback` e informe `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID=common` e `MICROSOFT_REDIRECT_URI` no ambiente. O URI cadastrado precisa ser idêntico ao endereço externo do aplicativo, inclusive `https://` e caminho. No Docker Compose, use `https://localhost/auth/microsoft/callback`; ao executar diretamente com `python app.py`, use `http://localhost:5000/auth/microsoft/callback`; em hospedagem, use o domínio HTTPS publicado. Nunca coloque o segredo do aplicativo no Git ou no Dockerfile.
 
 A permissão `gerenciar_equipe` é separada da aba Equipe: ela controla criação/edição de funcionários e setores. Quem tem acesso a Chamados também recebe leituras auxiliares limitadas de clientes, técnicos e setores para preencher chamados; isso não libera as páginas de Clientes ou Equipe nem operações de escrita nesses módulos.
 
@@ -280,7 +280,7 @@ Os testes de email usam um servidor SMTP simulado e não enviam mensagens reais.
 
 ### Docker e Dev Container
 
-O `Dockerfile` empacota o HelpTI e suas dependências em uma imagem. O `compose.yaml` inicia essa imagem como um container, publica a aplicação somente no próprio computador por padrão (`127.0.0.1:5000`) e guarda o SQLite em um volume Docker chamado `help-ti-data`. O volume mantém os dados quando o container é atualizado ou recriado. Cada computador tem seu próprio volume e seu próprio banco: Docker distribui o mesmo código, mas não sincroniza chamados entre amigos.
+O `Dockerfile` empacota o HelpTI e suas dependências em uma imagem. O `compose.yaml` inicia a aplicação e um proxy Caddy: somente o Caddy publica uma porta HTTPS vinculada exclusivamente a `127.0.0.1` (porta `443` por padrão); a porta `5000` do HelpTI não é publicada no host nem acessível diretamente de outros dispositivos. O backend responde apenas na rede interna do Compose. O SQLite fica no volume Docker `help-ti-data`; ele mantém os dados quando o container é atualizado ou recriado. Cada computador tem seu próprio volume e seu próprio banco: Docker distribui o mesmo código, mas não sincroniza chamados entre amigos.
 
 #### Executar no computador de cada pessoa
 
@@ -299,21 +299,28 @@ cd HelpTI
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-   Para usar a demonstração, mantenha `HELPTI_DEMO_MODE=true`. Para experimentar o cadastro por e-mail ou o botão Microsoft, configure SMTP e os dados Microsoft no `.env`; sem SMTP, entre com a conta demonstrativa.
+   O modo seguro padrão é `HELPTI_DEMO_MODE=false`; configure SMTP no `.env` para receber o código e criar o primeiro administrador. Para testar a conta compartilhada de demonstração, altere explicitamente para `HELPTI_DEMO_MODE=true` e use-a somente nesta instalação local, sem dados reais. Configure SMTP e os dados Microsoft para experimentar essas integrações.
 4. Abra o PowerShell/terminal na pasta raiz do HelpTI, onde estão `Dockerfile` e `compose.yaml`, e inicie:
 
 ```powershell
 docker compose up --build -d
 ```
 
-5. Abra `http://localhost:5000` e entre com `test@helpiti.com` e `HelpTI2026!`.
+5. Abra `https://localhost` uma vez e aguarde o Caddy iniciar; o navegador pode avisar que o certificado local ainda não é confiável. Para remover o aviso no Windows, exporte e adicione o certificado raiz ao repositório do usuário:
+
+```powershell
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt "$env:USERPROFILE\caddy-root.crt"
+certutil -user -addstore -f Root "$env:USERPROFILE\caddy-root.crt"
+```
+
+   Feche e reabra o navegador depois de confiar no certificado. O certificado raiz deve ser confiado somente no computador em que você executa o projeto. Para usar outra porta HTTPS, defina `HELPTI_HTTPS_PORT` (por exemplo, `8443`) no `.env` e acesse `https://localhost:8443`. A porta antiga `5000` não é publicada no computador.
 6. Para acompanhar a inicialização, use `docker compose logs -f help-ti` (Ctrl+C sai dos logs). Para parar o container sem apagar o banco, use `docker compose down`.
 
-Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A conta e as opções de referência vêm do seed versionado; chamados e clientes fictícios não são criados. O SQLite e a chave de sessão ficam no volume persistente `help-ti-data`, não na imagem nem no Git. Esse volume é local ao computador; não sincroniza dados com a nuvem nem com outras instalações.
+Em uma atualização futura, faça `git pull` e rode novamente `docker compose up --build -d`. A conta e as opções de referência vêm do seed versionado; chamados e clientes fictícios não são criados. O SQLite e a chave de sessão ficam no volume persistente `help-ti-data`; os certificados locais do Caddy ficam em `help-ti-caddy-data`, não na imagem nem no Git. Esses volumes são locais ao computador; não sincronizam dados com a nuvem nem com outras instalações.
 
 Em uma instalação criada com `HELPTI_DEMO_MODE=false`, o primeiro cadastro cria o workspace depois que a pessoa confirma o código enviado por e-mail. Depois disso, cadastros públicos são recusados; o administrador deve criar os acessos pela área de Equipe. Isso evita que visitantes se adicionem à empresa já cadastrada. O cadastro inicial exige nome da empresa e recusa Gmail/Yahoo; Outlook é permitido. Para criar uma empresa própria, use um SQLite novo e desative o seed, em vez de cadastrar outra empresa no banco da demonstração.
 
-O container roda como usuário sem privilégios e usa Gunicorn em vez do servidor de desenvolvimento do Flask. `HELPTI_HTTPS_ONLY=true` ativa o atributo `Secure` do cookie de sessão quando a aplicação está atrás de um proxy HTTPS. Não publique a porta HTTP do Compose diretamente na internet.
+O container roda como usuário sem privilégios e usa Gunicorn em vez do servidor de desenvolvimento do Flask. No Compose, o Caddy criptografa a conexão entre navegador e proxy, e `HELPTI_HTTPS_ONLY=true` marca o cookie de sessão como `Secure`; a comunicação entre Caddy e o HelpTI fica na rede interna Docker. O app também rejeita mutações com origem entre sites, aplica cabeçalhos HTTP de segurança e limita a 10 tentativas de login por endereço de cliente a cada 15 minutos. O certificado `tls internal` é para desenvolvimento local e não deve ser usado como certificado público. Em uma hospedagem, use o HTTPS e o certificado gerenciados pelo provedor ou por um domínio seu; não publique a porta HTTP do Compose diretamente na internet.
 
 #### Publicar um piloto privado com Docker
 
@@ -355,7 +362,7 @@ Não é necessário executar `python -m http.server` nem abrir a porta 8000.
 
 ### Encerrar
 
-Para parar o container, execute `docker compose down` na pasta do projeto. O volume `help-ti-data` não é apagado por esse comando, portanto o banco continua guardado para a próxima inicialização.
+Para parar os containers, execute `docker compose down` na pasta do projeto. Os volumes do banco e dos certificados Caddy não são apagados por esse comando e continuam guardados para a próxima inicialização.
 
 ---
 

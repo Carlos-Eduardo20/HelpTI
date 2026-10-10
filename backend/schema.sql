@@ -154,6 +154,12 @@ CREATE TABLE IF NOT EXISTS identidade_microsoft (
         REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS login_rate_limit (
+    client_hash TEXT PRIMARY KEY,
+    window_started TEXT NOT NULL,
+    attempts INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor ON grupo_solucionadores(id_setor);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario ON grupo_solucionadores(id_usuario);

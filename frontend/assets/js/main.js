@@ -136,7 +136,7 @@ function renderizarClientes(clientes) {
   if (!tabela) return;
   tabela.innerHTML = clientes.map((cliente) => {
     const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
-    return `<tr onclick="window.location.href='cliente-detalhe.html?id=${cliente.id_usuario}'" style="cursor: pointer;"><td><strong>${cliente.nome || '-'}</strong></td><td>${detailEscape(formatBrazilianCnpj(cliente.cnpj) || '-')}</td><td>${cliente.contato || '-'}</td><td>${cliente.telefone_empresa || cliente.telefone || '-'}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${cliente.id_usuario}" aria-label="Excluir cliente ${cliente.nome || ''}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
+    return `<tr onclick="window.location.href='cliente-detalhe.html?id=${detailEscape(cliente.id_usuario)}'" style="cursor: pointer;"><td><strong>${detailEscape(cliente.nome)}</strong></td><td>${detailEscape(formatBrazilianCnpj(cliente.cnpj) || '-')}</td><td>${detailEscape(cliente.contato)}</td><td>${detailEscape(cliente.telefone_empresa || cliente.telefone)}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${detailEscape(cliente.id_usuario)}" aria-label="Excluir cliente ${detailEscape(cliente.nome || '')}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
   }).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
 }
 
@@ -195,7 +195,7 @@ async function carregarClientes() {
     const { buscarClientes, buscarChamados } = await import('./api.js');
     [clientesEmMemoria, chamadosEmMemoria] = await Promise.all([buscarClientes(), buscarChamados()]);
     filtrarClientes();
-  } catch (error) { tabela.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; }
+  } catch (error) { tabela.innerHTML = `<tr><td colspan="5">${detailEscape(error.message)}</td></tr>`; }
 }
 
 async function salvarCliente(event) {
@@ -262,8 +262,8 @@ async function carregarEquipe() {
   try {
     const { buscarEquipe } = await import('./api.js');
     const equipe = await buscarEquipe();
-    tabela.innerHTML = equipe.map((membro) => `<tr onclick="window.location.href='equipe-detalhe.html?id=${membro.id_grupo_solucionadores}'" style="cursor: pointer;"><td><strong>${membro.nome || membro.descricao || '-'}</strong></td><td>${membro.cargo || '-'}</td><td>${membro.setor_nome || 'Sem setor'}</td><td><span class="status-badge status-info">${membro.status || 'ATIVO'}</span></td></tr>`).join('') || '<tr><td colspan="4">Nenhum membro cadastrado.</td></tr>';
-  } catch (error) { tabela.innerHTML = `<tr><td colspan="4">${error.message}</td></tr>`; }
+    tabela.innerHTML = equipe.map((membro) => `<tr onclick="window.location.href='equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}'" style="cursor: pointer;"><td><strong>${detailEscape(membro.nome || membro.descricao)}</strong></td><td>${detailEscape(membro.cargo)}</td><td>${detailEscape(membro.setor_nome || 'Sem setor')}</td><td><span class="status-badge status-info">${detailEscape(membro.status || 'ATIVO')}</span></td></tr>`).join('') || '<tr><td colspan="4">Nenhum membro cadastrado.</td></tr>';
+  } catch (error) { tabela.innerHTML = `<tr><td colspan="4">${detailEscape(error.message)}</td></tr>`; }
 }
 
 let setoresEmMemoria = [];
@@ -276,9 +276,9 @@ async function carregarSetores() {
     const { buscarSetores, buscarEquipe } = await import('./api.js');
     [setoresEmMemoria, equipeEmMemoria] = await Promise.all([buscarSetores(), buscarEquipe()]);
     const lista = document.querySelector('#setores-disponiveis');
-    if (lista) lista.innerHTML = setoresEmMemoria.map((setor) => `<option value="${setor.nome}"></option>`).join('');
+    if (lista) lista.innerHTML = setoresEmMemoria.map((setor) => `<option value="${detailEscape(setor.nome)}"></option>`).join('');
     tabela.innerHTML = setoresEmMemoria.map((setor) => renderizarSetor(setor)).join('') || '<tr><td colspan="3">Nenhum setor cadastrado.</td></tr>';
-  } catch (error) { tabela.innerHTML = `<tr><td colspan="3">${error.message}</td></tr>`; }
+  } catch (error) { tabela.innerHTML = `<tr><td colspan="3">${detailEscape(error.message)}</td></tr>`; }
 }
 
 function iconeNivel(icone) {
@@ -294,16 +294,16 @@ function renderizarSetor(setor) {
   const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == setor.id_setor);
   const niveis = (setor.niveis || []).map((nivel, indice) => {
     const membrosDoNivelAtual = participantes.filter((membro) => Number(membro.nivel) === indice + 1);
-    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
-    return `<div class="sector-level-row"><div class="level-summary"><strong>${nivel}</strong><small>${membrosDoNivelAtual.length} funcionário(s) alocado(s)</small></div><div class="level-actions"><button type="button" class="level-action" title="Mostrar funcionários de ${nivel}" aria-label="Mostrar funcionários de ${nivel}" aria-expanded="false" data-level-action="details" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar técnico em ${nivel}" aria-label="Adicionar técnico em ${nivel}" data-level-action="add" data-setor-id="${setor.id_setor}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div><div class="level-members-inline" hidden>${membrosHtml}</div></div>`;
+    const membrosHtml = membrosDoNivelAtual.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${detailEscape(membro.nome)}</strong><span>${detailEscape(membro.email || 'Sem e-mail')}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste nível.</span>';
+    return `<div class="sector-level-row"><div class="level-summary"><strong>${detailEscape(nivel)}</strong><small>${membrosDoNivelAtual.length} funcionário(s) alocado(s)</small></div><div class="level-actions"><button type="button" class="level-action" title="Mostrar funcionários de ${detailEscape(nivel)}" aria-label="Mostrar funcionários de ${detailEscape(nivel)}" aria-expanded="false" data-level-action="details" data-setor-id="${detailEscape(setor.id_setor)}" data-level-index="${indice + 1}">${iconeNivel('chevron')}</button><button type="button" class="level-action" title="Adicionar técnico em ${detailEscape(nivel)}" aria-label="Adicionar técnico em ${detailEscape(nivel)}" data-level-action="add" data-setor-id="${detailEscape(setor.id_setor)}" data-level-index="${indice + 1}">${iconeNivel('plus')}</button></div><div class="level-members-inline" hidden>${membrosHtml}</div></div>`;
   }).join('');
   const possuiNiveis = Boolean(setor.niveis?.length);
   const membrosSemNivel = participantes.filter((membro) => !membro.nivel);
-  const semNivelHtml = membrosSemNivel.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${membro.nome || membro.descricao || '-'}</strong><span>${membro.email || 'Sem e-mail'}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste setor.</span>';
+  const semNivelHtml = membrosSemNivel.map((membro) => `<a href="equipe-detalhe.html?id=${encodeURIComponent(membro.id_grupo_solucionadores)}"><strong>${detailEscape(membro.nome || membro.descricao)}</strong><span>${detailEscape(membro.email || 'Sem e-mail')}</span></a>`).join('') || '<span class="empty-row">Nenhum funcionário neste setor.</span>';
   const conteudoNiveis = possuiNiveis
     ? `<div class="sector-levels">${niveis}</div>`
-    : `<div class="sector-levels sector-no-levels"><div class="sector-no-levels-header"><span>${membrosSemNivel.length} funcionário(s)</span><button type="button" class="level-action" title="Adicionar funcionário sem nível" aria-label="Adicionar funcionário ao setor ${setor.nome}" data-level-action="add" data-setor-id="${setor.id_setor}">${iconeNivel('plus')}</button></div><div class="level-members-inline">${semNivelHtml}</div></div>`;
-  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${setor.nome}</strong><small>${possuiNiveis ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${setor.id_setor}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${conteudoNiveis}</details></td></tr>`;
+    : `<div class="sector-levels sector-no-levels"><div class="sector-no-levels-header"><span>${membrosSemNivel.length} funcionário(s)</span><button type="button" class="level-action" title="Adicionar funcionário sem nível" aria-label="Adicionar funcionário ao setor ${detailEscape(setor.nome)}" data-level-action="add" data-setor-id="${detailEscape(setor.id_setor)}">${iconeNivel('plus')}</button></div><div class="level-members-inline">${semNivelHtml}</div></div>`;
+  return `<tr><td colspan="3"><details class="sector-details"><summary><span><strong>${detailEscape(setor.nome)}</strong><small>${possuiNiveis ? `${setor.niveis.length} nível(is)` : 'Sem níveis cadastrados'}</small></span><span class="sector-summary-actions"><span class="status-badge status-info">${participantes.length} participante(s)</span><button type="button" class="sector-delete-button" title="Excluir setor" aria-label="Excluir setor" data-delete-sector="${detailEscape(setor.id_setor)}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></span></summary>${conteudoNiveis}</details></td></tr>`;
 }
 
 function obterNivelAtual() {
@@ -315,7 +315,7 @@ function membrosDoNivel(setorId, nivel) {
 }
 
 function opcoesDeNiveis(setor) {
-  return (setor.niveis || []).map((nivel, indice) => `<option value="${indice + 1}">${nivel}</option>`).join('');
+  return (setor.niveis || []).map((nivel, indice) => `<option value="${indice + 1}">${detailEscape(nivel)}</option>`).join('');
 }
 
 function abrirDetalhesNivel(setorId, nivel) {
@@ -325,7 +325,7 @@ function abrirDetalhesNivel(setorId, nivel) {
   document.querySelector('#nivel-titulo').textContent = setor.niveis[nivel - 1] || `Nível ${nivel}`;
   document.querySelector('#nivel-setor').textContent = setor.nome;
   const membros = membrosDoNivel(setorId, nivel);
-  document.querySelector('#nivel-membros').innerHTML = membros.length ? membros.map((membro) => `<div class="level-member-row"><div><strong>${membro.nome || '-'}</strong><small>${membro.email || 'Sem e-mail'}</small></div><div class="level-member-actions"><select data-member-level="${membro.id_grupo_solucionadores}" aria-label="Nível de ${membro.nome}">${opcoesDeNiveis(setor)}</select><button type="button" class="level-remove-button" data-remove-member="${membro.id_grupo_solucionadores}">Remover</button></div></div>`).join('') : '<p class="empty-row">Nenhum funcionário neste nível.</p>';
+  document.querySelector('#nivel-membros').innerHTML = membros.length ? membros.map((membro) => `<div class="level-member-row"><div><strong>${detailEscape(membro.nome)}</strong><small>${detailEscape(membro.email || 'Sem e-mail')}</small></div><div class="level-member-actions"><select data-member-level="${detailEscape(membro.id_grupo_solucionadores)}" aria-label="Nível de ${detailEscape(membro.nome)}">${opcoesDeNiveis(setor)}</select><button type="button" class="level-remove-button" data-remove-member="${detailEscape(membro.id_grupo_solucionadores)}">Remover</button></div></div>`).join('') : '<p class="empty-row">Nenhum funcionário neste nível.</p>';
   document.querySelectorAll('[data-member-level]').forEach((select) => {
     select.value = String(nivel);
     select.addEventListener('change', () => alterarNivelFuncionario(select.dataset.memberLevel, setorId, select.value));
@@ -341,7 +341,7 @@ function abrirAdicionarFuncionarioNivel(setorId, nivel) {
   const alocados = new Set(membrosDoNivel(setorId, nivel).map((membro) => String(membro.id_grupo_solucionadores)));
   const disponiveis = equipeEmMemoria.filter((membro) => !alocados.has(String(membro.id_grupo_solucionadores)));
   document.querySelector('#adicionar-nivel-titulo').textContent = `${setor.niveis[nivel - 1] || `Nível ${nivel}`} · ${setor.nome}`;
-  document.querySelector('#funcionarios-disponiveis').innerHTML = disponiveis.length ? disponiveis.map((membro) => `<label class="available-member-row"><input type="checkbox" value="${membro.id_grupo_solucionadores}"><span><strong>${membro.nome || '-'}</strong><small>${membro.setor_nome || 'Sem setor'} · ${membro.nivel ? `Nível ${membro.nivel}` : 'Sem nível alocado'}</small></span></label>`).join('') : '<p class="empty-row">Todos os funcionários já estão neste nível.</p>';
+  document.querySelector('#funcionarios-disponiveis').innerHTML = disponiveis.length ? disponiveis.map((membro) => `<label class="available-member-row"><input type="checkbox" value="${detailEscape(membro.id_grupo_solucionadores)}"><span><strong>${detailEscape(membro.nome)}</strong><small>${detailEscape(membro.setor_nome || 'Sem setor')} · ${membro.nivel ? `Nível ${detailEscape(membro.nivel)}` : 'Sem nível alocado'}</small></span></label>`).join('') : '<p class="empty-row">Todos os funcionários já estão neste nível.</p>';
   openModal('modal-adicionar-nivel');
 }
 
@@ -488,7 +488,7 @@ function mostrarParticipantes(idSetor) {
   const setor = setoresEmMemoria.find((item) => item.id_setor == idSetor);
   const participantes = equipeEmMemoria.filter((membro) => membro.id_setor == idSetor);
   document.querySelector('#participantes-titulo').textContent = setor ? `Participantes: ${setor.nome}` : 'Participantes';
-  document.querySelector('#lista-participantes').innerHTML = participantes.map((membro) => `<div class="participant-item"><strong>${membro.nome || '-'}</strong><span>${membro.cargo || 'Sem função'}</span></div>`).join('') || '<p class="empty-row">Nenhum participante neste setor.</p>';
+  document.querySelector('#lista-participantes').innerHTML = participantes.map((membro) => `<div class="participant-item"><strong>${detailEscape(membro.nome)}</strong><span>${detailEscape(membro.cargo || 'Sem função')}</span></div>`).join('') || '<p class="empty-row">Nenhum participante neste setor.</p>';
   openModal('modal-participantes');
 }
 
@@ -723,7 +723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('cli-data').textContent = cliente.criado_em ? new Date(cliente.criado_em).toLocaleDateString('pt-BR') : '-';
       const tabelaChamados = document.querySelector('#tabela-chamados-cliente tbody');
       const chamadosCliente = chamados.filter((chamado) => chamado.cliente === cliente.nome);
-      tabelaChamados.innerHTML = chamadosCliente.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${chamado.id_chamado}'" style="cursor: pointer;"><td>#${chamado.id_chamado}</td><td>${chamado.status || '-'}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado encontrado para este cliente.</td></tr>';
+      tabelaChamados.innerHTML = chamadosCliente.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td>#${detailEscape(chamado.id_chamado)}</td><td>${detailEscape(chamado.status)}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
   }
 

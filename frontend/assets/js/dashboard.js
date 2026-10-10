@@ -101,10 +101,12 @@ function posicionarMenuStatus(picker) {
 }
 
 function linhaChamado(chamado) {
-  const status = chamado.status || 'ABERTO';
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'PAUSADO', 'RESOLVIDO'];
+  const statusInformado = String(chamado.status || 'ABERTO').toUpperCase();
+  const status = statuses.includes(statusInformado) ? statusInformado : 'ABERTO';
   const slaRestante = segundosSlaRestantes(chamado);
-  return `<tr class="chamado-row" data-detalhes="${chamado.id_chamado}" tabindex="0"><td><strong>#${chamado.id_chamado}</strong></td><td>${chamado.cliente || '-'}</td><td>${chamado.tecnico || 'Não atribuído'}</td><td><span class="sla-countdown${slaRestante < 0 ? ' is-expired' : ''}" data-sla-id="${chamado.id_chamado}">${formatarSlaRestante(slaRestante)}</span></td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${chamado.id_chamado}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
+  const id = escaparHtml(chamado.id_chamado);
+  return `<tr class="chamado-row" data-detalhes="${id}" tabindex="0"><td><strong>#${id}</strong></td><td>${escaparHtml(chamado.cliente)}</td><td>${escaparHtml(chamado.tecnico || 'Não atribuído')}</td><td><span class="sla-countdown${slaRestante < 0 ? ' is-expired' : ''}" data-sla-id="${id}">${formatarSlaRestante(slaRestante)}</span></td><td><div class="status-picker" data-status-picker><button class="status-trigger status-${status.toLowerCase()}" type="button" aria-haspopup="listbox" aria-expanded="false"><span class="status-dot"></span><span class="status-trigger-label">${status}</span><span class="status-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></span></button><div class="status-menu" role="listbox">${statuses.map((item) => `<button class="status-option ${item === status ? 'is-selected' : ''}" type="button" role="option" aria-selected="${item === status}" data-status-value="${item}"><span class="status-dot"></span>${item}</button>`).join('')}</div><select class="status-select" data-id="${id}" aria-hidden="true" tabindex="-1">${statuses.map((item) => `<option value="${item}" ${item === status ? 'selected' : ''}>${item}</option>`).join('')}</select></div></td></tr>`;
 }
 
 function dataAberturaDoChamado(chamado) {
@@ -233,11 +235,16 @@ function renderizarAgenda(chamados) {
   cabecalho.style.gridTemplateColumns = colunas;
   agenda.style.gridTemplateColumns = colunas;
 
-  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header ${data === hoje ? 'active' : ''}">${formatarDataAgenda(data)}</div>`).join('');
+  cabecalho.innerHTML = datas.map((data) => `<div class="day-col-header ${data === hoje ? 'active' : ''}">${escaparHtml(formatarDataAgenda(data))}</div>`).join('');
   const classesBadge = { ABERTO: 'badge-blue', ANDAMENTO: 'badge-yellow', AGUARDANDO: 'badge-yellow', PAUSADO: 'badge-yellow', RESOLVIDO: 'badge-green' };
   agenda.innerHTML = datas.map((data) => {
     const chamadosDoDia = chamadosComData.filter((item) => item.data_agendada === data);
-    const cards = chamadosDoDia.map((item) => { const status = item.status || 'ABERTO'; return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${item.id_chamado}"><strong>#${item.id_chamado} - ${item.cliente || '-'}</strong><span class="badge ${classesBadge[status] || 'badge-blue'}">${status}</span></a>`; }).join('') || '<span class="agenda-empty-day">Nenhum chamado nesta data.</span>';
+    const cards = chamadosDoDia.map((item) => {
+      const statusInformado = String(item.status || 'ABERTO').toUpperCase();
+      const status = Object.hasOwn(classesBadge, statusInformado) ? statusInformado : 'ABERTO';
+      const id = escaparHtml(item.id_chamado);
+      return `<a class="ticket-card-agenda status-${status.toLowerCase()}" href="chamados-detalhe.html?id=${encodeURIComponent(item.id_chamado)}"><strong>#${id} - ${escaparHtml(item.cliente)}</strong><span class="badge ${classesBadge[status]}">${status}</span></a>`;
+    }).join('') || '<span class="agenda-empty-day">Nenhum chamado nesta data.</span>';
     return `<div class="agenda-column">${cards}</div>`;
   }).join('');
 }
@@ -762,8 +769,8 @@ document.addEventListener('DOMContentLoaded', () => {
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');
     const agenda = document.querySelector('#agendaDinamica');
-    if (tabela) tabela.innerHTML = `<tr><td colspan="6">Não foi possível carregar: ${error.message}</td></tr>`;
-    if (agenda) agenda.innerHTML = `<p>Não foi possível carregar a agenda: ${error.message}</p>`;
+    if (tabela) tabela.innerHTML = `<tr><td colspan="6">Não foi possível carregar: ${escaparHtml(error.message)}</td></tr>`;
+    if (agenda) agenda.innerHTML = `<p>Não foi possível carregar a agenda: ${escaparHtml(error.message)}</p>`;
   });
   window.setInterval(atualizarSlasVisiveis, 1000);
 });
