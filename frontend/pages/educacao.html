@@ -128,14 +128,22 @@
 
   <main class="education-container">
     <div class="educacao-container">
-      <iframe
-        class="pc-explorer-frame"
-        src="/educacao/pc-explorer"
-        title="Explorador 3D de componentes de computador"
+      <iframe class="pc-explorer-frame" src="/educacao/pc-explorer" title="Explorador 3D de componentes de computador"
         loading="eager"></iframe>
+    </div>
+
+    <div class="sketchfab-embed-wrapper">
+      <iframe id="api-frame" title="Modelo 3D de PC" frameborder="0" allowfullscreen
+        allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking></iframe>
+      <div id="info-card" class="info-card">
+        <h3>Clique em um componente</h3>
+        <p>Selecione a placa de vídeo ou a memória RAM no modelo 3D para ver problemas comuns e soluções.</p>
+      </div>
     </div>
   </main>
 
+  <script src="https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js"></script>
+  <script src="../assets/js/educacao-3d.js"></script>
   <script type="module" src="../assets/js/main.js"></script>
 </body>
 

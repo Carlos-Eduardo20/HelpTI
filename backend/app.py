@@ -158,6 +158,8 @@ def reject_cross_site_mutations():
 def set_security_headers(response):
     response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
     response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    if request.path.startswith('/educacao/pc-explorer'):
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers.setdefault('X-Frame-Options', 'DENY')
     response.headers.setdefault(
         'Permissions-Policy', 'camera=(), microphone=(), geolocation=()'

@@ -4,8 +4,8 @@ localhost {
         -Server
         Referrer-Policy strict-origin-when-cross-origin
         X-Content-Type-Options nosniff
-        X-Frame-Options DENY
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
+    header ?X-Frame-Options DENY
     reverse_proxy help-ti:5000
 }
