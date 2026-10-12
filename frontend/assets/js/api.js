@@ -19,6 +19,11 @@ export async function buscarChamados() {
   return request('/chamados');
 }
 
+// Busca as métricas DeskOps para cards superiores (Total, Triagem, Andamento, Resolvidos Hoje, MTTR)
+export async function buscarMetricasDeskops() {
+  return request('/chamados/metricas');
+}
+
 // Busca um chamado específico pelo ID
 export async function buscarChamadoPorId(id) {
   return request(`/chamados/${id}`);
@@ -114,4 +119,31 @@ export async function buscarConfiguracoes() {
 // Atualiza configurações do workspace
 export async function salvarConfiguracoes(dados) {
   return request('/configuracoes', { method: 'PUT', body: JSON.stringify(dados) });
+}
+
+// ============ DOCUMENTAÇÃO TÉCNICA (MODELAGEM ERD) ============
+
+export async function buscarDocumentacoes(busca = '', fornecedor = '', grupoId = '') {
+  const params = new URLSearchParams();
+  if (busca) params.append('busca', busca);
+  if (fornecedor) params.append('fornecedor', fornecedor);
+  if (grupoId) params.append('id_grupo_solucionadores', grupoId);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return request(`/documentacoes${qs}`);
+}
+
+export async function buscarDocumentacaoPorId(id) {
+  return request(`/documentacoes/${id}`);
+}
+
+export async function criarDocumentacao(dados) {
+  return request('/documentacoes', { method: 'POST', body: JSON.stringify(dados) });
+}
+
+export async function atualizarDocumentacao(id, dados) {
+  return request(`/documentacoes/${id}`, { method: 'PUT', body: JSON.stringify(dados) });
+}
+
+export async function excluirDocumentacao(id) {
+  return request(`/documentacoes/${id}`, { method: 'DELETE' });
 }

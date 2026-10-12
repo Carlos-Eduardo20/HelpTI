@@ -188,6 +188,7 @@ PERMISSAO_PAGINA = {
 }
 PERMISSAO_API = {
     '/api/chamados': 'chamados',
+    '/api/documentacoes': 'chamados',
     '/api/clientes': 'clientes',
     '/api/equipe': 'equipe',
     '/api/setores': 'equipe',
@@ -201,13 +202,25 @@ PERMISSOES_PADRAO_CARGO = {
     'noc': {'dashboard', 'chamados'},
     'técnico': {'dashboard', 'chamados', 'educacao'},
     'tecnico': {'dashboard', 'chamados', 'educacao'},
+    'cliente': {'chamados'},
     'personalizado': {'dashboard'},
 }
 
 
+def _e_cliente():
+    """Verifica se o membro atual autenticado possui perfil de cliente."""
+    if not hasattr(g, 'membro') or not g.membro:
+        return False
+    cargo = (g.membro.get('cargo') or '').strip().lower()
+    return cargo == 'cliente'
+
+
 def _permissoes_do_membro(membro):
-    if (membro.get('cargo') or '').strip().lower() == 'administrador':
+    cargo = (membro.get('cargo') or '').strip().lower()
+    if cargo == 'administrador':
         return PERMISSOES_VALIDAS.copy()
+    if cargo == 'cliente':
+        return {'chamados'}
     try:
         permissoes = json.loads(membro.get('permissoes') or '[]')
     except (TypeError, json.JSONDecodeError):
@@ -363,10 +376,15 @@ def dict_fetchone(cursor):
     return None
 
 
-def registrar_historico(cursor, id_chamado, evento, descricao):
+def registrar_historico(cursor, id_chamado, evento, descricao, autor=None):
+    if not autor:
+        if hasattr(g, 'membro') and g.membro:
+            autor = g.membro.get('nome') or 'Atendente'
+        else:
+            autor = session.get('usuario') or 'Sistema'
     cursor.execute(
-        'INSERT INTO historico_chamado (id_chamado, evento, descricao) VALUES (%s, %s, %s)',
-        (id_chamado, evento, descricao)
+        'INSERT INTO historico_chamado (id_chamado, evento, descricao, autor) VALUES (%s, %s, %s, %s)',
+        (id_chamado, evento, descricao, autor)
     )
 
 
@@ -476,19 +494,105 @@ def get_chamados():
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT chamado.*, setor.nome AS setor_nome, grupo_solucionadores.nome AS tecnico
-            FROM chamado
-            LEFT JOIN setor ON setor.id_setor = chamado.id_setor
-            LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
-            WHERE chamado.id_usuario = %s
-            ORDER BY chamado.id_chamado DESC;
-        ''', (_ws(),))
+        workspace_id = _ws()
+        if _e_cliente():
+            email_cliente = (g.membro.get('email') or '').strip()
+            nome_cliente = (g.membro.get('nome') or '').strip()
+            cursor.execute('''
+                SELECT chamado.*, 
+                       COALESCE(chamado.setor, setor.nome, 'Geral') AS setor_nome,
+                       grupo_solucionadores.nome AS tecnico
+                FROM chamado
+                LEFT JOIN setor ON setor.id_setor = chamado.id_setor
+                LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
+                WHERE chamado.id_usuario = %s
+                  AND (LOWER(chamado.email_cliente) = LOWER(%s) OR LOWER(chamado.cliente) = LOWER(%s))
+                ORDER BY chamado.id_chamado DESC;
+            ''', (workspace_id, email_cliente, nome_cliente))
+        else:
+            cursor.execute('''
+                SELECT chamado.*, 
+                       COALESCE(chamado.setor, setor.nome, 'Geral') AS setor_nome,
+                       grupo_solucionadores.nome AS tecnico
+                FROM chamado
+                LEFT JOIN setor ON setor.id_setor = chamado.id_setor
+                LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
+                WHERE chamado.id_usuario = %s
+                ORDER BY chamado.id_chamado DESC;
+            ''', (workspace_id,))
         chamados = dict_fetchall(cursor)
         
         cursor.close()
         conn.close()
         return jsonify(chamados), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+# Rota para buscar métricas estilo DeskOps
+@app.route('/api/chamados/metricas', methods=['GET'])
+def get_metricas_deskops():
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        
+        cursor = conn.cursor()
+        workspace_id = _ws()
+        
+        filtro_usuario = 'WHERE ch.id_usuario = %s'
+        params = [workspace_id]
+        if _e_cliente():
+            filtro_usuario += ' AND (LOWER(ch.email_cliente) = LOWER(%s) OR LOWER(ch.cliente) = LOWER(%s))'
+            params.extend([(g.membro.get('email') or '').strip(), (g.membro.get('nome') or '').strip()])
+
+        cursor.execute(f'''
+            SELECT 
+                COUNT(*) AS total,
+                SUM(CASE WHEN UPPER(ch.status) = 'ABERTO' THEN 1 ELSE 0 END) AS triagem,
+                SUM(CASE WHEN UPPER(ch.status) = 'ANDAMENTO' THEN 1 ELSE 0 END) AS em_andamento,
+                SUM(CASE WHEN UPPER(ch.status) = 'PAUSADO' THEN 1 ELSE 0 END) AS pausados,
+                SUM(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' THEN 1 ELSE 0 END) AS resolvidos,
+                SUM(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' 
+                         AND date(COALESCE(ch.data_fechamento, ch.data_abertura)) = date('now', 'localtime') 
+                         THEN 1 ELSE 0 END) AS resolvidos_hoje,
+                AVG(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' AND ch.tempo_decorrido_segundos > 0 
+                         THEN ch.tempo_decorrido_segundos ELSE NULL END) AS mttr_segundos_medio
+            FROM chamado ch
+            {filtro_usuario}
+        ''', tuple(params))
+        resumo = dict_fetchone(cursor) or {}
+        
+        total = int(resumo.get('total') or 0)
+        triagem = int(resumo.get('triagem') or 0)
+        em_andamento = int(resumo.get('em_andamento') or 0)
+        pausados = int(resumo.get('pausados') or 0)
+        resolvidos = int(resumo.get('resolvidos') or 0)
+        resolvidos_hoje = int(resumo.get('resolvidos_hoje') or 0)
+        mttr_segundos = float(resumo.get('mttr_segundos_medio') or 0)
+
+        mttr_minutos = int(mttr_segundos // 60)
+        if mttr_minutos >= 60:
+            horas = mttr_minutos // 60
+            mins = mttr_minutos % 60
+            mttr_formatado = f'{horas}h {mins:02d}m' if mins > 0 else f'{horas}h'
+        elif mttr_minutos > 0:
+            mttr_formatado = f'{mttr_minutos}m'
+        else:
+            mttr_formatado = '45m' if resolvidos > 0 else '0m'
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            'total': total,
+            'triagem': triagem,
+            'em_andamento': em_andamento,
+            'pausados': pausados,
+            'resolvidos': resolvidos,
+            'resolvidos_hoje': resolvidos_hoje,
+            'mttr_minutos': mttr_minutos,
+            'mttr_formatado': mttr_formatado
+        }), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -501,30 +605,43 @@ def get_chamado(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         
         cursor = conn.cursor()
+        workspace_id = _ws()
         cursor.execute('''
-            SELECT chamado.*, setor.nome AS setor_nome, grupo_solucionadores.nome AS tecnico
+            SELECT chamado.*, 
+                   COALESCE(chamado.setor, setor.nome, 'Geral') AS setor_nome,
+                   grupo_solucionadores.nome AS tecnico
             FROM chamado
             LEFT JOIN setor ON setor.id_setor = chamado.id_setor
             LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
             WHERE chamado.id_chamado = %s AND chamado.id_usuario = %s;
-        ''', (id, _ws()))
+        ''', (id, workspace_id))
         chamado = dict_fetchone(cursor)
-        if chamado:
-            cursor.execute('''
-                SELECT evento, descricao, data_evento
-                FROM historico_chamado
-                WHERE id_chamado = %s
-                ORDER BY data_evento, id_historico
-            ''', (id,))
-            chamado['historico'] = dict_fetchall(cursor)
+        if not chamado:
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Chamado não encontrado'}), 404
+
+        if _e_cliente():
+            email_cliente = (g.membro.get('email') or '').strip().lower()
+            nome_cliente = (g.membro.get('nome') or '').strip().lower()
+            chamado_email = (chamado.get('email_cliente') or '').strip().lower()
+            chamado_cli = (chamado.get('cliente') or '').strip().lower()
+            if email_cliente != chamado_email and nome_cliente != chamado_cli:
+                cursor.close()
+                conn.close()
+                return jsonify({'erro': 'Você não tem permissão para visualizar este chamado'}), 403
+
+        cursor.execute('''
+            SELECT evento, descricao, autor, data_evento
+            FROM historico_chamado
+            WHERE id_chamado = %s
+            ORDER BY data_evento, id_historico
+        ''', (id,))
+        chamado['historico'] = dict_fetchall(cursor)
         
         cursor.close()
         conn.close()
-        
-        if chamado:
-            return jsonify(chamado), 200
-        else:
-            return jsonify({'erro': 'Chamado não encontrado'}), 404
+        return jsonify(chamado), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -543,6 +660,11 @@ def create_chamado():
         id_setor = dados.get('id_setor')
         id_grupo_solucionadores = dados.get('id_grupo_solucionadores')
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
+        prioridade = (dados.get('prioridade') or 'MEDIA').strip().upper()
+        if prioridade not in ('BAIXA', 'MEDIA', 'ALTA', 'CRITICA', 'URGENTE'):
+            prioridade = 'MEDIA'
+        if prioridade == 'URGENTE':
+            prioridade = 'CRITICA'
 
         if not cliente or not email_cliente or not telefone_cliente or not contato_cliente or not telefone_contato or not descricao or not id_setor or not id_grupo_solucionadores:
             return jsonify({'erro': 'Todos os campos do chamado são obrigatórios'}), 400
@@ -564,6 +686,14 @@ def create_chamado():
             conn.close()
             return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
 
+        # Obter nome do setor para preencher o atributo 'setor'
+        setor_nome = (dados.get('setor') or '').strip()
+        if not setor_nome and id_setor:
+            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
+            row_setor = cursor.fetchone()
+            if row_setor:
+                setor_nome = row_setor[0]
+
         for _ in range(100):
             novo_id = 100000 + secrets.randbelow(900000)
             cursor.execute('SELECT id_chamado FROM chamado WHERE id_chamado = %s', (novo_id,))
@@ -574,13 +704,15 @@ def create_chamado():
         
         query = """
             INSERT INTO chamado
-                (id_chamado, id_tipo_chamado, id_setor, id_grupo_solucionadores, status, cliente, descricao,
+                (id_chamado, id_tipo_chamado, id_setor, setor, id_grupo_solucionadores, status, prioridade, cliente, descricao,
                  email_cliente, telefone_cliente, contato_cliente, telefone_contato, id_usuario)
-            VALUES (%s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, id_grupo_solucionadores, cliente, descricao,
-                               email_cliente, telefone_cliente, contato_cliente, telefone_contato, _ws()))
-        registrar_historico(cursor, novo_id, 'aberto', 'Chamado criado no sistema.')
+        cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, setor_nome, id_grupo_solucionadores, prioridade,
+                               cliente, descricao, email_cliente, telefone_cliente, contato_cliente, telefone_contato, _ws()))
+        
+        autor_chamado = g.membro.get('nome') if (hasattr(g, 'membro') and g.membro) else 'Sistema'
+        registrar_historico(cursor, novo_id, 'aberto', 'Chamado criado no sistema.', autor=autor_chamado)
         conn.commit()
 
         cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (novo_id,))
@@ -593,6 +725,7 @@ def create_chamado():
             f'Chamado #{novo_id} recebido',
             f"Olá, {contato_cliente}.\n\n"
             f"Recebemos seu chamado #{novo_id} para {cliente}.\n"
+            f"Prioridade: {prioridade}\n"
             f"Descrição: {descricao}\n\n"
             'A equipe de suporte dará continuidade ao atendimento.'
         )
@@ -609,6 +742,11 @@ def update_chamado(id):
     try:
         dados = request.get_json() or {}
         acao = dados.get('acao')
+
+        # Regra de permissão: somente atendente autorizado altera status de atendimento ou encerra chamado
+        if _e_cliente():
+            if acao in ('iniciar', 'pausar', 'escalonar', 'encerrar', 'agendar') or 'status' in dados:
+                return jsonify({'erro': 'Somente atendentes autorizados podem alterar o status ou fluxo de atendimento do chamado'}), 403
 
         conn = get_db_connection()
         if not conn:
@@ -633,6 +771,7 @@ def update_chamado(id):
         if isinstance(inicio, str):
             inicio = datetime.fromisoformat(inicio)
         agora = datetime.now()
+        autor_atual = g.membro.get('nome') if (hasattr(g, 'membro') and g.membro) else 'Atendente'
 
         if acao == 'agendar':
             agendamento = dados.get('data_agendada')
@@ -675,12 +814,13 @@ def update_chamado(id):
             tecnico = cursor.fetchone()
             if not tecnico:
                 return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
-            cursor.execute('UPDATE chamado SET id_setor = %s, id_grupo_solucionadores = %s WHERE id_chamado = %s', (id_setor, id_tecnico, id))
-            cursor.execute('INSERT INTO escalonamento (id_chamado, motivo, nivel, data_escalonamento, id_setor_destino, id_grupo_destino) VALUES (%s, %s, %s, %s, %s, %s)', (id, motivo, tecnico[0], agora.date(), id_setor, id_tecnico))
             cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
-            setor = cursor.fetchone()
+            setor_row = cursor.fetchone()
+            setor_destino_nome = setor_row[0] if setor_row else (dados.get('setor_destino') or '')
+            cursor.execute('UPDATE chamado SET id_setor = %s, setor = %s, id_grupo_solucionadores = %s WHERE id_chamado = %s', (id_setor, setor_destino_nome, id_tecnico, id))
+            cursor.execute('INSERT INTO escalonamento (id_chamado, motivo, nivel, data_escalonamento, id_setor_destino, setor_destino, id_grupo_destino) VALUES (%s, %s, %s, %s, %s, %s, %s)', (id, motivo, tecnico[0], agora.date(), id_setor, setor_destino_nome, id_tecnico))
             evento_historico = 'escalonado'
-            descricao_historico = f'Escalonado para {setor[0] if setor else "setor"} / {tecnico[1] or "técnico"}. Motivo: {motivo}'
+            descricao_historico = f'Escalonado para {setor_destino_nome or "setor"} / {tecnico[1] or "técnico"}. Motivo: {motivo}'
         elif acao == 'encerrar':
             descricao_final = (dados.get('descricao_final') or '').strip()
             if status not in ('ANDAMENTO', 'PAUSADO') or not descricao_final:
@@ -697,7 +837,8 @@ def update_chamado(id):
                 f"Descrição inicial:\n{chamado.get('descricao') or 'Não informada'}\n\n"
                 f'Solução aplicada:\n{descricao_final}'
             )
-            cursor.execute("UPDATE chamado SET status = 'RESOLVIDO', tempo_inicio = NULL, tempo_decorrido_segundos = %s, descricao_final = %s WHERE id_chamado = %s", (segundos, descricao_final, id))
+            data_fechamento_str = agora.strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute("UPDATE chamado SET status = 'RESOLVIDO', data_fechamento = %s, tempo_inicio = NULL, tempo_decorrido_segundos = %s, descricao_final = %s WHERE id_chamado = %s", (data_fechamento_str, segundos, descricao_final, id))
             evento_historico = 'encerrado'
             descricao_historico = f'Chamado encerrado. Solução: {descricao_final}'
         elif 'status' in dados:
@@ -719,13 +860,13 @@ def update_chamado(id):
         else:
             return jsonify({'erro': 'Ação inválida'}), 400
         if evento_historico:
-            registrar_historico(cursor, id, evento_historico, descricao_historico)
+            registrar_historico(cursor, id, evento_historico, descricao_historico, autor=autor_atual)
         conn.commit()
         
         cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s;', (id,))
         chamado_atualizado = dict_fetchone(cursor)
         cursor.execute('''
-            SELECT evento, descricao, data_evento
+            SELECT evento, descricao, autor, data_evento
             FROM historico_chamado
             WHERE id_chamado = %s
             ORDER BY data_evento, id_historico
@@ -766,6 +907,156 @@ def delete_chamado(id):
         if not removido:
             return jsonify({'erro': 'Chamado não encontrado'}), 404
         return jsonify({'mensagem': 'Chamado encerrado e removido com sucesso'}), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+# ============ ROTAS DE DOCUMENTAÇÃO TÉCNICA (MODELAGEM ERD) ============
+
+@app.route('/api/documentacoes', methods=['GET'])
+def get_documentacoes():
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        
+        busca = (request.args.get('busca') or '').strip()
+        filtro_fornecedor = (request.args.get('fornecedor') or '').strip()
+        grupo_id = request.args.get('id_grupo_solucionadores')
+
+        query = '''
+            SELECT doc.*, gs.nome AS solucionador_nome, gs.cargo AS solucionador_cargo
+            FROM documentacao doc
+            LEFT JOIN grupo_solucionadores gs ON gs.id_grupo_solucionadores = doc.id_grupo_solucionadores
+            WHERE doc.id_usuario = %s
+        '''
+        params = [_ws()]
+        if busca:
+            query += ' AND (LOWER(doc.titulo) LIKE %s OR LOWER(doc.conteudo) LIKE %s OR LOWER(doc.fornecedor) LIKE %s)'
+            like_val = f'%{busca.lower()}%'
+            params.extend([like_val, like_val, like_val])
+        if filtro_fornecedor:
+            query += ' AND LOWER(doc.fornecedor) = LOWER(%s)'
+            params.append(filtro_fornecedor)
+        if grupo_id:
+            query += ' AND doc.id_grupo_solucionadores = %s'
+            params.append(grupo_id)
+        
+        query += ' ORDER BY doc.data_atualizacao DESC, doc.id_documentacao DESC;'
+        cursor.execute(query, tuple(params))
+        documentos = dict_fetchall(cursor)
+        cursor.close()
+        conn.close()
+        return jsonify(documentos), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/documentacoes/<int:id>', methods=['GET'])
+def get_documentacao(id):
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT doc.*, gs.nome AS solucionador_nome, gs.cargo AS solucionador_cargo
+            FROM documentacao doc
+            LEFT JOIN grupo_solucionadores gs ON gs.id_grupo_solucionadores = doc.id_grupo_solucionadores
+            WHERE doc.id_documentacao = %s AND doc.id_usuario = %s
+        ''', (id, _ws()))
+        documento = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        if not documento:
+            return jsonify({'erro': 'Documentação não encontrada'}), 404
+        return jsonify(documento), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/documentacoes', methods=['POST'])
+def create_documentacao():
+    try:
+        dados = request.get_json() or {}
+        titulo = (dados.get('titulo') or '').strip()
+        conteudo = (dados.get('conteudo') or '').strip()
+        fornecedor = (dados.get('fornecedor') or '').strip()
+        id_grupo = dados.get('id_grupo_solucionadores')
+        if not id_grupo and hasattr(g, 'membro') and g.membro:
+            id_grupo = g.membro.get('id_grupo_solucionadores')
+
+        if not titulo or not conteudo:
+            return jsonify({'erro': 'Título e conteúdo são obrigatórios'}), 400
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO documentacao (fornecedor, id_grupo_solucionadores, titulo, conteudo, id_usuario)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (fornecedor, id_grupo, titulo, conteudo, _ws()))
+        doc_id = cursor.lastrowid
+        conn.commit()
+        
+        cursor.execute('SELECT * FROM documentacao WHERE id_documentacao = %s', (doc_id,))
+        novo_doc = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        return jsonify(novo_doc), 201
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/documentacoes/<int:id>', methods=['PUT'])
+def update_documentacao(id):
+    try:
+        dados = request.get_json() or {}
+        titulo = (dados.get('titulo') or '').strip()
+        conteudo = (dados.get('conteudo') or '').strip()
+        fornecedor = (dados.get('fornecedor') or '').strip()
+        id_grupo = dados.get('id_grupo_solucionadores')
+        if not titulo or not conteudo:
+            return jsonify({'erro': 'Título e conteúdo são obrigatórios'}), 400
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE documentacao
+            SET titulo = %s, conteudo = %s, fornecedor = %s, 
+                id_grupo_solucionadores = COALESCE(%s, id_grupo_solucionadores),
+                data_atualizacao = datetime('now', 'localtime')
+            WHERE id_documentacao = %s AND id_usuario = %s
+        ''', (titulo, conteudo, fornecedor, id_grupo, id, _ws()))
+        if cursor.rowcount == 0:
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'Documentação não encontrada'}), 404
+        conn.commit()
+
+        cursor.execute('SELECT * FROM documentacao WHERE id_documentacao = %s', (id,))
+        doc_atualizado = dict_fetchone(cursor)
+        cursor.close()
+        conn.close()
+        return jsonify(doc_atualizado), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/api/documentacoes/<int:id>', methods=['DELETE'])
+def delete_documentacao(id):
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM documentacao WHERE id_documentacao = %s AND id_usuario = %s', (id, _ws()))
+        removido = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        if not removido:
+            return jsonify({'erro': 'Documentação não encontrada'}), 404
+        return jsonify({'mensagem': 'Documentação removida com sucesso'}), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -1020,12 +1311,16 @@ def create_equipe():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
+        setor_nome = (dados.get('setor') or '').strip()
         if id_setor:
-            cursor.execute('SELECT 1 FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
-            if not cursor.fetchone():
+            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
+            row_setor = cursor.fetchone()
+            if not row_setor:
                 cursor.close()
                 conn.close()
                 return jsonify({'erro': 'Setor inválido para esta empresa'}), 400
+            if not setor_nome:
+                setor_nome = row_setor[0]
         cursor.execute('SELECT 1 FROM grupo_solucionadores WHERE LOWER(email) = LOWER(%s)', (email,))
         if cursor.fetchone():
             cursor.close()
@@ -1033,10 +1328,10 @@ def create_equipe():
             return jsonify({'erro': 'Já existe um funcionário com este e-mail.'}), 409
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio,
+            (descricao, nivel, nome, email, cargo, setor, valor_hora, id_setor, data_inicio,
              status, senha, telefone, permissoes, id_usuario)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s, %s, %s)""",
-            (nome, nivel, nome, email, cargo, valor_hora, id_setor, data_inicio,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s, %s, %s)""",
+            (nome, nivel, nome, email, cargo, setor_nome, valor_hora, id_setor, data_inicio,
              generate_password_hash(senha), telefone, json.dumps(sorted(permissoes)), g.membro['id_usuario'])
         )
         conn.commit()
@@ -1056,7 +1351,7 @@ def update_equipe(id):
     dados = request.get_json() or {}
     if (dados.get('cargo') or '').strip().lower() == 'administrador':
         return jsonify({'erro': 'Funcionários não podem ser promovidos a administrador por esta operação.'}), 400
-    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'nivel', 'status') if campo in dados}
+    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'setor', 'nivel', 'status') if campo in dados}
     try:
         if 'permissoes' in dados:
             campos['permissoes'] = json.dumps(sorted(_normalizar_permissoes(dados['permissoes'], dados.get('cargo'))))
@@ -1070,11 +1365,14 @@ def update_equipe(id):
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
         if campos.get('id_setor'):
-            cursor.execute('SELECT 1 FROM setor WHERE id_setor = %s AND id_usuario = %s', (campos['id_setor'], _ws()))
-            if not cursor.fetchone():
+            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (campos['id_setor'], _ws()))
+            row_setor = cursor.fetchone()
+            if not row_setor:
                 cursor.close()
                 conn.close()
                 return jsonify({'erro': 'Setor inválido para esta empresa'}), 400
+            if 'setor' not in campos or not campos['setor']:
+                campos['setor'] = row_setor[0]
         valores = list(campos.values()) + [id]
         cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s AND id_usuario = %s", valores + [g.membro['id_usuario']])
         conn.commit()

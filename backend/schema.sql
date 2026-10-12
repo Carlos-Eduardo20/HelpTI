@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS cliente (
     id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
     id_usuario INTEGER NOT NULL,
     nome TEXT NOT NULL,
+    contato TEXT,
     email TEXT NOT NULL,
     telefone TEXT NOT NULL,
     id_workspace INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE,
@@ -34,6 +35,9 @@ CREATE TABLE IF NOT EXISTS tipo_chamado (
     descricao TEXT
 );
 
+-- Catálogo de setores para suporte a cadastros existentes.
+-- No modelo de domínio conceitual do HelpTI, o setor é tratado como atributo
+-- direto nas entidades chamado e grupo_solucionadores (sem obrigatoriedade de tabela separada).
 CREATE TABLE IF NOT EXISTS setor (
     id_setor INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,
@@ -54,6 +58,7 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     cargo TEXT,
     valor_hora NUMERIC,
     telefone TEXT,
+    setor TEXT,
     status TEXT NOT NULL DEFAULT 'ATIVO',
     email_verificado INTEGER NOT NULL DEFAULT 1,
     senha TEXT NOT NULL DEFAULT '',
@@ -68,8 +73,10 @@ CREATE TABLE IF NOT EXISTS chamado (
     id_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
     id_tipo_chamado INTEGER NOT NULL DEFAULT 1,
     id_setor INTEGER,
+    setor TEXT,
     id_grupo_solucionadores INTEGER,
     status TEXT NOT NULL DEFAULT 'ABERTO',
+    prioridade TEXT NOT NULL DEFAULT 'MEDIA',
     cliente TEXT NOT NULL,
     assunto TEXT,
     descricao TEXT,
@@ -82,6 +89,7 @@ CREATE TABLE IF NOT EXISTS chamado (
     tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0,
     tempo_inicio TEXT,
     data_abertura TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    data_fechamento TEXT,
     data_agendada TEXT,
     hora_agendada TEXT,
     classificacao TEXT,
@@ -96,6 +104,7 @@ CREATE TABLE IF NOT EXISTS historico_chamado (
     id_chamado INTEGER NOT NULL,
     evento TEXT NOT NULL,
     descricao TEXT NOT NULL,
+    autor TEXT NOT NULL DEFAULT 'Sistema',
     data_evento TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE
 );
@@ -105,12 +114,25 @@ CREATE TABLE IF NOT EXISTS escalonamento (
     id_chamado INTEGER NOT NULL,
     motivo TEXT,
     nivel INTEGER,
+    setor_destino TEXT,
     id_setor_destino INTEGER,
     id_grupo_destino INTEGER,
     data_escalonamento TEXT,
     FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE,
     FOREIGN KEY (id_setor_destino) REFERENCES setor(id_setor) ON DELETE SET NULL,
     FOREIGN KEY (id_grupo_destino) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS documentacao (
+    id_documentacao INTEGER PRIMARY KEY AUTOINCREMENT,
+    fornecedor TEXT,
+    id_grupo_solucionadores INTEGER,
+    titulo TEXT NOT NULL,
+    conteudo TEXT NOT NULL,
+    data_criacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    data_atualizacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    id_usuario INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_grupo_solucionadores) REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS configuracao (
@@ -185,3 +207,5 @@ CREATE INDEX IF NOT EXISTS idx_chamado_workspace ON chamado(id_usuario, id_chama
 CREATE INDEX IF NOT EXISTS idx_setor_workspace ON setor(id_usuario);
 CREATE INDEX IF NOT EXISTS idx_cliente_workspace ON cliente(id_workspace);
 CREATE INDEX IF NOT EXISTS idx_usuario_workspace_cliente ON usuario(id_workspace, tipo_usuario);
+CREATE INDEX IF NOT EXISTS idx_documentacao_workspace ON documentacao(id_usuario);
+CREATE INDEX IF NOT EXISTS idx_documentacao_grupo ON documentacao(id_grupo_solucionadores);

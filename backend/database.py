@@ -61,7 +61,7 @@ def get_db_connection():
     return SQLiteConnection(connection)
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DEMO_EMAIL = 'test@helpiti.com'
 
 
@@ -131,6 +131,7 @@ def _migrate_multitenant_schema(connection):
             ('cliente', 'id_workspace'),
             ('chamado', 'id_usuario'),
             ('configuracao', 'id_usuario'),
+            ('documentacao', 'id_usuario'),
         ):
             if table in tables and column not in _columns(connection, table):
                 connection.execute(f'ALTER TABLE {table} ADD COLUMN {column} {ref}')
@@ -235,26 +236,57 @@ def _migrate_legacy_schema(connection):
             )
         connection.execute('DROP INDEX IF EXISTS idx_cliente_contato_usuario')
 
-    if 'documentacao' in tables:
-        total = connection.execute('SELECT COUNT(*) FROM documentacao').fetchone()[0]
-        if total:
-            suffix = 1
-            archive_name = 'documentacao_legado'
-            while archive_name in tables:
-                suffix += 1
-                archive_name = f'documentacao_legado_{suffix}'
-            connection.execute(
-                f'ALTER TABLE documentacao RENAME TO {archive_name}'
-            )
-        else:
-            connection.execute('DROP TABLE documentacao')
+    if 'cliente' in tables:
+        cliente_cols = _columns(connection, 'cliente')
+        if 'contato' not in cliente_cols:
+            connection.execute('ALTER TABLE cliente ADD COLUMN contato TEXT')
+            connection.execute("UPDATE cliente SET contato = COALESCE(telefone, email, '') WHERE contato IS NULL OR contato = ''")
 
     if 'chamado' in tables:
-        columns = {
-            row['name'] for row in connection.execute('PRAGMA table_info(chamado)')
-        }
+        columns = _columns(connection, 'chamado')
         if 'documentacao' not in columns:
             connection.execute('ALTER TABLE chamado ADD COLUMN documentacao TEXT')
+        if 'setor' not in columns:
+            connection.execute('ALTER TABLE chamado ADD COLUMN setor TEXT')
+        if 'prioridade' not in columns:
+            connection.execute("ALTER TABLE chamado ADD COLUMN prioridade TEXT NOT NULL DEFAULT 'MEDIA'")
+        if 'data_fechamento' not in columns:
+            connection.execute('ALTER TABLE chamado ADD COLUMN data_fechamento TEXT')
+        if 'setor' in tables:
+            connection.execute(
+                "UPDATE chamado SET setor = (SELECT nome FROM setor WHERE setor.id_setor = chamado.id_setor) "
+                "WHERE (chamado.setor IS NULL OR chamado.setor = '') AND chamado.id_setor IS NOT NULL"
+            )
+
+    if 'escalonamento' in tables:
+        esc_cols = _columns(connection, 'escalonamento')
+        if 'setor_destino' not in esc_cols:
+            connection.execute('ALTER TABLE escalonamento ADD COLUMN setor_destino TEXT')
+        if 'setor' in tables:
+            connection.execute(
+                "UPDATE escalonamento SET setor_destino = (SELECT nome FROM setor WHERE setor.id_setor = escalonamento.id_setor_destino) "
+                "WHERE (escalonamento.setor_destino IS NULL OR escalonamento.setor_destino = '') AND escalonamento.id_setor_destino IS NOT NULL"
+            )
+
+    if 'historico_chamado' in tables:
+        hist_cols = _columns(connection, 'historico_chamado')
+        if 'autor' not in hist_cols:
+            connection.execute("ALTER TABLE historico_chamado ADD COLUMN autor TEXT NOT NULL DEFAULT 'Sistema'")
+
+    if 'documentacao' in tables:
+        doc_cols = _columns(connection, 'documentacao')
+        if 'fornecedor' not in doc_cols:
+            connection.execute('ALTER TABLE documentacao ADD COLUMN fornecedor TEXT')
+        if 'titulo' not in doc_cols:
+            connection.execute("ALTER TABLE documentacao ADD COLUMN titulo TEXT NOT NULL DEFAULT 'Documento Técnico'")
+        if 'conteudo' not in doc_cols:
+            connection.execute("ALTER TABLE documentacao ADD COLUMN conteudo TEXT NOT NULL DEFAULT ''")
+        if 'data_criacao' not in doc_cols:
+            connection.execute("ALTER TABLE documentacao ADD COLUMN data_criacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))")
+        if 'data_atualizacao' not in doc_cols:
+            connection.execute("ALTER TABLE documentacao ADD COLUMN data_atualizacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))")
+        if 'id_grupo_solucionadores' not in doc_cols:
+            connection.execute('ALTER TABLE documentacao ADD COLUMN id_grupo_solucionadores INTEGER')
 
     if 'usuario' in tables:
         user_columns = {
@@ -267,6 +299,17 @@ def _migrate_legacy_schema(connection):
 
     if 'grupo_solucionadores' not in tables:
         return
+
+    member_columns = {
+        row['name'] for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')
+    }
+    if 'setor' not in member_columns:
+        connection.execute('ALTER TABLE grupo_solucionadores ADD COLUMN setor TEXT')
+        if 'setor' in tables:
+            connection.execute(
+                "UPDATE grupo_solucionadores SET setor = (SELECT nome FROM setor WHERE setor.id_setor = grupo_solucionadores.id_setor) "
+                "WHERE (grupo_solucionadores.setor IS NULL OR grupo_solucionadores.setor = '') AND grupo_solucionadores.id_setor IS NOT NULL"
+            )
 
     member_columns = {
         row['name'] for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')

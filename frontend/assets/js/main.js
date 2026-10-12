@@ -795,7 +795,8 @@ function renderizarHistoricoChamado(eventos = []) {
       ? detailEscape(evento.data_evento)
       : detailEscape(data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }));
     const titulo = titulos[evento.evento] || 'Atualização';
-    return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>${titulo}</strong><span class="timeline-time">${horario}</span></div><p>${detailEscape(evento.descricao)}</p></div></div>`;
+    const autorTag = evento.autor ? `<span class="timeline-author" style="font-size: 11px; font-weight: 600; color: var(--primary-color, #2563eb); margin-left: 6px;">[${detailEscape(evento.autor)}]</span>` : '';
+    return `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-header"><strong>${titulo}</strong>${autorTag}<span class="timeline-time">${horario}</span></div><p>${detailEscape(evento.descricao)}</p></div></div>`;
   }).join('');
 }
 
@@ -967,6 +968,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setDetailText('chamado-data', formatarDataAbertura(chamado.data_abertura));
         setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
         setDetailText('statusChamado', status);
+        setDetailText('prioridadeChamadoDetalhe', chamado.prioridade || 'MÉDIA');
         document.querySelector('#statusChamado')?.classList.toggle('is-resolved', status === 'RESOLVIDO');
         renderizarHistoricoChamado(chamado.historico || []);
         const valoresSidebar = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');

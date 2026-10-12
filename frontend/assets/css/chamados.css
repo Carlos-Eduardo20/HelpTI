@@ -556,3 +556,246 @@
 	color: var(--text-secondary);
 	cursor: default;
 }
+
+/* ========================================================
+   DESKOPS / PROJETO 3 - ESTILOS VISUAIS E COMPONENTES
+   ======================================================== */
+
+.deskops-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.btn-secondary {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	border: 1px solid var(--border-color, #d1d5db);
+	border-radius: var(--radius-sm, 6px);
+	background: var(--card-bg, #ffffff);
+	color: var(--text-primary, #1f2937);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+	background: var(--surface-hover, #f3f4f6);
+	border-color: var(--palette-94a3b8, #94a3b8);
+}
+
+.btn-secondary svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* Cards de Métricas DeskOps */
+.deskops-metrics-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 16px;
+	margin-bottom: 20px;
+}
+
+.deskops-metric-card {
+	background: var(--card-bg, #ffffff);
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: var(--radius-md, 8px);
+	padding: 16px 18px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	position: relative;
+	overflow: hidden;
+}
+
+.deskops-metric-card::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: var(--border-color, #e5e7eb);
+}
+
+.deskops-metric-card.card-total::before { background: var(--primary-color, #2563eb); }
+.deskops-metric-card.card-triagem::before { background: #f59e0b; }
+.deskops-metric-card.card-andamento::before { background: #3b82f6; }
+.deskops-metric-card.card-resolvidos::before { background: #10b981; }
+.deskops-metric-card.card-mttr::before { background: #8b5cf6; }
+
+.metric-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.metric-label {
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-secondary, #6b7280);
+}
+
+.metric-icon {
+	color: var(--text-secondary, #9ca3af);
+}
+
+.metric-value {
+	font-size: 26px;
+	font-weight: 800;
+	color: var(--text-primary, #111827);
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+}
+
+.metric-caption {
+	font-size: 11px;
+	color: var(--text-secondary, #6b7280);
+}
+
+/* Abas Rápidas DeskOps */
+.deskops-tabs-container {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	overflow-x: auto;
+	margin-bottom: 16px;
+	padding-bottom: 4px;
+}
+
+.deskops-tab-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border: 1px solid var(--border-color, #e5e7eb);
+	border-radius: 9999px;
+	background: var(--card-bg, #ffffff);
+	color: var(--text-secondary, #4b5563);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: all 0.15s ease;
+}
+
+.deskops-tab-pill:hover {
+	border-color: var(--primary-color, #2563eb);
+	color: var(--primary-color, #2563eb);
+}
+
+.deskops-tab-pill.active {
+	background: var(--primary-color, #2563eb);
+	color: #ffffff;
+	border-color: var(--primary-color, #2563eb);
+}
+
+.deskops-tab-pill .tab-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 6px;
+	border-radius: 9999px;
+	font-size: 11px;
+	font-weight: 700;
+	background: rgba(0, 0, 0, 0.08);
+	color: inherit;
+}
+
+.deskops-tab-pill.active .tab-count {
+	background: rgba(255, 255, 255, 0.25);
+	color: #ffffff;
+}
+
+/* Barra de Filtros DeskOps */
+.deskops-filters-bar {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.deskops-filter-select {
+	padding: 9px 12px;
+	border: 1px solid var(--border-color, #d1d5db);
+	border-radius: var(--radius-sm, 6px);
+	background: var(--card-bg, #ffffff);
+	color: var(--text-primary, #111827);
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	min-width: 140px;
+}
+
+.deskops-filter-select:focus {
+	outline: none;
+	border-color: var(--primary-color, #2563eb);
+}
+
+/* Badges de Prioridade DeskOps */
+.badge-priority {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.badge-priority-critica {
+	background: #fee2e2;
+	color: #991b1b;
+	border: 1px solid #fecaca;
+}
+
+.badge-priority-alta {
+	background: #ffedd5;
+	color: #c2410c;
+	border: 1px solid #fed7aa;
+}
+
+.badge-priority-media {
+	background: #fef3c7;
+	color: #92400e;
+	border: 1px solid #fde68a;
+}
+
+.badge-priority-baixa {
+	background: #dbeafe;
+	color: #1e40af;
+	border: 1px solid #bfdbfe;
+}
+
+/* Tag de Setor */
+.badge-setor {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 7px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	background: #f1f5f9;
+	color: #475569;
+	border: 1px solid #e2e8f0;
+}
+
+.ticket-id-tag {
+	font-family: ui-monospace, monospace;
+	font-weight: 700;
+	font-size: 12px;
+	color: var(--primary-color, #2563eb);
+}
