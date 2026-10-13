@@ -660,11 +660,6 @@ def create_chamado():
         id_setor = dados.get('id_setor')
         id_grupo_solucionadores = dados.get('id_grupo_solucionadores')
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
-        prioridade = (dados.get('prioridade') or 'MEDIA').strip().upper()
-        if prioridade not in ('BAIXA', 'MEDIA', 'ALTA', 'CRITICA', 'URGENTE'):
-            prioridade = 'MEDIA'
-        if prioridade == 'URGENTE':
-            prioridade = 'CRITICA'
 
         if not cliente or not email_cliente or not telefone_cliente or not contato_cliente or not telefone_contato or not descricao or not id_setor or not id_grupo_solucionadores:
             return jsonify({'erro': 'Todos os campos do chamado são obrigatórios'}), 400
@@ -704,11 +699,11 @@ def create_chamado():
         
         query = """
             INSERT INTO chamado
-                (id_chamado, id_tipo_chamado, id_setor, setor, id_grupo_solucionadores, status, prioridade, cliente, descricao,
+                (id_chamado, id_tipo_chamado, id_setor, setor, id_grupo_solucionadores, status, cliente, descricao,
                  email_cliente, telefone_cliente, contato_cliente, telefone_contato, id_usuario)
-            VALUES (%s, %s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, setor_nome, id_grupo_solucionadores, prioridade,
+        cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, setor_nome, id_grupo_solucionadores,
                                cliente, descricao, email_cliente, telefone_cliente, contato_cliente, telefone_contato, _ws()))
         
         autor_chamado = g.membro.get('nome') if (hasattr(g, 'membro') and g.membro) else 'Sistema'
@@ -725,7 +720,6 @@ def create_chamado():
             f'Chamado #{novo_id} recebido',
             f"Olá, {contato_cliente}.\n\n"
             f"Recebemos seu chamado #{novo_id} para {cliente}.\n"
-            f"Prioridade: {prioridade}\n"
             f"Descrição: {descricao}\n\n"
             'A equipe de suporte dará continuidade ao atendimento.'
         )

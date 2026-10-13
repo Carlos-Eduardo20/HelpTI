@@ -79,7 +79,6 @@ CREATE TABLE chamado (
     setor VARCHAR2(255),
     id_grupo_solucionadores NUMBER,
     status VARCHAR2(30) DEFAULT 'ABERTO' NOT NULL,
-    prioridade VARCHAR2(30) DEFAULT 'MEDIA' NOT NULL,
     cliente VARCHAR2(255) NOT NULL,
     assunto VARCHAR2(1000),
     descricao CLOB,

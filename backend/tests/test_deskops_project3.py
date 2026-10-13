@@ -66,7 +66,7 @@ class DeskOpsProject3Tests(unittest.TestCase):
         tecnico_id = tecnico_resp.get_json()['id_grupo_solucionadores']
         return admin, setor_id, tecnico_id
 
-    def test_chamado_com_setor_atributo_e_prioridade(self):
+    def test_chamado_com_setor_atributo_simples(self):
         admin, setor_id, tecnico_id = self._setup_empresa_com_tecnico()
         
         with patch.object(app_module.smtplib, 'SMTP'):
@@ -79,12 +79,10 @@ class DeskOpsProject3Tests(unittest.TestCase):
                 'telefone_contato': '11988888888',
                 'id_setor': setor_id,
                 'setor': 'Suporte N1',
-                'prioridade': 'ALTA',
                 'id_grupo_solucionadores': tecnico_id
             })
         self.assertEqual(resp.status_code, 201)
         dados = resp.get_json()
-        self.assertEqual(dados['prioridade'], 'ALTA')
         self.assertEqual(dados['setor'], 'Suporte N1')
 
         # Buscar detalhes e verificar histórico com autor
@@ -102,12 +100,12 @@ class DeskOpsProject3Tests(unittest.TestCase):
             r1 = admin.post('/api/chamados', json={
                 'cliente': 'Cliente 1', 'descricao': 'D1', 'email_cliente': 'c1@test.com',
                 'telefone_cliente': '111', 'contato_cliente': 'C1', 'telefone_contato': '111',
-                'id_setor': setor_id, 'id_grupo_solucionadores': tecnico_id, 'prioridade': 'CRITICA'
+                'id_setor': setor_id, 'id_grupo_solucionadores': tecnico_id
             })
             r2 = admin.post('/api/chamados', json={
                 'cliente': 'Cliente 2', 'descricao': 'D2', 'email_cliente': 'c2@test.com',
                 'telefone_cliente': '222', 'contato_cliente': 'C2', 'telefone_contato': '222',
-                'id_setor': setor_id, 'id_grupo_solucionadores': tecnico_id, 'prioridade': 'BAIXA'
+                'id_setor': setor_id, 'id_grupo_solucionadores': tecnico_id
             })
         
         id2 = r2.get_json()['id_chamado']

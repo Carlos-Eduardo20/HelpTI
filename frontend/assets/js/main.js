@@ -704,7 +704,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (chamado) {
       document.getElementById('chamado-id').textContent = `Chamado #${chamado.id_chamado}`;
       document.getElementById('chamado-cliente').textContent = chamado.cliente;
-      document.getElementById('chamado-prioridade').textContent = chamado.prioridade;
       document.getElementById('chamado-status').textContent = chamado.status;
       document.getElementById('chamado-descricao').textContent = chamado.descricao || 'Sem descrição cadastrada.';
     }
@@ -968,7 +967,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         setDetailText('chamado-data', formatarDataAbertura(chamado.data_abertura));
         setDetailText('chamado-descricao', chamado.descricao || 'Sem descrição cadastrada.');
         setDetailText('statusChamado', status);
-        setDetailText('prioridadeChamadoDetalhe', chamado.prioridade || 'MÉDIA');
         document.querySelector('#statusChamado')?.classList.toggle('is-resolved', status === 'RESOLVIDO');
         renderizarHistoricoChamado(chamado.historico || []);
         const valoresSidebar = document.querySelectorAll('.ticket-sidebar .sidebar-info-list .info-value');

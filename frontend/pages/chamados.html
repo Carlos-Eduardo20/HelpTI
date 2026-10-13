@@ -137,8 +137,8 @@
     <main class="main-container">
         <div class="page-title-bar">
             <div>
-                <h1>Central de Chamados • Mesa DeskOps</h1>
-                <p>Acompanhe métricas, triagem, ordene por prioridade e gerencie o ciclo de vida dos tickets.</p>
+                <h1>Central de Chamados</h1>
+                <p>Acompanhe métricas, triagem e gerencie o ciclo de vida dos tickets de forma simples e direta.</p>
             </div>
             <div class="deskops-header-actions">
                 <button class="btn-secondary" id="btnAtualizarFila" onclick="window.carregarChamados && window.carregarChamados()" title="Atualizar fila em tempo real">
@@ -160,7 +160,7 @@
                     </svg>
                     Exportar CSV
                 </button>
-                <button class="btn-primary" id="btnNovoChamado" type="button" onclick="document.getElementById('modalChamado').classList.add('active')">
+                <button class="btn-primary" id="btnNovoChamado" type="button" onclick="window.abrirModalChamado ? window.abrirModalChamado() : document.getElementById('modalChamado')?.classList.add('active')">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
                         stroke="var(--white)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="lucide lucide-plus-icon lucide-plus">
@@ -172,69 +172,6 @@
             </div>
         </div>
 
-        <!-- Cards de Métricas DeskOps / Projeto 3 -->
-        <section class="deskops-metrics-grid" id="gridMetricasDeskops">
-            <div class="deskops-metric-card card-total">
-                <div class="metric-header">
-                    <span class="metric-label">Total de Tickets</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="metric-icon"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
-                </div>
-                <div class="metric-value" id="cardMetricTotal">0</div>
-                <span class="metric-caption">Chamados no sistema</span>
-            </div>
-            <div class="deskops-metric-card card-triagem">
-                <div class="metric-header">
-                    <span class="metric-label">Triagem</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="metric-icon"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <div class="metric-value" id="cardMetricTriagem">0</div>
-                <span class="metric-caption">Aguardando atendimento</span>
-            </div>
-            <div class="deskops-metric-card card-andamento">
-                <div class="metric-header">
-                    <span class="metric-label">Em Andamento</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="metric-icon"><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>
-                </div>
-                <div class="metric-value" id="cardMetricAndamento">0</div>
-                <span class="metric-caption">Com técnico atribuído</span>
-            </div>
-            <div class="deskops-metric-card card-resolvidos">
-                <div class="metric-header">
-                    <span class="metric-label">Resolvidos Hoje</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="metric-icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </div>
-                <div class="metric-value" id="cardMetricResolvidosHoje">0</div>
-                <span class="metric-caption">Finalizados com sucesso</span>
-            </div>
-            <div class="deskops-metric-card card-mttr">
-                <div class="metric-header">
-                    <span class="metric-label">MTTR Médio</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="metric-icon"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                </div>
-                <div class="metric-value" id="cardMetricMttr">--</div>
-                <span class="metric-caption">Tempo médio de resolução</span>
-            </div>
-        </section>
-
-        <!-- Abas Rápidas de Fila DeskOps -->
-        <div class="deskops-tabs-container" id="tabsDeskops">
-            <button type="button" class="deskops-tab-pill active" data-deskops-tab="TODOS">
-                Todos <span class="tab-count" id="countTabTodos">0</span>
-            </button>
-            <button type="button" class="deskops-tab-pill" data-deskops-tab="TRIAGEM">
-                Triagem <span class="tab-count" id="countTabTriagem">0</span>
-            </button>
-            <button type="button" class="deskops-tab-pill" data-deskops-tab="ANDAMENTO">
-                Em Andamento <span class="tab-count" id="countTabAndamento">0</span>
-            </button>
-            <button type="button" class="deskops-tab-pill" data-deskops-tab="PAUSADO">
-                Pausados / Aguardando <span class="tab-count" id="countTabPausado">0</span>
-            </button>
-            <button type="button" class="deskops-tab-pill" data-deskops-tab="RESOLVIDO">
-                Resolvidos <span class="tab-count" id="countTabResolvido">0</span>
-            </button>
-        </div>
-
         <!-- Filtros de Busca e Filtros DeskOps -->
         <section class="content-card" style="margin-bottom: 20px; padding: 16px 20px;">
             <div class="deskops-filters-bar">
@@ -244,15 +181,6 @@
                 <!-- Filtro Responsável / Atendente -->
                 <select id="filtroResponsavelDeskops" class="deskops-filter-select" aria-label="Filtrar por Responsável">
                     <option value="">Todos os responsáveis</option>
-                </select>
-
-                <!-- Filtro Prioridade (Projeto 3) -->
-                <select id="filtroPrioridadeDeskops" class="deskops-filter-select" aria-label="Filtrar por Prioridade">
-                    <option value="">Todas as prioridades</option>
-                    <option value="CRITICA">🔴 Crítica</option>
-                    <option value="ALTA">🟠 Alta</option>
-                    <option value="MEDIA">🟡 Média</option>
-                    <option value="BAIXA">🔵 Baixa</option>
                 </select>
 
                 <!-- Filtro Departamento / Setor (Atributo de texto) -->
@@ -362,7 +290,6 @@
                             <th>Ticket</th>
                             <th>Cliente / Solicitante</th>
                             <th>Setor</th>
-                            <th>Prioridade</th>
                             <th>Responsável</th>
                             <th>SLA Restante</th>
                             <th>Status</th>
@@ -460,16 +387,6 @@
                             <li class="select-empty">Selecione primeiro o setor</li>
                         </ul>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="prioridadeChamado">Prioridade do Ticket</label>
-                    <select id="prioridadeChamado" name="prioridade" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 14px; background: var(--card-bg); color: var(--text-primary);">
-                        <option value="BAIXA">🔵 Baixa (Até 24h)</option>
-                        <option value="MEDIA" selected>🟡 Média (Até 8h)</option>
-                        <option value="ALTA">🟠 Alta (Até 4h)</option>
-                        <option value="CRITICA">🔴 Crítica (Até 1h)</option>
-                    </select>
                 </div>
 
                 <div class="form-group">

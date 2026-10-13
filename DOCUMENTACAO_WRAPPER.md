@@ -100,7 +100,6 @@ Entidade central que armazena os tickets de atendimento.
 - `contato_cliente` (TEXT): Nome do solicitante/funcionário específico.
 - `telefone_contato` (TEXT): Telefone do solicitante.
 - `setor` (TEXT): **Atributo de setor/departamento** do chamado.
-- `prioridade` (TEXT, DEFAULT 'MEDIA'): Nível de prioridade (`BAIXA`, `MEDIA`, `ALTA`, `CRITICA`).
 - `status` (TEXT, DEFAULT 'ABERTO'): Status operacional (`ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `PAUSADO`, `RESOLVIDO`).
 - `descricao` (TEXT, NOT NULL): Relato do problema ou necessidade.
 - `descricao_final` (TEXT): Solução técnica aplicada ao encerrar o chamado.
@@ -110,6 +109,7 @@ Entidade central que armazena os tickets de atendimento.
 - `data_fechamento` (TEXT): Data e hora de encerramento do chamado.
 - `data_agendada` (TEXT): Data programada para atendimento (quando aplicável).
 - `hora_agendada` (TEXT): Horário agendado.
+*(Nota: Conforme a modelagem conceitual do ERD original e requisitos de simplicidade do HelpTI, a gestão de tickets não impõe o atributo de prioridade, mantendo o fluxo ágil e desimpedido).*
 
 #### 5. `escalonamento`
 Registro de transferências de chamados para outros níveis ou técnicos.

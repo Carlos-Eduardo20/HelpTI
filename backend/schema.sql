@@ -76,7 +76,6 @@ CREATE TABLE IF NOT EXISTS chamado (
     setor TEXT,
     id_grupo_solucionadores INTEGER,
     status TEXT NOT NULL DEFAULT 'ABERTO',
-    prioridade TEXT NOT NULL DEFAULT 'MEDIA',
     cliente TEXT NOT NULL,
     assunto TEXT,
     descricao TEXT,

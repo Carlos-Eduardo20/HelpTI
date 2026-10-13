@@ -248,8 +248,6 @@ def _migrate_legacy_schema(connection):
             connection.execute('ALTER TABLE chamado ADD COLUMN documentacao TEXT')
         if 'setor' not in columns:
             connection.execute('ALTER TABLE chamado ADD COLUMN setor TEXT')
-        if 'prioridade' not in columns:
-            connection.execute("ALTER TABLE chamado ADD COLUMN prioridade TEXT NOT NULL DEFAULT 'MEDIA'")
         if 'data_fechamento' not in columns:
             connection.execute('ALTER TABLE chamado ADD COLUMN data_fechamento TEXT')
         if 'setor' in tables:

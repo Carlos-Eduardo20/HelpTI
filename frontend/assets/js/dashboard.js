@@ -111,14 +111,6 @@ function posicionarMenuStatus(picker) {
     : `${triggerRect.bottom + 5}px`;
 }
 
-function badgePrioridade(prioridade) {
-  const p = String(prioridade || 'MEDIA').toUpperCase();
-  if (p === 'CRITICA') return '<span class="badge-priority badge-priority-critica">🔴 Crítica</span>';
-  if (p === 'ALTA') return '<span class="badge-priority badge-priority-alta">🟠 Alta</span>';
-  if (p === 'BAIXA') return '<span class="badge-priority badge-priority-baixa">🔵 Baixa</span>';
-  return '<span class="badge-priority badge-priority-media">🟡 Média</span>';
-}
-
 function linhaChamado(chamado) {
   const statuses = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'PAUSADO', 'RESOLVIDO'];
   const statusInformado = String(chamado.status || 'ABERTO').toUpperCase();
@@ -134,7 +126,6 @@ function linhaChamado(chamado) {
       <td><span class="ticket-id-tag">${ticketFormatado}</span></td>
       <td><strong>${escaparHtml(chamado.cliente)}</strong>${contatoTexto}</td>
       <td><span class="badge-setor">${setorTexto}</span></td>
-      <td>${badgePrioridade(chamado.prioridade)}</td>
       <td>${escaparHtml(chamado.tecnico || 'Não atribuído')}</td>
       <td><span class="sla-countdown${slaRestante < 0 ? ' is-expired' : ''}" data-sla-id="${id}">${formatarSlaRestante(slaRestante)}</span></td>
       <td>
@@ -182,7 +173,6 @@ function correspondeAoPeriodoDeAbertura(chamado, periodo) {
 function aplicarFiltrosChamados() {
   const busca = document.querySelector('#buscaChamados')?.value.trim().toLowerCase() || '';
   const responsavel = document.querySelector('#filtroResponsavelDeskops')?.value || '';
-  const prioridade = document.querySelector('#filtroPrioridadeDeskops')?.value || '';
   const setor = document.querySelector('#filtroSetorDeskops')?.value || '';
   const periodoDeskops = document.querySelector('#filtroPeriodoDeskops')?.value || '';
   const periodoAbertura = periodoDeskops && periodoDeskops !== 'todos'
@@ -208,7 +198,6 @@ function aplicarFiltrosChamados() {
     else if (abaDeskopsAtiva === 'RESOLVIDO') correspondeAba = chamado.status === 'RESOLVIDO';
 
     const correspondeResponsavel = !responsavel || String(chamado.tecnico || '').trim() === responsavel;
-    const correspondePrioridade = !prioridade || String(chamado.prioridade || 'MEDIA').toUpperCase() === prioridade;
     const correspondeSetor = !setor || String(chamado.setor || '').trim().toLowerCase() === setor.toLowerCase();
     const correspondePeriodo = correspondeAoPeriodoDeAbertura(chamado, periodoAbertura);
 
@@ -222,7 +211,7 @@ function aplicarFiltrosChamados() {
       }
     }
 
-    return correspondeBusca && correspondeAba && correspondeResponsavel && correspondePrioridade && correspondeSetor && correspondePeriodo && correspondeStatusTradicional;
+    return correspondeBusca && correspondeAba && correspondeResponsavel && correspondeSetor && correspondePeriodo && correspondeStatusTradicional;
   });
 
   const totalPaginas = Math.max(1, Math.ceil(chamadosFiltrados.length / chamadosPorPagina));
@@ -294,7 +283,7 @@ function exportarChamadosCsv() {
     mostrarErro('Nenhum chamado disponível para exportação.');
     return;
   }
-  const cabecalhos = ['Ticket', 'Cliente', 'Solicitante', 'Email_Cliente', 'Telefone', 'Setor', 'Prioridade', 'Responsavel', 'Status', 'Data_Abertura', 'Data_Fechamento'];
+  const cabecalhos = ['Ticket', 'Cliente', 'Solicitante', 'Email_Cliente', 'Telefone', 'Setor', 'Responsavel', 'Status', 'Data_Abertura', 'Data_Fechamento'];
   const linhas = [cabecalhos.join(';')];
 
   chamadosEmMemoria.forEach((c) => {
@@ -304,13 +293,12 @@ function exportarChamadosCsv() {
     const email = `"${(c.email_cliente || '').replace(/"/g, '""')}"`;
     const tel = `"${(c.telefone_cliente || '').replace(/"/g, '""')}"`;
     const setor = `"${(c.setor || '').replace(/"/g, '""')}"`;
-    const prioridade = c.prioridade || 'MEDIA';
     const responsavel = `"${(c.tecnico || 'Não atribuído').replace(/"/g, '""')}"`;
     const status = c.status || 'ABERTO';
     const abertura = c.data_abertura || '';
     const fechamento = c.data_fechamento || '';
 
-    linhas.push([ticket, cliente, solicitante, email, tel, setor, prioridade, responsavel, status, abertura, fechamento].join(';'));
+    linhas.push([ticket, cliente, solicitante, email, tel, setor, responsavel, status, abertura, fechamento].join(';'));
   });
 
   const conteudoCsv = '\uFEFF' + linhas.join('\r\n');
@@ -538,9 +526,7 @@ function normalizarBusca(valor) {
   return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
-function escaparHtml(valor) {
-  return String(valor || '').replace(/[&<>'"]/g, (caractere) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[caractere]);
-}
+// escaparHtml ja declarado no inicio do arquivo
 
 function renderizarOpcoesClientes(termo = '') {
   const lista = document.querySelector('#clienteDropdownList');
@@ -744,7 +730,6 @@ async function salvarChamado(event) {
     return;
   }
   const botao = form.querySelector('[type="submit"]');
-  const prioridadeSelecionada = campos.prioridade ? campos.prioridade.value : 'MEDIA';
   const setorTexto = document.querySelector('#setorSearchInput')?.value.trim() || '';
 
   await comCarregamento(botao, async () => { try {
@@ -756,7 +741,6 @@ async function salvarChamado(event) {
       telefone_contato: formatBrazilianPhone(campos.telefone_contato.value),
       id_setor: campos.id_setor.value,
       id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
-      prioridade: prioridadeSelecionada,
       setor: setorTexto,
       descricao: campos.descricao.value.trim()
     });
@@ -774,6 +758,14 @@ window.cancelarNovoClienteDoChamado = cancelarNovoClienteDoChamado;
 window.salvarNovoClienteDoChamado = salvarNovoClienteDoChamado;
 window.exportarChamadosCsv = exportarChamadosCsv;
 window.carregarChamados = carregarChamados;
+
+document.addEventListener('click', (event) => {
+  const btnNovo = event.target.closest('#btnNovoChamado, [data-acao="novo-chamado"]');
+  if (btnNovo) {
+    event.preventDefault();
+    abrirModalChamado();
+  }
+});
 
 document.addEventListener('click', async (event) => {
   const statusFilterButton = event.target.closest('#botaoStatusChamados');
