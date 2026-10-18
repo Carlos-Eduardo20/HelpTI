@@ -93,6 +93,12 @@ Para interromper a execução:
 docker compose down
 ```
 
+### Hospedagem na Render
+
+O projeto não gerencia certificado SSL, domínio ou registros DNS. Configure o domínio e os registros DNS no Registro.br e associe o domínio personalizado ao serviço na Render, que fornecerá e renovará o certificado HTTPS.
+
+Na Render, use `gunicorn wsgi:app` como **Start Command** e defina a variável de ambiente `HELPTI_HTTPS_ONLY=true`. O `compose.yaml` é destinado somente ao ambiente local e usa HTTP em `localhost`.
+
 ---
 
 ## 5. Como Executar no GitHub Codespaces

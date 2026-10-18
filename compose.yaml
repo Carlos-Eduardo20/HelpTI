@@ -11,7 +11,7 @@ services:
       HELPTI_DEBUG: "false"
       HELPTI_DB_PATH: "${HELPTI_DB_PATH:-/app/instance/helpti.sqlite3}"
       HELPTI_DEMO_MODE: "${HELPTI_DEMO_MODE:-false}"
-      HELPTI_HTTPS_ONLY: "true"
+      HELPTI_HTTPS_ONLY: "false"
       FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:-}"
       SMTP_HOST: "${SMTP_HOST:-}"
       SMTP_PORT: "${SMTP_PORT:-587}"
@@ -24,6 +24,8 @@ services:
       MICROSOFT_REDIRECT_URI: "${MICROSOFT_REDIRECT_URI:-}"
     volumes:
       - help-ti-data:/app/instance
+    ports:
+      - "127.0.0.1:${HELPTI_PORT:-5000}:5000"
     healthcheck:
       test:
         - CMD
@@ -35,19 +37,5 @@ services:
       retries: 3
       start_period: 10s
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:${HELPTI_HTTPS_PORT:-443}:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - help-ti-caddy-data:/data
-      - help-ti-caddy-config:/config
-    depends_on:
-      - help-ti
-
 volumes:
   help-ti-data:
-  help-ti-caddy-data:
-  help-ti-caddy-config:
