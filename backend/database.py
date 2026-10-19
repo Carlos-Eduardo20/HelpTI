@@ -1,73 +1,136 @@
 import os
-import json
 import re
-import sqlite3
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
-from werkzeug.security import generate_password_hash
+
+import mysql.connector
+from mysql.connector.constants import ClientFlag
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
-DATABASE_PATH = Path(os.getenv(
-    'HELPTI_DB_PATH', PROJECT_DIR / 'instance' / 'helpti.sqlite3'
-)).expanduser()
+INSTANCE_DIR = PROJECT_DIR / 'instance'
+SCHEMA_VERSION = 5
+DEMO_EMAIL = 'test@helpiti.com'
 
 
-class SQLiteCursor:
+def database_settings():
+    """Lê a configuração do MySQL a cada chamada para respeitar variáveis alteradas em runtime."""
+    return {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'port': int(os.getenv('DB_PORT', '3306')),
+        'user': os.getenv('DB_USER', 'root'),
+        'password': os.getenv('DB_PASSWORD', ''),
+        'database': os.getenv('DB_NAME', 'helpti_app'),
+    }
+
+
+class Row(tuple):
+    """Linha que aceita acesso por posição e por nome da coluna."""
+
+    def __new__(cls, columns, values):
+        row = super().__new__(cls, values)
+        row._columns = columns
+        return row
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            try:
+                return super().__getitem__(self._columns.index(key))
+            except ValueError:
+                raise KeyError(key) from None
+        return super().__getitem__(key)
+
+    def keys(self):
+        return list(self._columns)
+
+
+def _convert(value):
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return int(value) if value == value.to_integral_value() and value.as_tuple().exponent >= 0 else float(value)
+    if isinstance(value, (bytes, bytearray)):
+        return value.decode('utf-8', errors='replace')
+    return value
+
+
+class Cursor:
     def __init__(self, cursor):
         self._cursor = cursor
 
-    def execute(self, query, params=()):
-        query = re.sub(r'\s+FOR UPDATE\b', '', query, flags=re.IGNORECASE)
-        query = query.replace('%s', '?')
-        self._cursor.execute(query, tuple(_adapt_parameter(value) for value in (params or ())))
+    def execute(self, query, params=None):
+        self._cursor.execute(query, tuple(params) if params else None)
         return self
 
     def executemany(self, query, parameters):
-        query = query.replace('%s', '?')
-        adapted = [tuple(_adapt_parameter(value) for value in row) for row in parameters]
-        self._cursor.executemany(query, adapted)
+        self._cursor.executemany(query, [tuple(row) for row in parameters])
         return self
+
+    def _row(self, values):
+        columns = [description[0] for description in self._cursor.description]
+        return Row(columns, [_convert(value) for value in values])
+
+    def fetchone(self):
+        values = self._cursor.fetchone()
+        return None if values is None else self._row(values)
+
+    def fetchall(self):
+        return [self._row(values) for values in self._cursor.fetchall()]
+
+    def __iter__(self):
+        return iter(self.fetchall())
 
     def __getattr__(self, name):
         return getattr(self._cursor, name)
 
 
-class SQLiteConnection:
+class Connection:
     def __init__(self, connection):
         self._connection = connection
 
     def cursor(self, dictionary=False):
-        return SQLiteCursor(self._connection.cursor())
+        return Cursor(self._connection.cursor())
+
+    def execute(self, query, params=None):
+        return self.cursor().execute(query, params)
+
+    def executescript(self, script):
+        """Executa vários comandos terminados em ';' no fim da linha."""
+        script = re.sub(r'^\s*--.*$', '', script, flags=re.MULTILINE)
+        for statement in re.split(r';\s*(?:\n|$)', script):
+            if statement.strip():
+                cursor = self._connection.cursor()
+                cursor.execute(statement)
+                cursor.close()
 
     def __getattr__(self, name):
         return getattr(self._connection, name)
 
 
-def _adapt_parameter(value):
-    if isinstance(value, datetime):
-        return value.isoformat(sep=' ')
-    if isinstance(value, date):
-        return value.isoformat()
-    return value
+def _connect(with_database=True):
+    settings = database_settings()
+    if not with_database:
+        settings.pop('database')
+    return mysql.connector.connect(
+        **settings,
+        charset='utf8mb4',
+        autocommit=False,
+        connection_timeout=10,
+        client_flags=[ClientFlag.FOUND_ROWS],
+    )
 
 
 def get_db_connection():
-    """Abre o banco SQLite local e aplica as opções necessárias à conexão."""
-    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(DATABASE_PATH, timeout=10)
-    connection.row_factory = sqlite3.Row
-    connection.execute('PRAGMA foreign_keys = ON')
-    connection.execute('PRAGMA busy_timeout = 10000')
-    return SQLiteConnection(connection)
-
-
-SCHEMA_VERSION = 4
-DEMO_EMAIL = 'test@helpiti.com'
+    """Abre uma conexão MySQL; a transação é iniciada implicitamente (autocommit desligado)."""
+    return Connection(_connect())
 
 
 def apply_demo_seed(connection):
     """Reaplica o seed idempotente da conta de demonstração."""
     connection.executescript(Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8'))
+    connection.commit()
 
 
 def demo_mode_enabled():
@@ -75,19 +138,61 @@ def demo_mode_enabled():
     return os.getenv('HELPTI_DEMO_MODE', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
+def create_database_if_missing():
+    name = database_settings()['database']
+    if not re.fullmatch(r'[A-Za-z0-9_$]+', name):
+        raise ValueError('DB_NAME deve conter apenas letras, números, "_" ou "$".')
+    server = _connect(with_database=False)
+    try:
+        cursor = server.cursor()
+        try:
+            cursor.execute(
+                f'CREATE DATABASE IF NOT EXISTS `{name}` '
+                'CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+            )
+        except mysql.connector.Error as error:
+            # Usuários sem privilégio global usam um banco já criado pelo administrador.
+            if error.errno not in (1044, 1227):
+                raise
+        cursor.close()
+    finally:
+        server.close()
+
+
+def _ensure_compatible_schema(connection):
+    """Interrompe a inicialização se o banco contém tabelas de uma versão antiga do HelpTI."""
+    row = connection.execute(
+        "SELECT COUNT(*) FROM information_schema.tables "
+        "WHERE table_schema = DATABASE() AND table_name = 'usuario'"
+    ).fetchone()
+    if not row[0]:
+        return
+    column = connection.execute(
+        "SELECT COUNT(*) FROM information_schema.columns "
+        "WHERE table_schema = DATABASE() AND table_name = 'usuario' "
+        "AND column_name = 'id_workspace'"
+    ).fetchone()
+    if not column[0]:
+        raise RuntimeError(
+            'O banco MySQL configurado em DB_NAME contém tabelas de uma versão antiga '
+            'do HelpTI. Use outro valor em DB_NAME (por exemplo, helpti_app) ou migre '
+            'os dados antes de iniciar.'
+        )
+
+
 def initialize_database():
-    """Migra bancos antigos e cria tabelas/dados iniciais sem sobrescrever registros."""
-    schema_path = Path(__file__).with_name('schema.sql')
-    demo_seed_path = Path(__file__).with_name('demo_seed.sql')
+    """Cria o banco, as tabelas e os dados iniciais sem sobrescrever registros existentes."""
+    create_database_if_missing()
     connection = get_db_connection()
     try:
-        _migrate_legacy_schema(connection)
-        _migrate_multitenant_schema(connection)
-        connection.executescript(schema_path.read_text(encoding='utf-8'))
-        _migrate_email_auth_schema(connection)
+        _ensure_compatible_schema(connection)
+        connection.executescript(
+            Path(__file__).with_name('schema.sql').read_text(encoding='utf-8')
+        )
         if demo_mode_enabled():
-            connection.executescript(demo_seed_path.read_text(encoding='utf-8'))
-        _migrate_plaintext_passwords(connection)
+            connection.executescript(
+                Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8')
+            )
         connection.execute('''
             INSERT INTO historico_chamado (id_chamado, evento, descricao, data_evento)
             SELECT chamado.id_chamado, 'aberto', 'Chamado criado no sistema.', chamado.data_abertura
@@ -98,264 +203,5 @@ def initialize_database():
             )
         ''')
         connection.commit()
-        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
     finally:
         connection.close()
-
-
-def _columns(connection, table):
-    return {row['name'] for row in connection.execute(f'PRAGMA table_info({table})')}
-
-
-def _migrate_multitenant_schema(connection):
-    """Adds per-workspace ownership columns to existing databases without losing data."""
-    tables = {
-        row['name']
-        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
-    }
-    if 'usuario' not in tables:
-        return
-
-    connection.commit()
-    connection.execute('PRAGMA foreign_keys = OFF')
-    try:
-        workspace = connection.execute(
-            "SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' "
-            'ORDER BY id_usuario LIMIT 1'
-        ).fetchone()
-        workspace_id = workspace['id_usuario'] if workspace else None
-
-        ref = 'INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE'
-        for table, column in (
-            ('usuario', 'id_workspace'),
-            ('cliente', 'id_workspace'),
-            ('chamado', 'id_usuario'),
-            ('configuracao', 'id_usuario'),
-            ('documentacao', 'id_usuario'),
-        ):
-            if table in tables and column not in _columns(connection, table):
-                connection.execute(f'ALTER TABLE {table} ADD COLUMN {column} {ref}')
-
-        if 'setor' in tables and 'id_usuario' not in _columns(connection, 'setor'):
-            connection.execute('DROP TABLE IF EXISTS setor_new')
-            connection.execute(f'''
-                CREATE TABLE setor_new (
-                    id_setor INTEGER PRIMARY KEY AUTOINCREMENT,
-                    nome TEXT NOT NULL,
-                    descricao TEXT,
-                    niveis TEXT,
-                    id_usuario {ref},
-                    UNIQUE (id_usuario, nome)
-                )
-            ''')
-            connection.execute('''
-                INSERT INTO setor_new (id_setor, nome, descricao, niveis, id_usuario)
-                SELECT id_setor, nome, descricao, niveis, ? FROM setor
-            ''', (workspace_id,))
-            connection.execute('DROP TABLE setor')
-            connection.execute('ALTER TABLE setor_new RENAME TO setor')
-
-        if workspace_id is not None:
-            connection.execute(
-                "UPDATE usuario SET id_workspace = ? "
-                "WHERE tipo_usuario = 'CLIENTE' AND id_workspace IS NULL",
-                (workspace_id,)
-            )
-            if 'cliente' in tables:
-                connection.execute(
-                    'UPDATE cliente SET id_workspace = ? WHERE id_workspace IS NULL',
-                    (workspace_id,)
-                )
-            if 'chamado' in tables:
-                connection.execute(
-                    'UPDATE chamado SET id_usuario = ? WHERE id_usuario IS NULL',
-                    (workspace_id,)
-                )
-            if 'setor' in tables:
-                connection.execute(
-                    'UPDATE setor SET id_usuario = ? WHERE id_usuario IS NULL',
-                    (workspace_id,)
-                )
-            if 'configuracao' in tables:
-                connection.execute(
-                    'UPDATE configuracao SET id_usuario = ? '
-                    'WHERE id_configuracao = (SELECT MIN(id_configuracao) FROM configuracao '
-                    'WHERE id_usuario IS NULL) AND NOT EXISTS '
-                    '(SELECT 1 FROM configuracao WHERE id_usuario = ?)',
-                    (workspace_id, workspace_id)
-                )
-
-        if 'configuracao' in tables:
-            connection.execute(
-                'CREATE UNIQUE INDEX IF NOT EXISTS idx_configuracao_workspace '
-                'ON configuracao(id_usuario)'
-            )
-        connection.execute('DROP INDEX IF EXISTS idx_usuario_workspace_unico')
-        connection.commit()
-    finally:
-        connection.execute('PRAGMA foreign_keys = ON')
-
-
-def _migrate_email_auth_schema(connection):
-    columns = {
-        row['name']
-        for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')
-    }
-    if 'email_verificado' not in columns:
-        connection.execute(
-            'ALTER TABLE grupo_solucionadores '
-            'ADD COLUMN email_verificado INTEGER NOT NULL DEFAULT 1'
-        )
-
-
-def _migrate_plaintext_passwords(connection):
-    for member in connection.execute(
-        "SELECT id_grupo_solucionadores, senha FROM grupo_solucionadores "
-        "WHERE senha <> '' AND senha NOT LIKE 'pbkdf2:%' AND senha NOT LIKE 'scrypt:%'"
-    ):
-        connection.execute(
-            'UPDATE grupo_solucionadores SET senha = ? WHERE id_grupo_solucionadores = ?',
-            (generate_password_hash(member['senha']), member['id_grupo_solucionadores'])
-        )
-
-
-def _migrate_legacy_schema(connection):
-    tables = {
-        row['name']
-        for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
-    }
-
-    if 'cliente_contato' in tables and 'cliente' not in tables:
-        connection.execute('ALTER TABLE cliente_contato RENAME TO cliente')
-        columns = {
-            row['name'] for row in connection.execute('PRAGMA table_info(cliente)')
-        }
-        if 'id_cliente_contato' in columns:
-            connection.execute(
-                'ALTER TABLE cliente RENAME COLUMN id_cliente_contato TO id_cliente'
-            )
-        connection.execute('DROP INDEX IF EXISTS idx_cliente_contato_usuario')
-
-    if 'cliente' in tables:
-        cliente_cols = _columns(connection, 'cliente')
-        if 'contato' not in cliente_cols:
-            connection.execute('ALTER TABLE cliente ADD COLUMN contato TEXT')
-            connection.execute("UPDATE cliente SET contato = COALESCE(telefone, email, '') WHERE contato IS NULL OR contato = ''")
-
-    if 'chamado' in tables:
-        columns = _columns(connection, 'chamado')
-        if 'documentacao' not in columns:
-            connection.execute('ALTER TABLE chamado ADD COLUMN documentacao TEXT')
-        if 'setor' not in columns:
-            connection.execute('ALTER TABLE chamado ADD COLUMN setor TEXT')
-        if 'data_fechamento' not in columns:
-            connection.execute('ALTER TABLE chamado ADD COLUMN data_fechamento TEXT')
-        if 'setor' in tables:
-            connection.execute(
-                "UPDATE chamado SET setor = (SELECT nome FROM setor WHERE setor.id_setor = chamado.id_setor) "
-                "WHERE (chamado.setor IS NULL OR chamado.setor = '') AND chamado.id_setor IS NOT NULL"
-            )
-
-    if 'escalonamento' in tables:
-        esc_cols = _columns(connection, 'escalonamento')
-        if 'setor_destino' not in esc_cols:
-            connection.execute('ALTER TABLE escalonamento ADD COLUMN setor_destino TEXT')
-        if 'setor' in tables:
-            connection.execute(
-                "UPDATE escalonamento SET setor_destino = (SELECT nome FROM setor WHERE setor.id_setor = escalonamento.id_setor_destino) "
-                "WHERE (escalonamento.setor_destino IS NULL OR escalonamento.setor_destino = '') AND escalonamento.id_setor_destino IS NOT NULL"
-            )
-
-    if 'historico_chamado' in tables:
-        hist_cols = _columns(connection, 'historico_chamado')
-        if 'autor' not in hist_cols:
-            connection.execute("ALTER TABLE historico_chamado ADD COLUMN autor TEXT NOT NULL DEFAULT 'Sistema'")
-
-    if 'documentacao' in tables:
-        doc_cols = _columns(connection, 'documentacao')
-        if 'fornecedor' not in doc_cols:
-            connection.execute('ALTER TABLE documentacao ADD COLUMN fornecedor TEXT')
-        if 'titulo' not in doc_cols:
-            connection.execute("ALTER TABLE documentacao ADD COLUMN titulo TEXT NOT NULL DEFAULT 'Documento Técnico'")
-        if 'conteudo' not in doc_cols:
-            connection.execute("ALTER TABLE documentacao ADD COLUMN conteudo TEXT NOT NULL DEFAULT ''")
-        if 'data_criacao' not in doc_cols:
-            connection.execute("ALTER TABLE documentacao ADD COLUMN data_criacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))")
-        if 'data_atualizacao' not in doc_cols:
-            connection.execute("ALTER TABLE documentacao ADD COLUMN data_atualizacao TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))")
-        if 'id_grupo_solucionadores' not in doc_cols:
-            connection.execute('ALTER TABLE documentacao ADD COLUMN id_grupo_solucionadores INTEGER')
-
-    if 'usuario' in tables:
-        user_columns = {
-            row['name'] for row in connection.execute('PRAGMA table_info(usuario)')
-        }
-        if 'tipo_usuario' not in user_columns:
-            connection.execute(
-                "ALTER TABLE usuario ADD COLUMN tipo_usuario TEXT NOT NULL DEFAULT 'CLIENTE'"
-            )
-
-    if 'grupo_solucionadores' not in tables:
-        return
-
-    member_columns = {
-        row['name'] for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')
-    }
-    if 'setor' not in member_columns:
-        connection.execute('ALTER TABLE grupo_solucionadores ADD COLUMN setor TEXT')
-        if 'setor' in tables:
-            connection.execute(
-                "UPDATE grupo_solucionadores SET setor = (SELECT nome FROM setor WHERE setor.id_setor = grupo_solucionadores.id_setor) "
-                "WHERE (grupo_solucionadores.setor IS NULL OR grupo_solucionadores.setor = '') AND grupo_solucionadores.id_setor IS NOT NULL"
-            )
-
-    member_columns = {
-        row['name'] for row in connection.execute('PRAGMA table_info(grupo_solucionadores)')
-    }
-    if 'permissoes' not in member_columns:
-        connection.execute(
-            "ALTER TABLE grupo_solucionadores ADD COLUMN permissoes TEXT NOT NULL DEFAULT '[]'"
-        )
-    if 'id_usuario' not in member_columns:
-        connection.execute(
-            'ALTER TABLE grupo_solucionadores ADD COLUMN id_usuario INTEGER REFERENCES usuario(id_usuario) ON DELETE CASCADE'
-        )
-
-    workspace = connection.execute(
-        "SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' ORDER BY id_usuario LIMIT 1"
-    ).fetchone()
-    if workspace:
-        workspace_id = workspace['id_usuario']
-    else:
-        administrator = connection.execute(
-            "SELECT descricao, nome, email FROM grupo_solucionadores WHERE LOWER(cargo) = 'administrador' ORDER BY id_grupo_solucionadores LIMIT 1"
-        ).fetchone()
-        workspace_name = (administrator['descricao'] or administrator['nome']) if administrator else 'HelpTI'
-        workspace_email = administrator['email'] if administrator else None
-        connection.execute(
-            "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (?, ?, 'ATIVO', 'WORKSPACE')",
-            (workspace_name, workspace_email)
-        )
-        workspace_id = connection.execute('SELECT last_insert_rowid()').fetchone()[0]
-
-    connection.execute(
-        'UPDATE grupo_solucionadores SET id_usuario = ? WHERE id_usuario IS NULL',
-        (workspace_id,)
-    )
-
-    defaults_by_role = {
-        'rh': ['dashboard', 'clientes', 'equipe'],
-        'suporte': ['dashboard', 'chamados', 'clientes', 'educacao'],
-        'noc': ['dashboard', 'chamados'],
-        'técnico': ['dashboard', 'chamados', 'educacao'],
-        'tecnico': ['dashboard', 'chamados', 'educacao'],
-    }
-    for member in connection.execute(
-        "SELECT id_grupo_solucionadores, cargo FROM grupo_solucionadores WHERE permissoes = '[]'"
-    ):
-        role = (member['cargo'] or '').strip().lower()
-        permissions = defaults_by_role.get(role, ['dashboard', 'chamados'])
-        connection.execute(
-            'UPDATE grupo_solucionadores SET permissoes = ? WHERE id_grupo_solucionadores = ?',
-            (json.dumps(permissions), member['id_grupo_solucionadores'])
-        )

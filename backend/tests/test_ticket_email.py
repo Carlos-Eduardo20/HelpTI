@@ -1,6 +1,5 @@
 import os
 import re
-import tempfile
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
@@ -12,21 +11,12 @@ from backend import app as app_module
 from backend import database
 from backend.startup_config import configure_startup
 from backend.security_check import run_security_checks
+from backend.tests.db_support import use_temp_database
 
 
 class TicketEmailTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_dir = tempfile.TemporaryDirectory()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_dir.cleanup()
-
     def setUp(self):
-        self.database_path = Path(self.temp_dir.name) / f'{self.id()}.sqlite3'
-        database.DATABASE_PATH = self.database_path
-        app_module.DATABASE_PATH = self.database_path
+        use_temp_database(self)
         self.environment = patch.dict(os.environ, {
             'HELPTI_DEMO_MODE': 'false',
             'SMTP_HOST': 'smtp.example.test',
@@ -92,60 +82,32 @@ class TicketEmailTests(unittest.TestCase):
             'id_grupo_solucionadores': self.client.get('/api/sessao').get_json()['id'],
         }
 
-    def test_startup_prompt_selects_test_or_company_database_per_environment(self):
-        project_dir = Path(self.temp_dir.name) / 'startup-config'
-        with patch.dict(os.environ, {
-            'HELPTI_DEMO_MODE': 'prompt',
-            'HELPTI_RUNTIME_ENV': 'local',
-            'HELPTI_DB_PATH': '',
-        }):
-            demo = configure_startup(
-                input_fn=lambda _prompt: 's',
-                project_dir=project_dir,
-            )
-        self.assertTrue(demo['demo_mode'])
-        self.assertEqual(demo['database_path'], project_dir / 'instance' / 'helpti.sqlite3')
+    def test_startup_prompt_selects_demo_mode_and_default_database(self):
+        with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'prompt'}):
+            os.environ.pop('DB_NAME', None)
+            demo = configure_startup(input_fn=lambda _prompt: 's')
+            self.assertTrue(demo['demo_mode'])
+            self.assertEqual(demo['database'], 'helpti_app')
 
-        with patch.dict(os.environ, {
-            'HELPTI_DEMO_MODE': 'prompt',
-            'HELPTI_RUNTIME_ENV': 'codespace',
-            'HELPTI_DB_PATH': '',
-        }):
-            company = configure_startup(
-                input_fn=lambda _prompt: 'n',
-                project_dir=project_dir,
-            )
-        self.assertFalse(company['demo_mode'])
-        self.assertEqual(
-            company['database_path'],
-            project_dir / 'instance' / 'helpti-codespace-empresa.sqlite3',
-        )
-        self.assertNotEqual(demo['database_path'], company['database_path'])
+        with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'prompt'}):
+            company = configure_startup(input_fn=lambda _prompt: 'n')
+            self.assertFalse(company['demo_mode'])
+            self.assertEqual(os.environ['HELPTI_DEMO_MODE'], 'false')
 
     def test_startup_retries_invalid_answers_and_respects_explicit_mode(self):
         answers = iter(('talvez', 'sim'))
         messages = []
-        with patch.dict(os.environ, {
-            'HELPTI_DEMO_MODE': 'prompt',
-            'HELPTI_RUNTIME_ENV': 'local',
-            'HELPTI_DB_PATH': '',
-        }):
+        with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'prompt'}):
             result = configure_startup(
                 input_fn=lambda _prompt: next(answers),
                 output_fn=messages.append,
-                project_dir=self.temp_dir.name,
             )
         self.assertTrue(result['demo_mode'])
         self.assertEqual(len(messages), 1)
 
-        with patch.dict(os.environ, {
-            'HELPTI_DEMO_MODE': 'false',
-            'HELPTI_RUNTIME_ENV': 'local',
-            'HELPTI_DB_PATH': '',
-        }):
+        with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'false'}):
             result = configure_startup(
                 input_fn=lambda _prompt: self.fail('Não deveria solicitar entrada.'),
-                project_dir=self.temp_dir.name,
             )
         self.assertFalse(result['demo_mode'])
 
@@ -156,8 +118,7 @@ class TicketEmailTests(unittest.TestCase):
                 connection.execute('SELECT COUNT(*) FROM chamado').fetchone()[0], 0
             )
             self.assertEqual(
-                connection.execute('SELECT COUNT(*) FROM usuario WHERE tipo_usuario = ?',
-                                   ('CLIENTE',)).fetchone()[0],
+                connection.execute("SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE'").fetchone()[0],
                 0
             )
             self.assertEqual(
@@ -305,7 +266,6 @@ class TicketEmailTests(unittest.TestCase):
         ))
 
     def test_documented_demo_account_can_log_in(self):
-        self.database_path.unlink(missing_ok=True)
         with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'true'}):
             database.initialize_database()
             self.assertTrue(database.demo_mode_enabled())
@@ -375,7 +335,7 @@ class TicketEmailTests(unittest.TestCase):
             connection = database.get_db_connection()
             try:
                 connection.execute(
-                    "UPDATE grupo_solucionadores SET senha = ? WHERE email = 'test@helpiti.com'",
+                    "UPDATE grupo_solucionadores SET senha = %s WHERE email = 'test@helpiti.com'",
                     (legacy_hash,)
                 )
                 connection.commit()
@@ -392,30 +352,6 @@ class TicketEmailTests(unittest.TestCase):
             self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!'))
         finally:
             connection.close()
-
-    def test_legacy_plaintext_team_password_is_hashed_on_startup(self):
-        account = self._create_account()
-        connection = database.get_db_connection()
-        try:
-            connection.execute(
-                'UPDATE grupo_solucionadores SET senha = ? WHERE id_grupo_solucionadores = ?',
-                ('senha-legada-123', account['id'])
-            )
-            connection.commit()
-        finally:
-            connection.close()
-
-        database.initialize_database()
-        connection = database.get_db_connection()
-        try:
-            stored_password = connection.execute(
-                'SELECT senha FROM grupo_solucionadores WHERE id_grupo_solucionadores = ?',
-                (account['id'],)
-            ).fetchone()['senha']
-        finally:
-            connection.close()
-        self.assertNotEqual(stored_password, 'senha-legada-123')
-        self.assertTrue(check_password_hash(stored_password, 'senha-legada-123'))
 
     def test_opening_and_resolving_ticket_send_email_when_smtp_is_configured(self):
         sector_id = self._prepare_ticket()

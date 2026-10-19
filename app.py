@@ -30,25 +30,27 @@ if __name__ == '__main__':
     from backend.startup_config import configure_startup
 
     os.environ['HELPTI_DEMO_MODE'] = 'prompt'
-    os.environ.pop('HELPTI_DB_PATH', None)
-    startup = configure_startup(project_dir=project_dir)
+    startup = configure_startup()
 
     try:
         from backend.app import app, initialize_database, run_security_checks
-        from backend.database import DATABASE_PATH, demo_mode_enabled
+        from backend.database import database_settings, demo_mode_enabled
     except ModuleNotFoundError as error:
         if error.name not in {
-            'flask', 'authlib', 'joserfc', 'requests', 'werkzeug',
+            'flask', 'authlib', 'joserfc', 'requests', 'werkzeug', 'mysql',
         }:
             raise
         raise SystemExit(dependency_setup_message(error.name, project_dir)) from error
 
-    print(f"Ambiente selecionado: {startup['runtime']}")
     if not run_security_checks(app):
         raise SystemExit('O HelpTI não iniciou porque uma verificação de segurança falhou.')
-    initialize_database()
+    try:
+        initialize_database()
+    except Exception as error:
+        raise SystemExit(f'Não foi possível preparar o banco MySQL: {error}') from error
     demo_status = 'habilitada' if demo_mode_enabled() else 'desabilitada'
-    print(f'Banco SQLite ativo: {DATABASE_PATH.resolve()}')
+    config = database_settings()
+    print(f"Banco MySQL ativo: {config['host']}:{config['port']}/{config['database']}")
     print(f'Conta teste HelpTI: {demo_status}')
     host = os.environ.get('HELPTI_HOST', '127.0.0.1')
     debug_requested = os.environ.get('HELPTI_DEBUG', 'false').strip().lower() in ('1', 'true', 'yes', 'on')

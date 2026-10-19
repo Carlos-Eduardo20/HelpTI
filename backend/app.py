@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, redirect, send_from_directory, session, g, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
-from sqlite3 import Error
+from mysql.connector import Error
 import os
 import json
 import re
@@ -43,13 +43,15 @@ except ImportError:
     requests = _RequestsAusente()
 
 try:
-    from .database import (DATABASE_PATH, DEMO_EMAIL, SCHEMA_VERSION, apply_demo_seed,
-                           demo_mode_enabled, get_db_connection, initialize_database)
+    from .database import (DEMO_EMAIL, INSTANCE_DIR, SCHEMA_VERSION, apply_demo_seed,
+                           database_settings, demo_mode_enabled, get_db_connection,
+                           initialize_database)
     from .pc_explorer_3d import render_pc_explorer, render_pc_svg
     from .security_check import run_security_checks
 except ImportError:
-    from database import (DATABASE_PATH, DEMO_EMAIL, SCHEMA_VERSION, apply_demo_seed,
-                          demo_mode_enabled, get_db_connection, initialize_database)
+    from database import (DEMO_EMAIL, INSTANCE_DIR, SCHEMA_VERSION, apply_demo_seed,
+                          database_settings, demo_mode_enabled, get_db_connection,
+                          initialize_database)
     from pc_explorer_3d import render_pc_explorer, render_pc_svg
     from security_check import run_security_checks
 
@@ -66,7 +68,7 @@ oauth = OAuth(app) if OAuth else None
 def _get_session_secret():
     if os.getenv('FLASK_SECRET_KEY'):
         return os.environ['FLASK_SECRET_KEY']
-    secret_path = DATABASE_PATH.parent / '.flask-session-secret'
+    secret_path = INSTANCE_DIR / '.flask-session-secret'
     secret_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with secret_path.open('x', encoding='utf-8') as secret_file:
@@ -112,10 +114,10 @@ def _registrar_tentativa_login():
     agora = datetime.now()
     conexao = get_db_connection()
     try:
-        conexao.execute('BEGIN IMMEDIATE')
         cursor = conexao.cursor()
         cursor.execute(
-            'SELECT window_started, attempts FROM login_rate_limit WHERE client_hash = %s',
+            'SELECT window_started, attempts FROM login_rate_limit '
+            'WHERE client_hash = %s FOR UPDATE',
             (client_hash,)
         )
         registro = cursor.fetchone()
@@ -132,7 +134,7 @@ def _registrar_tentativa_login():
             )
         else:
             cursor.execute(
-                'INSERT OR REPLACE INTO login_rate_limit '
+                'REPLACE INTO login_rate_limit '
                 '(client_hash, window_started, attempts) VALUES (%s, %s, 1)',
                 (client_hash, agora.isoformat(timespec='seconds'))
             )
@@ -401,8 +403,14 @@ def enviar_email(destinatario, assunto, conteudo):
     mensagem['To'] = destinatario
     mensagem.set_content(conteudo)
     try:
-        with smtplib.SMTP(smtp_host, int(os.getenv('SMTP_PORT', '587')), timeout=15) as servidor:
-            servidor.starttls()
+        porta = int(os.getenv('SMTP_PORT', '587'))
+        if porta == 465:
+            servidor_smtp = smtplib.SMTP_SSL(smtp_host, porta, timeout=15)
+        else:
+            servidor_smtp = smtplib.SMTP(smtp_host, porta, timeout=15)
+        with servidor_smtp as servidor:
+            if porta != 465:
+                servidor.starttls()
             servidor.login(smtp_user, smtp_password)
             servidor.send_message(mensagem)
         return True, None
@@ -553,7 +561,7 @@ def get_metricas_deskops():
                 SUM(CASE WHEN UPPER(ch.status) = 'PAUSADO' THEN 1 ELSE 0 END) AS pausados,
                 SUM(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' THEN 1 ELSE 0 END) AS resolvidos,
                 SUM(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' 
-                         AND date(COALESCE(ch.data_fechamento, ch.data_abertura)) = date('now', 'localtime') 
+                         AND DATE(COALESCE(ch.data_fechamento, ch.data_abertura)) = CURDATE() 
                          THEN 1 ELSE 0 END) AS resolvidos_hoje,
                 AVG(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' AND ch.tempo_decorrido_segundos > 0 
                          THEN ch.tempo_decorrido_segundos ELSE NULL END) AS mttr_segundos_medio
@@ -1019,7 +1027,7 @@ def update_documentacao(id):
             UPDATE documentacao
             SET titulo = %s, conteudo = %s, fornecedor = %s, 
                 id_grupo_solucionadores = COALESCE(%s, id_grupo_solucionadores),
-                data_atualizacao = datetime('now', 'localtime')
+                data_atualizacao = NOW()
             WHERE id_documentacao = %s AND id_usuario = %s
         ''', (titulo, conteudo, fornecedor, id_grupo, id, _ws()))
         if cursor.rowcount == 0:
@@ -1438,7 +1446,6 @@ def criar_conta():
     cursor = conn.cursor()
     email = email.lower()
     try:
-        conn.execute('BEGIN IMMEDIATE')
         cursor.execute('SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1', (email,))
         if cursor.fetchone():
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
@@ -1532,13 +1539,12 @@ def confirmar_conta():
 
     conexao = get_db_connection()
     try:
-        conexao.execute('BEGIN IMMEDIATE')
         cursor = conexao.cursor()
         cursor.execute('''
             SELECT id_verificacao, nome, empresa, senha_hash, codigo_hash, expira_em, tentativas
             FROM verificacao_cadastro_email
             WHERE email = %s AND usado = 0
-            ORDER BY id_verificacao DESC LIMIT 1
+            ORDER BY id_verificacao DESC LIMIT 1 FOR UPDATE
         ''', (email,))
         registro = cursor.fetchone()
         agora = datetime.now()
@@ -1872,7 +1878,6 @@ def redefinir_senha():
 
     conexao = get_db_connection()
     try:
-        conexao.execute('BEGIN IMMEDIATE')
         cursor = conexao.cursor()
         cursor.execute('''
             SELECT reset.id_codigo, reset.id_grupo_solucionadores,
@@ -1884,7 +1889,7 @@ def redefinir_senha():
               AND membro.status = 'ATIVO'
               AND reset.usado = 0
             ORDER BY reset.id_codigo DESC
-            LIMIT 1
+            LIMIT 1 FOR UPDATE
         ''', (email,))
         registro = cursor.fetchone()
         agora = datetime.now()
@@ -2035,15 +2040,18 @@ def get_relatorios():
         periodo = request.args.get('periodo', 'todos')
         filtro_data = 'WHERE id_usuario = %s'
         if periodo == 'mes':
-            filtro_data += " AND strftime('%Y-%m', data_abertura) = strftime('%Y-%m', 'now', 'localtime')"
+            filtro_data += (
+                ' AND YEAR(data_abertura) = YEAR(CURDATE())'
+                ' AND MONTH(data_abertura) = MONTH(CURDATE())'
+            )
         elif periodo == 'dia':
-            filtro_data += " AND date(data_abertura) = date('now', 'localtime')"
+            filtro_data += ' AND DATE(data_abertura) = CURDATE()'
 
         cursor.execute("""
             SELECT UPPER(TRIM(status)) AS status, COUNT(*) AS total
             FROM chamado
             """ + filtro_data + """
-            GROUP BY status;
+            GROUP BY UPPER(TRIM(status));
         """, (_ws(),))
         chamados_status = dict_fetchall(cursor)
 
@@ -2124,9 +2132,9 @@ def update_configuracoes():
         cursor = conn.cursor()
         cursor.execute("""INSERT INTO configuracao
             (id_usuario, workspace_name, support_email) VALUES (%s, %s, %s)
-            ON CONFLICT(id_usuario) DO UPDATE SET
-                workspace_name = excluded.workspace_name,
-                support_email = excluded.support_email""",
+            ON DUPLICATE KEY UPDATE
+                workspace_name = VALUES(workspace_name),
+                support_email = VALUES(support_email)""",
             (_ws(), workspace_name, support_email))
         conn.commit()
         cursor.close()
@@ -2139,14 +2147,14 @@ def update_configuracoes():
 
 # Tabelas do workspace e a cláusula que as restringe à empresa ativa.
 _WS_TABELAS_BACKUP = (
-    ('usuario', 'id_usuario = ? OR id_workspace = ?', 2),
-    ('configuracao', 'id_usuario = ?', 1),
-    ('setor', 'id_usuario = ?', 1),
-    ('grupo_solucionadores', 'id_usuario = ?', 1),
-    ('cliente', 'id_workspace = ? OR id_usuario IN (SELECT id_usuario FROM usuario WHERE id_workspace = ?)', 2),
-    ('chamado', 'id_usuario = ?', 1),
-    ('historico_chamado', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = ?)', 1),
-    ('escalonamento', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = ?)', 1),
+    ('usuario', 'id_usuario = %s OR id_workspace = %s', 2),
+    ('configuracao', 'id_usuario = %s', 1),
+    ('setor', 'id_usuario = %s', 1),
+    ('grupo_solucionadores', 'id_usuario = %s', 1),
+    ('cliente', 'id_workspace = %s OR id_usuario IN (SELECT id_usuario FROM usuario WHERE id_workspace = %s)', 2),
+    ('chamado', 'id_usuario = %s', 1),
+    ('historico_chamado', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = %s)', 1),
+    ('escalonamento', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = %s)', 1),
 )
 _COLUNAS_SECRETAS = {('usuario', 'senha_hash'), ('grupo_solucionadores', 'senha')}
 
@@ -2164,16 +2172,16 @@ def _sql_literal(valor):
         return repr(valor)
     if isinstance(valor, bytes):
         return "X'" + valor.hex() + "'"
-    return "'" + str(valor).replace("'", "''") + "'"
+    return "'" + str(valor).replace('\\', '\\\\').replace("'", "''") + "'"
 
 
 def _contagens_do_workspace(conn, ws):
     consultas = {
-        'chamados': ('SELECT COUNT(*) FROM chamado WHERE id_usuario = ?', (ws,)),
-        'clientes': ("SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = ?", (ws,)),
-        'equipe': ('SELECT COUNT(*) FROM grupo_solucionadores WHERE id_usuario = ?', (ws,)),
+        'chamados': ('SELECT COUNT(*) FROM chamado WHERE id_usuario = %s', (ws,)),
+        'clientes': ("SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = %s", (ws,)),
+        'equipe': ('SELECT COUNT(*) FROM grupo_solucionadores WHERE id_usuario = %s', (ws,)),
         'historico': ('SELECT COUNT(*) FROM historico_chamado WHERE id_chamado IN '
-                      '(SELECT id_chamado FROM chamado WHERE id_usuario = ?)', (ws,)),
+                      '(SELECT id_chamado FROM chamado WHERE id_usuario = %s)', (ws,)),
     }
     return {nome: conn.execute(sql, params).fetchone()[0] for nome, (sql, params) in consultas.items()}
 
@@ -2185,12 +2193,16 @@ def admin_db_stats():
         return negado
     conn = get_db_connection()
     try:
-        caminho = os.path.abspath(str(DATABASE_PATH))
+        config = database_settings()
+        tamanho = conn.execute(
+            'SELECT COALESCE(SUM(data_length + index_length), 0) FROM information_schema.tables '
+            'WHERE table_schema = DATABASE()'
+        ).fetchone()[0]
         return jsonify({
-            'tamanhoBytes': os.path.getsize(caminho) if os.path.exists(caminho) else 0,
+            'tamanhoBytes': int(tamanho),
             'registros': _contagens_do_workspace(conn, _ws()),
-            'caminho': caminho,
-            'versaoSchema': conn.execute('PRAGMA user_version').fetchone()[0] or SCHEMA_VERSION,
+            'caminho': f"mysql://{config['host']}:{config['port']}/{config['database']}",
+            'versaoSchema': SCHEMA_VERSION,
             'contaTeste': str(g.membro.get('email') or '').lower() == DEMO_EMAIL,
         }), 200
     finally:
@@ -2209,19 +2221,19 @@ def admin_db_backup():
             '-- Backup HelpTI (somente dados deste workspace)',
             f'-- Gerado em {datetime.now().isoformat(timespec="seconds")}',
             f'-- Versão do schema: {SCHEMA_VERSION}',
-            'PRAGMA foreign_keys = OFF;',
-            'BEGIN;',
+            'SET FOREIGN_KEY_CHECKS = 0;',
+            'START TRANSACTION;',
         ]
         for tabela, filtro, qtd in _WS_TABELAS_BACKUP:
-            colunas = [c['name'] for c in conn.execute(f'PRAGMA table_info({tabela})')]
-            lista = ', '.join(colunas)
+            colunas = [c[0] for c in conn.execute(f'SHOW COLUMNS FROM {tabela}')]
+            lista = ', '.join(f'`{col}`' for col in colunas)
             for registro in conn.execute(f'SELECT {lista} FROM {tabela} WHERE {filtro}', (ws,) * qtd):
                 valores = ', '.join(
                     "''" if (tabela, col) in _COLUNAS_SECRETAS else _sql_literal(registro[col])
                     for col in colunas
                 )
-                linhas.append(f'INSERT OR REPLACE INTO {tabela} ({lista}) VALUES ({valores});')
-        linhas += ['COMMIT;', 'PRAGMA foreign_keys = ON;', '']
+                linhas.append(f'REPLACE INTO {tabela} ({lista}) VALUES ({valores});')
+        linhas += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
     finally:
         conn.close()
     nome = f'helpti-backup-{ws}-{datetime.now():%Y%m%d-%H%M%S}.sql'
@@ -2241,11 +2253,11 @@ def admin_db_reset_demo():
     ws = _ws()
     conn = get_db_connection()
     try:
-        conn.execute('DELETE FROM chamado WHERE id_usuario = ?', (ws,))
-        conn.execute("DELETE FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = ?", (ws,))
-        conn.execute('DELETE FROM grupo_solucionadores WHERE id_usuario = ? AND LOWER(email) <> ?', (ws, DEMO_EMAIL))
-        conn.execute("DELETE FROM setor WHERE id_usuario = ? AND LOWER(nome) <> 'suporte'", (ws,))
-        conn.execute('DELETE FROM configuracao WHERE id_usuario = ?', (ws,))
+        conn.execute('DELETE FROM chamado WHERE id_usuario = %s', (ws,))
+        conn.execute("DELETE FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = %s", (ws,))
+        conn.execute('DELETE FROM grupo_solucionadores WHERE id_usuario = %s AND LOWER(email) <> %s', (ws, DEMO_EMAIL))
+        conn.execute("DELETE FROM setor WHERE id_usuario = %s AND LOWER(nome) <> 'suporte'", (ws,))
+        conn.execute('DELETE FROM configuracao WHERE id_usuario = %s', (ws,))
         conn.commit()
         apply_demo_seed(conn)
         return jsonify({

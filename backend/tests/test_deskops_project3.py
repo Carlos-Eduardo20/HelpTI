@@ -1,27 +1,16 @@
 import os
 import re
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from backend import app as app_module
 from backend import database
+from backend.tests.db_support import use_temp_database
 
 
 class DeskOpsProject3Tests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_dir = tempfile.TemporaryDirectory()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_dir.cleanup()
-
     def setUp(self):
-        self.database_path = Path(self.temp_dir.name) / f'{self.id()}.sqlite3'
-        database.DATABASE_PATH = self.database_path
-        app_module.DATABASE_PATH = self.database_path
+        use_temp_database(self)
         env = patch.dict(os.environ, {
             'HELPTI_DEMO_MODE': 'false',
             'SMTP_HOST': 'smtp.example.test', 'SMTP_PORT': '587',

@@ -2,7 +2,7 @@
 
 ## Estrutura da Integração
 
-Esta aplicação HelpTI integra frontend (HTML/CSS/JavaScript), backend (Python/Flask) e banco SQLite local.
+Esta aplicação HelpTI integra frontend (HTML/CSS/JavaScript), backend (Python/Flask) e banco MySQL (veja [SETUP_MYSQL.md](SETUP_MYSQL.md)).
 
 ### Componentes
 
@@ -16,7 +16,7 @@ O arquivo `backend/app.py` inicia a API e também serve o frontend. A rota `/` r
 
 #### Banco de dados
 
-O SQLite armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações no arquivo local `instance/helpti.sqlite3`. A aplicação cria o arquivo e aplica o schema automaticamente. Uma instalação nova inclui a conta local `test@helpiti.com` / `HelpTI2026!` e um setor vazio `Suporte` associado à conta, sem chamados ou clientes fictícios. Não é necessário instalar MySQL, abrir Workbench ou cadastrar credenciais de banco no `.env`. Cada clone/Codespace tem sua própria base; `git pull` não sincroniza dados.
+O MySQL armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações no banco definido por `DB_NAME` (padrão `helpti_app`). A aplicação cria o banco e aplica o schema automaticamente. No modo demonstração, a conta local `test@helpiti.com` / `HelpTI2026!` e um setor vazio `Suporte` são criados. Configure as credenciais `DB_*` em `backend/.env`.
 
 ## Endpoints da API
 
@@ -151,10 +151,10 @@ Com SMTP configurado, também é enviado um aviso ao abrir um chamado. A recuper
 
 ### "Module not found"
 
-### Erro de tabela ou coluna no SQLite
-- Confirme que o usuário tem permissão de escrita na pasta do projeto.
-- Confira se `instance/helpti.sqlite3` existe e se o schema em `backend/schema.sql` contém a tabela/coluna esperada.
-- Não apague o banco local para tentar corrigir o erro sem antes fazer backup: ele contém os dados daquela máquina.
+### Erro de tabela ou coluna no MySQL
+- Confirme que o MySQL está ativo e que `DB_*` em `backend/.env` estão corretos.
+- Confira se o schema em `backend/schema.sql` contém a tabela/coluna esperada.
+- Faça backup antes de apagar ou recriar o banco: ele contém os dados da aplicação.
 
 ## Teste rápido
 
@@ -166,9 +166,9 @@ Depois, abra `http://127.0.0.1:5000/`. Digite um e-mail, entre no dashboard, cri
 
 Escolha uma tarefa, faça uma branch com um nome claro e mantenha as alterações focadas. Antes de abrir um pull request:
 
-1. Inicie o sistema com `python app.py` na raiz; o SQLite é inicializado automaticamente.
+1. Inicie o sistema com `python app.py` na raiz; o MySQL é inicializado automaticamente.
 2. Teste a API e o fluxo relacionado à alteração.
-3. Descreva os passos de teste no pull request. Não versione `instance/helpti.sqlite3`.
+3. Descreva os passos de teste no pull request. Não versione o `backend/.env`.
 
 ## Próximas Melhorias
 

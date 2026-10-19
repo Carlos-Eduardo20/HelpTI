@@ -10,7 +10,7 @@ O **HelpTI** é uma plataforma moderna e completa de gerenciamento de chamados e
 O projeto foi projetado com uma arquitetura desacoplada e leve:
 - **Frontend:** Interface rica, responsiva e dinâmica construída em HTML5, CSS3 moderno (com suporte a variáveis de design e temas Claro/Escuro) e JavaScript ES Modules nativo.
 - **Backend:** Servidor em Python com microframework Flask, estruturado para expor uma API RESTful completa, segura e de alta performance.
-- **Persistência de Dados:** Suporte nativo para banco de dados relacional **SQLite** (ambiente local e testes) com migração automática de esquema e script oficial pronto para **Oracle Database** corporativo.
+- **Persistência de Dados:** Suporte nativo para banco de dados relacional **MySQL** com criação automática do esquema (`backend/schema.sql`).
 
 ---
 
@@ -54,7 +54,7 @@ Conforme especificação explícita do projeto, **o setor não necessita de uma 
 - `grupo_solucionadores.setor`: Nome do setor/departamento onde o técnico atua.
 - `escalonamento.setor_destino`: Nome do setor para o qual o chamado foi transferido.
 
-*Nota técnica:* Para fins de compatibilidade retroativa com configurações de níveis hierárquicos e autocompletes visuais do frontend, a tabela `setor` é mantida no SQLite de forma auxiliar, sem restringir a integridade referencial dos chamados.
+*Nota técnica:* Para fins de compatibilidade retroativa com configurações de níveis hierárquicos e autocompletes visuais do frontend, a tabela `setor` é mantida no MySQL de forma auxiliar, sem restringir a integridade referencial dos chamados.
 
 ### 3.2. Dicionário das Tabelas do Sistema (Conforme ERD)
 
@@ -235,8 +235,8 @@ Resultado validado: **34 testes executados e 100% aprovados**.
 
 ## 7. Scripts SQL para Ambientes de Produção
 
-### 7.1. SQLite (`backend/schema.sql`)
-O arquivo `backend/schema.sql` contém a definição relacional otimizada para SQLite com índices para aceleração de consultas por workspace, cliente, status e datas.
+### 7.1. MySQL (`backend/schema.sql`)
+O arquivo `backend/schema.sql` contém a definição relacional (InnoDB, utf8mb4) com índices para aceleração de consultas por workspace, cliente, status e datas.
 
 ### 7.2. Oracle Database (`Banco de dados ORACLE/schema_oracle.sql`)
 O arquivo `Banco de dados ORACLE/schema_oracle.sql` contém as instruções DDL corporativas prontas para deploy em Oracle Database:

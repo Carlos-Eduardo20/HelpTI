@@ -1,15 +1,40 @@
 services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD no .env}"
+      MYSQL_DATABASE: "${DB_NAME:-helpti_app}"
+      MYSQL_USER: "${DB_USER:-helpti}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:?Defina DB_PASSWORD no .env}"
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - help-ti-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   help-ti:
     build:
       context: .
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       HELPTI_HOST: "0.0.0.0"
       FLASK_ENV: "production"
       WEB_CONCURRENCY: "${WEB_CONCURRENCY:-2}"
       GUNICORN_THREADS: "${GUNICORN_THREADS:-4}"
       HELPTI_DEBUG: "false"
-      HELPTI_DB_PATH: "${HELPTI_DB_PATH:-/app/instance/helpti.sqlite3}"
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_NAME: "${DB_NAME:-helpti_app}"
+      DB_USER: "${DB_USER:-helpti}"
+      DB_PASSWORD: "${DB_PASSWORD:?Defina DB_PASSWORD no .env}"
       HELPTI_DEMO_MODE: "${HELPTI_DEMO_MODE:-false}"
       HELPTI_HTTPS_ONLY: "false"
       FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:-}"
@@ -39,3 +64,4 @@ services:
 
 volumes:
   help-ti-data:
+  help-ti-mysql:

@@ -3,7 +3,7 @@
 Guia direto e prático para instalação, execução e testes do **HelpTI**.
 
 > 📖 **Documentação Completa da Arquitetura e Modelagem:**
-> Para consultar a documentação técnica integral — incluindo arquitetura de software, modelagem de banco de dados relacional (SQLite e Oracle), justificativa do atributo `setor`, regras de negócio do Projeto 3 (DeskOps), métricas operacionais (MTTR) e catálogo completo da API REST —, consulte o arquivo [DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md).
+> Para consultar a documentação técnica integral — incluindo arquitetura de software, modelagem de banco de dados relacional (MySQL), justificativa do atributo `setor`, regras de negócio do Projeto 3 (DeskOps), métricas operacionais (MTTR) e catálogo completo da API REST —, consulte o arquivo [DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md).
 
 ---
 
@@ -51,7 +51,7 @@ Execute o arquivo principal na raiz do projeto:
 ```bash
 python app.py
 ```
-> O banco de dados local SQLite (`instance/helpti.sqlite3`) é criado e configurado automaticamente na primeira inicialização, aplicando as tabelas e migrações necessárias. Não é necessário criar tabelas manualmente.
+> O HelpTI usa **MySQL 8+**. Configure `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME` em `backend/.env` (veja [SETUP_MYSQL.md](SETUP_MYSQL.md)). O banco e as tabelas são criados automaticamente na primeira inicialização. O envio de códigos por e-mail pode usar o Zoho Mail (`smtp.zoho.com`, porta 587 ou 465).
 
 ---
 
@@ -65,7 +65,7 @@ Deseja iniciar com a conta de teste HelpTI? [S/N]:
 
 ### Opção [S] — Modo de Teste / Demonstração (Recomendado)
 - Responda **`S`** e pressione Enter.
-- O sistema iniciará utilizando o banco de dados de demonstração (`instance/helpti.sqlite3`), pré-configurado com a conta administradora **HelpTI**, tipos de chamado e setor de suporte padrão.
+- O sistema iniciará utilizando o banco de dados de demonstração (MySQL), pré-configurado com a conta administradora **HelpTI**, tipos de chamado e setor de suporte padrão.
 - **Acesse no navegador:** [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
 - **Credenciais de Teste:**
   - **E-mail:** `test@helpiti.com`
@@ -73,7 +73,7 @@ Deseja iniciar com a conta de teste HelpTI? [S/N]:
 
 ### Opção [N] — Novo Workspace / Empresa Própria
 - Responda **`N`** e pressione Enter.
-- O sistema iniciará com uma base limpa (`instance/helpti-empresa-local.sqlite3`) para criar a empresa e a conta administradora principal.
+- O sistema iniciará com uma base limpa para criar a empresa e a conta administradora principal.
 - **Acesse a tela de cadastro:** [http://127.0.0.1:5000/frontend/pages/account.html](http://127.0.0.1:5000/frontend/pages/account.html)
 
 ---
@@ -101,28 +101,15 @@ Na Render, use `gunicorn wsgi:app` como **Start Command** e defina a variável d
 
 ---
 
-## 5. Como Executar no GitHub Codespaces
-
-1. Acesse o repositório no GitHub.
-2. Clique no botão verde **Code** → selecione a aba **Codespaces** → clique em **Create codespace on main**.
-3. Aguarde o ambiente carregar e configurar o Dev Container.
-4. No terminal integrado do Codespace, execute:
-   ```bash
-   python app.py
-   ```
-5. Responda **`S`** para inicializar o modo de demonstração.
-6. Na aba **Ports** do VS Code, clique no ícone de globo/navegador ao lado da porta `5000`.
-
----
-
-## 6. Como Rodar os Testes Automatizados
+## 5. Como Rodar os Testes Automatizados
 
 O sistema conta com uma suíte de testes unitários e de integração abrangente (verificação de rotas, integridade de dados, regras de negócio do Projeto 3/DeskOps e documentações técnicas).
 
 Para rodar todos os testes automatizados do projeto:
 ```bash
-python -m unittest discover -s backend/tests
+python -m unittest backend.tests.test_multitenancy backend.tests.test_deskops_project3 backend.tests.test_ticket_email backend.tests.test_admin_db backend.tests.test_pc_explorer
 ```
+Os testes exigem MySQL acessível com as credenciais de `backend/.env`; cada teste cria e remove um banco temporário.
 
 ---
 
@@ -257,7 +244,7 @@ Com a aplicação em execução na porta `5000`:
 
 Para consultar o detalhamento completo de:
 - Arquitetura de software e diagrama de componentes
-- Modelagem de dados relacional (entidades, atributos, integridade referencial e scripts Oracle/SQLite)
+- Modelagem de dados relacional (entidades, atributos, integridade referencial e scripts MySQL)
 - Justificativa técnica do atributo `setor` (sem tabela própria no modelo conceitual)
 - Regras de negócio DeskOps (MTTR médio, SLA, permissões de cliente vs. técnico, autor no histórico)
 - Catálogo exaustivo de endpoints da API REST

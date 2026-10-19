@@ -1,7 +1,6 @@
 .git
 .github
 .vscode
-.devcontainer
 .venv
 venv
 __pycache__
