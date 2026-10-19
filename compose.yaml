@@ -39,7 +39,7 @@ services:
       HELPTI_HTTPS_ONLY: "false"
       FLASK_SECRET_KEY: "${FLASK_SECRET_KEY:-}"
       SMTP_HOST: "${SMTP_HOST:-}"
-      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
       SMTP_USER: "${SMTP_USER:-}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
       SMTP_FROM: "${SMTP_FROM:-}"

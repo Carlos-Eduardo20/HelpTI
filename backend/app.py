@@ -391,19 +391,21 @@ def registrar_historico(cursor, id_chamado, evento, descricao, autor=None):
 
 
 def enviar_email(destinatario, assunto, conteudo):
-    smtp_host = os.getenv('SMTP_HOST')
-    smtp_user = os.getenv('SMTP_USER')
+    # Zoho Mail: use SSL na porta 465. As variáveis de ambiente podem
+    # substituir os padrões sem deixar a senha de aplicativo no código.
+    smtp_host = os.getenv('SMTP_HOST', 'smtp.zoho.com').strip() or 'smtp.zoho.com'
+    smtp_user = os.getenv('SMTP_USER', 'carlos.morais@helpiti.com.br').strip() or 'carlos.morais@helpiti.com.br'
     smtp_password = ''.join((os.getenv('SMTP_PASSWORD') or '').split())
-    if not all((smtp_host, smtp_user, smtp_password, destinatario)):
-        return False, 'SMTP ou e-mail do destinatário não está configurado.'
+    if not smtp_password or not destinatario:
+        return False, 'Defina SMTP_PASSWORD com a senha de aplicativo Zoho e informe o e-mail de destino.'
 
     mensagem = EmailMessage()
     mensagem['Subject'] = assunto
-    mensagem['From'] = os.getenv('SMTP_FROM') or smtp_user
+    mensagem['From'] = os.getenv('SMTP_FROM', 'carlos.morais@helpiti.com.br').strip() or 'carlos.morais@helpiti.com.br'
     mensagem['To'] = destinatario
     mensagem.set_content(conteudo)
     try:
-        porta = int(os.getenv('SMTP_PORT', '587'))
+        porta = int(os.getenv('SMTP_PORT', '465'))
         if porta == 465:
             servidor_smtp = smtplib.SMTP_SSL(smtp_host, porta, timeout=15)
         else:
@@ -426,8 +428,8 @@ def codigo_no_terminal_permitido():
 
 def smtp_configurado():
     return all((
-        os.getenv('SMTP_HOST'),
-        os.getenv('SMTP_USER'),
+        os.getenv('SMTP_HOST', 'smtp.zoho.com').strip() or 'smtp.zoho.com',
+        os.getenv('SMTP_USER', 'carlos.morais@helpiti.com.br').strip() or 'carlos.morais@helpiti.com.br',
         ''.join((os.getenv('SMTP_PASSWORD') or '').split()),
     ))
 
