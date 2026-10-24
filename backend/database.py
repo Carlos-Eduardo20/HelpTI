@@ -21,7 +21,8 @@ Error = (mysql.connector.Error, sqlite3.Error) if mysql else sqlite3.Error
 
 def database_settings():
     """Lê a configuração do banco a cada chamada para respeitar mudanças em runtime."""
-    database_type = os.getenv('DB_TYPE', 'mysql').strip().lower()
+    # SQLite lets production environments such as Render boot without a local MySQL server.
+    database_type = os.getenv('DB_TYPE', 'sqlite').strip().lower()
     if database_type == 'sqlite':
         database_path = Path(os.getenv(
             'DB_SQLITE_PATH', str(INSTANCE_DIR / 'helpti.sqlite3')

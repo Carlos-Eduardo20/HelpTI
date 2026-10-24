@@ -192,13 +192,17 @@ def render_pc_explorer(selected_part=None, azimuth=_DEFAULT_AZIMUTH, elevation=_
     selected = selected_part if selected_part in DIAGNOSTICOS else None
     azimuth = _normalizar_orientacao(azimuth, _DEFAULT_AZIMUTH)
     elevation = _normalizar_orientacao(elevation, _DEFAULT_ELEVATION, 8, 65)
-    buttons = "".join(
-        f'<a class="part-button{" selected" if key == selected else ""}" '
-        f'href="/educacao/pc-explorer?componente={quote(key, safe="")}'
-        f'&amp;azimute={azimuth:.1f}&amp;elevacao={elevation:.1f}"'
-        f'{" aria-current=\"true\"" if key == selected else ""}>{escape(key)}</a>'
-        for key in DIAGNOSTICOS
-    )
+    button_parts = []
+    for key in DIAGNOSTICOS:
+        selected_class = " selected" if key == selected else ""
+        aria_current = ' aria-current="true"' if key == selected else ""
+        button_parts.append(
+            f'<a class="part-button{selected_class}" '
+            f'href="/educacao/pc-explorer?componente={quote(key, safe="")}'
+            f'&amp;azimute={azimuth:.1f}&amp;elevacao={elevation:.1f}"'
+            f'{aria_current}>{escape(key)}</a>'
+        )
+    buttons = "".join(button_parts)
     if selected:
         diagnosis = DIAGNOSTICOS[selected]
         failures = "".join(f"<li>{escape(item)}</li>" for item in diagnosis["erros"])

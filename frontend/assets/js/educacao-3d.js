@@ -126,6 +126,9 @@
       console.error('[HelpTI 3D] falha ao iniciar o Sketchfab Viewer');
     },
     ui_infos: 0,
+    ui_controls: 0,
+    ui_general_controls: 0,
+    ui_fullscreen: 0,
     ui_watermark: 0,
     ui_watermark_link: 0,
     ui_hint: 0,
