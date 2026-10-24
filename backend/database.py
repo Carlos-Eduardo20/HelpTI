@@ -14,7 +14,7 @@ except ImportError:
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 DEMO_EMAIL = 'test@helpiti.com'
 Error = (mysql.connector.Error, sqlite3.Error) if mysql else sqlite3.Error
 
@@ -154,15 +154,6 @@ def _adapt_query(query, database_type):
     query = re.sub(
         r'SHOW COLUMNS FROM ([A-Za-z_][A-Za-z0-9_]*)',
         r"SELECT name FROM pragma_table_info('\1')",
-        query,
-        flags=re.IGNORECASE,
-    )
-    query = re.sub(
-        r'ON DUPLICATE KEY UPDATE\s+workspace_name = VALUES\(workspace_name\),'
-        r'\s*support_email = VALUES\(support_email\)',
-        'ON CONFLICT(id_usuario) DO UPDATE SET '
-        'workspace_name = excluded.workspace_name, '
-        'support_email = excluded.support_email',
         query,
         flags=re.IGNORECASE,
     )
@@ -316,6 +307,33 @@ def _ensure_compatible_schema(connection):
         )
 
 
+def _migrate_profile_and_settings(connection):
+    sqlite_mode = database_settings()['type'] == 'sqlite'
+    for table, column, sql_type in (
+        ('usuario', 'workspace_name', 'VARCHAR(255)'),
+        ('usuario', 'support_email', 'VARCHAR(255)'),
+        ('grupo_solucionadores', 'foto_perfil', 'TEXT' if sqlite_mode else 'MEDIUMTEXT'),
+    ):
+        existing = {row[0] for row in connection.execute(f'SHOW COLUMNS FROM {table}').fetchall()}
+        if column not in existing:
+            connection.execute(f'ALTER TABLE {table} ADD COLUMN {column} {sql_type}')
+
+    if sqlite_mode:
+        tables = {row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()}
+        if 'configuracao' in tables:
+            for row in connection.execute(
+                'SELECT id_usuario, workspace_name, support_email FROM configuracao'
+            ).fetchall():
+                connection.execute(
+                    'UPDATE usuario SET workspace_name = %s, support_email = %s '
+                    'WHERE id_usuario = %s',
+                    (row[1], row[2], row[0]),
+                )
+            connection.execute('DROP TABLE configuracao')
+
+
 def initialize_database():
     """Cria o banco, as tabelas e os dados iniciais sem sobrescrever registros existentes."""
     create_database_if_missing()
@@ -323,6 +341,7 @@ def initialize_database():
     try:
         _ensure_compatible_schema(connection)
         connection.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
+        _migrate_profile_and_settings(connection)
         if demo_mode_enabled():
             connection.executescript(
                 Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8')

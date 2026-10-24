@@ -127,9 +127,63 @@ async function aplicarPermissoesNavegacao() {
       }
     });
     if (usuario.nome) document.querySelectorAll('.user-role').forEach((element) => { element.textContent = usuario.nome; });
+    if (usuario.fotoPerfil) document.querySelectorAll('.profile-photo-avatar img').forEach((image) => { image.src = usuario.fotoPerfil; });
   } catch (error) {
   }
 }
+
+function carregarImagemPerfil(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Não foi possível abrir a imagem.'));
+    reader.onload = () => {
+      const imagem = new Image();
+      imagem.onerror = () => reject(new Error('O arquivo selecionado não é uma imagem válida.'));
+      imagem.onload = () => {
+        const lado = Math.min(imagem.naturalWidth, imagem.naturalHeight, 512);
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const contexto = canvas.getContext('2d');
+        const x = (imagem.naturalWidth - lado) / 2;
+        const y = (imagem.naturalHeight - lado) / 2;
+        contexto.drawImage(imagem, x, y, lado, lado, 0, 0, 512, 512);
+        resolve(canvas.toDataURL('image/jpeg', 0.86));
+      };
+      imagem.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.querySelector('.profile-photo-edit')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  document.querySelector('.profile-photo-input')?.click();
+});
+document.querySelector('.profile-photo-input')?.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10_000_000) {
+    mostrarNotificacao('Escolha uma imagem JPEG, PNG ou WebP de até 10 MB.', 'error');
+    return;
+  }
+  try {
+    const foto = await carregarImagemPerfil(file);
+    const response = await fetch(`${API_URL}/perfil/foto`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ foto }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.erro || 'Não foi possível salvar a foto.');
+    document.querySelectorAll('.profile-photo-avatar img').forEach((image) => { image.src = data.fotoPerfil; });
+    mostrarNotificacao('Foto do perfil atualizada.');
+  } catch (error) {
+    mostrarNotificacao(error.message || 'Não foi possível salvar a foto.', 'error');
+  }
+});
 
 function renderizarClientes(clientes) {
   const tabela = document.querySelector('#tabelaClientes');

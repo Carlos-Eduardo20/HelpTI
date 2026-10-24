@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     cnpj VARCHAR(30),
     plano VARCHAR(100),
     acoes TEXT,
+    workspace_name VARCHAR(255),
+    support_email VARCHAR(255),
     senha_hash VARCHAR(255),
     id_workspace INT,
     INDEX idx_usuario_workspace_cliente (id_workspace, tipo_usuario),
@@ -67,6 +69,7 @@ CREATE TABLE IF NOT EXISTS grupo_solucionadores (
     email_verificado TINYINT(1) NOT NULL DEFAULT 1,
     senha VARCHAR(255) NOT NULL DEFAULT '',
     permissoes VARCHAR(1000) NOT NULL DEFAULT '[]',
+    foto_perfil MEDIUMTEXT,
     id_usuario INT NOT NULL,
     id_setor INT,
     INDEX idx_grupo_solucionadores_setor (id_setor),
@@ -151,14 +154,6 @@ CREATE TABLE IF NOT EXISTS documentacao (
     FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
     FOREIGN KEY (id_grupo_solucionadores)
         REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS configuracao (
-    id_configuracao INT AUTO_INCREMENT PRIMARY KEY,
-    workspace_name VARCHAR(255) NOT NULL,
-    support_email VARCHAR(255) NOT NULL,
-    id_usuario INT UNIQUE,
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS codigo_recuperacao_senha (

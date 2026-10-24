@@ -3,6 +3,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 import os
 import json
+import base64
 import re
 import secrets
 import hashlib
@@ -256,6 +257,7 @@ def _carregar_membro_da_sessao():
         cursor.execute('''
             SELECT membro.id_grupo_solucionadores, membro.id_usuario, membro.nome,
                    membro.email, membro.cargo, membro.status, membro.permissoes,
+                   membro.foto_perfil,
                    usuario.nome AS empresa_nome
             FROM grupo_solucionadores AS membro
             LEFT JOIN usuario ON usuario.id_usuario = membro.id_usuario
@@ -1595,8 +1597,8 @@ def confirmar_conta():
         )
         workspace_id = cursor.lastrowid
         cursor.execute(
-            'INSERT INTO configuracao (id_usuario, workspace_name, support_email) VALUES (%s, %s, %s)',
-            (workspace_id, registro['empresa'], email)
+            'UPDATE usuario SET workspace_name = %s, support_email = %s WHERE id_usuario = %s',
+            (registro['empresa'], email, workspace_id)
         )
         nome_membro = registro['nome'] or re.sub(r'[-_.]+', ' ', email.split('@', 1)[0]).title()
         permissoes = sorted(PERMISSOES_VALIDAS)
@@ -1944,8 +1946,45 @@ def obter_sessao():
         'email': membro['email'],
         'cargo': membro['cargo'],
         'empresaNome': membro['empresa_nome'],
+        'fotoPerfil': membro.get('foto_perfil'),
         'permissoes': sorted(_permissoes_do_membro(membro))
     }), 200
+
+
+@app.route('/api/perfil/foto', methods=['PUT'])
+def salvar_foto_perfil():
+    foto = (request.get_json(silent=True) or {}).get('foto')
+    match = re.fullmatch(
+        r'data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})',
+        foto if isinstance(foto, str) else '',
+    )
+    if not match or len(foto) > 1_500_000:
+        return jsonify({'erro': 'Envie uma imagem JPEG, PNG ou WebP de até 1 MB.'}), 400
+    try:
+        conteudo = base64.b64decode(match.group(2), validate=True)
+    except ValueError:
+        return jsonify({'erro': 'A imagem enviada é inválida.'}), 400
+    mime = match.group(1)
+    valido = (
+        (mime == 'jpeg' and conteudo.startswith(b'\xff\xd8\xff'))
+        or (mime == 'png' and conteudo.startswith(b'\x89PNG\r\n\x1a\n'))
+        or (mime == 'webp' and conteudo.startswith(b'RIFF') and conteudo[8:12] == b'WEBP')
+    )
+    if not conteudo or len(conteudo) > 1_000_000 or not valido:
+        return jsonify({'erro': 'A imagem deve ser JPEG, PNG ou WebP e ter até 1 MB.'}), 400
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            'UPDATE grupo_solucionadores SET foto_perfil = %s WHERE id_grupo_solucionadores = %s',
+            (foto, g.membro['id_grupo_solucionadores']),
+        )
+        conn.commit()
+        return jsonify({'fotoPerfil': foto}), 200
+    except Error as error:
+        app.logger.exception('Falha ao salvar foto de perfil.', exc_info=error)
+        return jsonify({'erro': 'Não foi possível salvar a foto de perfil.'}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/logout', methods=['POST'])
@@ -2113,13 +2152,13 @@ def get_configuracoes():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor(dictionary=True)
-        cursor.execute('SELECT workspace_name, support_email FROM configuracao WHERE id_usuario = %s', (_ws(),))
+        cursor.execute('SELECT workspace_name, support_email, nome, email FROM usuario WHERE id_usuario = %s', (_ws(),))
         registro = cursor.fetchone()
         cursor.close()
         conn.close()
         configuracoes = {
-            'workspaceName': registro['workspace_name'] if registro else 'HelpTI Suporte',
-            'supportEmail': registro['support_email'] if registro else 'suporte@helpti.com.br'
+            'workspaceName': (registro['workspace_name'] or registro['nome']) if registro else 'HelpTI Suporte',
+            'supportEmail': (registro['support_email'] or registro['email']) if registro else 'suporte@helpti.com.br'
         }
         return jsonify(configuracoes), 200
     except Error as e:
@@ -2138,12 +2177,10 @@ def update_configuracoes():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute("""INSERT INTO configuracao
-            (id_usuario, workspace_name, support_email) VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                workspace_name = VALUES(workspace_name),
-                support_email = VALUES(support_email)""",
-            (_ws(), workspace_name, support_email))
+        cursor.execute(
+            'UPDATE usuario SET workspace_name = %s, support_email = %s WHERE id_usuario = %s',
+            (workspace_name, support_email, _ws()),
+        )
         conn.commit()
         cursor.close()
         conn.close()
@@ -2156,7 +2193,6 @@ def update_configuracoes():
 # Tabelas do workspace e a cláusula que as restringe à empresa ativa.
 _WS_TABELAS_BACKUP = (
     ('usuario', 'id_usuario = %s OR id_workspace = %s', 2),
-    ('configuracao', 'id_usuario = %s', 1),
     ('setor', 'id_usuario = %s', 1),
     ('grupo_solucionadores', 'id_usuario = %s', 1),
     ('cliente', 'id_workspace = %s OR id_usuario IN (SELECT id_usuario FROM usuario WHERE id_workspace = %s)', 2),
@@ -2279,7 +2315,6 @@ def admin_db_reset_demo():
         conn.execute("DELETE FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = %s", (ws,))
         conn.execute('DELETE FROM grupo_solucionadores WHERE id_usuario = %s AND LOWER(email) <> %s', (ws, DEMO_EMAIL))
         conn.execute("DELETE FROM setor WHERE id_usuario = %s AND LOWER(nome) <> 'suporte'", (ws,))
-        conn.execute('DELETE FROM configuracao WHERE id_usuario = %s', (ws,))
         conn.commit()
         apply_demo_seed(conn)
         return jsonify({

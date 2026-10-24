@@ -49,14 +49,11 @@ WHERE workspace.tipo_usuario = 'WORKSPACE'
       WHERE setor.id_usuario = workspace.id_usuario AND LOWER(setor.nome) = 'suporte'
   );
 
-INSERT INTO configuracao (workspace_name, support_email, id_usuario)
-SELECT 'HelpTI', 'test@helpiti.com', workspace.id_usuario
-FROM usuario AS workspace
-WHERE workspace.tipo_usuario = 'WORKSPACE'
-  AND LOWER(workspace.email) = 'test@helpiti.com'
-  AND NOT EXISTS (
-      SELECT 1 FROM configuracao WHERE configuracao.id_usuario = workspace.id_usuario
-  );
+UPDATE usuario
+SET workspace_name = COALESCE(workspace_name, 'HelpTI'),
+    support_email = COALESCE(support_email, 'test@helpiti.com')
+WHERE tipo_usuario = 'WORKSPACE'
+  AND LOWER(email) = 'test@helpiti.com';
 
 UPDATE grupo_solucionadores
 SET id_setor = (
