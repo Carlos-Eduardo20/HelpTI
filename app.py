@@ -50,7 +50,10 @@ if __name__ == '__main__':
         raise SystemExit(f'Não foi possível preparar o banco MySQL: {error}') from error
     demo_status = 'habilitada' if demo_mode_enabled() else 'desabilitada'
     config = database_settings()
-    print(f"Banco MySQL ativo: {config['host']}:{config['port']}/{config['database']}")
+    if config['type'] == 'sqlite':
+        print(f"Banco SQLite ativo: {config['database']}")
+    else:
+        print(f"Banco MySQL ativo: {config['host']}:{config['port']}/{config['database']}")
     print(f'Conta teste HelpTI: {demo_status}')
     host = os.environ.get('HELPTI_HOST', '127.0.0.1')
     debug_requested = os.environ.get('HELPTI_DEBUG', 'false').strip().lower() in ('1', 'true', 'yes', 'on')

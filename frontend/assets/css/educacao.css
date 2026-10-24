@@ -353,6 +353,64 @@
     margin-bottom: 8px;
 }
 
+.component-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 16px 0 20px;
+}
+
+.component-button {
+    min-height: 36px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.component-button:hover,
+.component-button[aria-pressed="true"] {
+    border-color: var(--palette-0f766e);
+    color: var(--palette-0f766e);
+    background: var(--palette-e5f4f1);
+}
+
+.diagnosis-content {
+    max-height: 380px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.diagnosis-content h4 {
+    margin: 16px 0 8px;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.diagnosis-content h4.solution-title {
+    color: var(--palette-0f766e);
+}
+
+.diagnosis-content ul {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding-left: 19px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.diagnosis-content .solution-title + ul li::marker {
+    color: var(--palette-0f766e);
+}
+
 /* Responsividade Mobile */
 @media (max-width: 900px) {
     .sketchfab-embed-wrapper {
@@ -363,7 +421,11 @@
         grid-template-columns: 1fr;
     }
 
-    .pc-explorer-frame {
-        height: 1120px;
+    .sketchfab-embed-wrapper {
+        padding: 0 16px 24px;
+    }
+
+    .sketchfab-embed-wrapper iframe {
+        height: min(68vh, 520px);
     }
 }

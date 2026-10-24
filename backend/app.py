@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, redirect, send_from_directory, session, g, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
-from mysql.connector import Error
 import os
 import json
 import re
@@ -10,6 +9,7 @@ import hashlib
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
+from pathlib import Path
 from urllib.parse import urlsplit
 import webbrowser
 from threading import Timer
@@ -43,16 +43,16 @@ except ImportError:
     requests = _RequestsAusente()
 
 try:
-    from .database import (DEMO_EMAIL, INSTANCE_DIR, SCHEMA_VERSION, apply_demo_seed,
+    from .database import (DEMO_EMAIL, Error, INSTANCE_DIR, SCHEMA_VERSION, apply_demo_seed,
                            database_settings, demo_mode_enabled, get_db_connection,
                            initialize_database)
-    from .pc_explorer_3d import render_pc_explorer, render_pc_svg
+    from .pc_explorer_3d import DIAGNOSTICOS, render_pc_explorer, render_pc_svg
     from .security_check import run_security_checks
 except ImportError:
-    from database import (DEMO_EMAIL, INSTANCE_DIR, SCHEMA_VERSION, apply_demo_seed,
+    from database import (DEMO_EMAIL, Error, INSTANCE_DIR, SCHEMA_VERSION, apply_demo_seed,
                           database_settings, demo_mode_enabled, get_db_connection,
                           initialize_database)
-    from pc_explorer_3d import render_pc_explorer, render_pc_svg
+    from pc_explorer_3d import DIAGNOSTICOS, render_pc_explorer, render_pc_svg
     from security_check import run_security_checks
 
 BASE_DIR = os.path.dirname(__file__)
@@ -189,6 +189,7 @@ PERMISSAO_PAGINA = {
     'settings.html': 'configuracoes',
 }
 PERMISSAO_API = {
+    '/api/educacao': 'educacao',
     '/api/chamados': 'chamados',
     '/api/documentacoes': 'chamados',
     '/api/clientes': 'clientes',
@@ -361,6 +362,11 @@ def pc_explorer_modelo_svg():
         request.args.get('elevacao', 18),
     )
     return app.response_class(svg, mimetype='image/svg+xml')
+
+
+@app.route('/api/educacao/diagnosticos')
+def obter_diagnosticos_educacao():
+    return jsonify(DIAGNOSTICOS)
 
 
 # Helper para converter resultado em dicionário
@@ -2174,7 +2180,10 @@ def _sql_literal(valor):
         return repr(valor)
     if isinstance(valor, bytes):
         return "X'" + valor.hex() + "'"
-    return "'" + str(valor).replace('\\', '\\\\').replace("'", "''") + "'"
+    texto = str(valor).replace("'", "''")
+    if database_settings()['type'] != 'sqlite':
+        texto = texto.replace('\\', '\\\\')
+    return "'" + texto + "'"
 
 
 def _contagens_do_workspace(conn, ws):
@@ -2196,14 +2205,20 @@ def admin_db_stats():
     conn = get_db_connection()
     try:
         config = database_settings()
-        tamanho = conn.execute(
-            'SELECT COALESCE(SUM(data_length + index_length), 0) FROM information_schema.tables '
-            'WHERE table_schema = DATABASE()'
-        ).fetchone()[0]
+        if config['type'] == 'sqlite':
+            database_path = Path(config['database'])
+            tamanho = database_path.stat().st_size if database_path.exists() else 0
+            caminho = f"sqlite:///{database_path}"
+        else:
+            tamanho = conn.execute(
+                'SELECT COALESCE(SUM(data_length + index_length), 0) FROM information_schema.tables '
+                'WHERE table_schema = DATABASE()'
+            ).fetchone()[0]
+            caminho = f"mysql://{config['host']}:{config['port']}/{config['database']}"
         return jsonify({
             'tamanhoBytes': int(tamanho),
             'registros': _contagens_do_workspace(conn, _ws()),
-            'caminho': f"mysql://{config['host']}:{config['port']}/{config['database']}",
+            'caminho': caminho,
             'versaoSchema': SCHEMA_VERSION,
             'contaTeste': str(g.membro.get('email') or '').lower() == DEMO_EMAIL,
         }), 200
@@ -2219,12 +2234,13 @@ def admin_db_backup():
     ws = _ws()
     conn = get_db_connection()
     try:
+        sqlite_mode = database_settings()['type'] == 'sqlite'
         linhas = [
             '-- Backup HelpTI (somente dados deste workspace)',
             f'-- Gerado em {datetime.now().isoformat(timespec="seconds")}',
             f'-- Versão do schema: {SCHEMA_VERSION}',
-            'SET FOREIGN_KEY_CHECKS = 0;',
-            'START TRANSACTION;',
+            'PRAGMA foreign_keys = OFF;' if sqlite_mode else 'SET FOREIGN_KEY_CHECKS = 0;',
+            'BEGIN;' if sqlite_mode else 'START TRANSACTION;',
         ]
         for tabela, filtro, qtd in _WS_TABELAS_BACKUP:
             colunas = [c[0] for c in conn.execute(f'SHOW COLUMNS FROM {tabela}')]
@@ -2235,7 +2251,11 @@ def admin_db_backup():
                     for col in colunas
                 )
                 linhas.append(f'REPLACE INTO {tabela} ({lista}) VALUES ({valores});')
-        linhas += ['COMMIT;', 'SET FOREIGN_KEY_CHECKS = 1;', '']
+        linhas += [
+            'COMMIT;',
+            'PRAGMA foreign_keys = ON;' if sqlite_mode else 'SET FOREIGN_KEY_CHECKS = 1;',
+            '',
+        ]
     finally:
         conn.close()
     nome = f'helpti-backup-{ws}-{datetime.now():%Y%m%d-%H%M%S}.sql'

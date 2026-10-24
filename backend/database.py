@@ -1,21 +1,41 @@
 import os
 import re
+import sqlite3
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
-import mysql.connector
-from mysql.connector.constants import ClientFlag
+try:
+    import mysql.connector
+    from mysql.connector.constants import ClientFlag
+except ImportError:
+    mysql = None
+    ClientFlag = None
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
 SCHEMA_VERSION = 5
 DEMO_EMAIL = 'test@helpiti.com'
+Error = (mysql.connector.Error, sqlite3.Error) if mysql else sqlite3.Error
 
 
 def database_settings():
-    """Lê a configuração do MySQL a cada chamada para respeitar variáveis alteradas em runtime."""
+    """Lê a configuração do banco a cada chamada para respeitar mudanças em runtime."""
+    database_type = os.getenv('DB_TYPE', 'mysql').strip().lower()
+    if database_type == 'sqlite':
+        database_path = Path(os.getenv(
+            'DB_SQLITE_PATH', str(INSTANCE_DIR / 'helpti.sqlite3')
+        )).expanduser()
+        if not database_path.is_absolute():
+            database_path = PROJECT_DIR / database_path
+        return {
+            'type': database_type,
+            'database': str(database_path.resolve()),
+        }
+    if database_type != 'mysql':
+        raise ValueError('DB_TYPE deve ser "sqlite" ou "mysql".')
     return {
+        'type': database_type,
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': int(os.getenv('DB_PORT', '3306')),
         'user': os.getenv('DB_USER', 'root'),
@@ -57,15 +77,27 @@ def _convert(value):
 
 
 class Cursor:
-    def __init__(self, cursor):
+    def __init__(self, cursor, database_type):
         self._cursor = cursor
+        self._database_type = database_type
 
     def execute(self, query, params=None):
-        self._cursor.execute(query, tuple(params) if params else None)
+        query = _adapt_query(query, self._database_type)
+        if params:
+            values = tuple(_sqlite_value(value) for value in params) if self._database_type == 'sqlite' else tuple(params)
+            self._cursor.execute(query, values)
+        else:
+            self._cursor.execute(query)
         return self
 
     def executemany(self, query, parameters):
-        self._cursor.executemany(query, [tuple(row) for row in parameters])
+        query = _adapt_query(query, self._database_type)
+        rows = [
+            tuple(_sqlite_value(value) for value in row)
+            if self._database_type == 'sqlite' else tuple(row)
+            for row in parameters
+        ]
+        self._cursor.executemany(query, rows)
         return self
 
     def _row(self, values):
@@ -87,17 +119,21 @@ class Cursor:
 
 
 class Connection:
-    def __init__(self, connection):
+    def __init__(self, connection, database_type):
         self._connection = connection
+        self._database_type = database_type
 
     def cursor(self, dictionary=False):
-        return Cursor(self._connection.cursor())
+        return Cursor(self._connection.cursor(), self._database_type)
 
     def execute(self, query, params=None):
         return self.cursor().execute(query, params)
 
     def executescript(self, script):
         """Executa vários comandos terminados em ';' no fim da linha."""
+        if self._database_type == 'sqlite':
+            self._connection.executescript(_sqlite_schema(script))
+            return
         script = re.sub(r'^\s*--.*$', '', script, flags=re.MULTILINE)
         for statement in re.split(r';\s*(?:\n|$)', script):
             if statement.strip():
@@ -109,22 +145,104 @@ class Connection:
         return getattr(self._connection, name)
 
 
+def _adapt_query(query, database_type):
+    if database_type != 'sqlite':
+        return query
+    query = query.replace('%s', '?')
+    query = re.sub(r'\s+FOR UPDATE\b', '', query, flags=re.IGNORECASE)
+    query = re.sub(
+        r'SHOW COLUMNS FROM ([A-Za-z_][A-Za-z0-9_]*)',
+        r"SELECT name FROM pragma_table_info('\1')",
+        query,
+        flags=re.IGNORECASE,
+    )
+    query = re.sub(
+        r'ON DUPLICATE KEY UPDATE\s+workspace_name = VALUES\(workspace_name\),'
+        r'\s*support_email = VALUES\(support_email\)',
+        'ON CONFLICT(id_usuario) DO UPDATE SET '
+        'workspace_name = excluded.workspace_name, '
+        'support_email = excluded.support_email',
+        query,
+        flags=re.IGNORECASE,
+    )
+    query = re.sub(
+        r'YEAR\((\w+(?:\.\w+)?)\)\s*=\s*YEAR\(CURDATE\(\)\)',
+        r"strftime('%Y', \1) = strftime('%Y', 'now', 'localtime')",
+        query,
+        flags=re.IGNORECASE,
+    )
+    query = re.sub(
+        r'MONTH\((\w+(?:\.\w+)?)\)\s*=\s*MONTH\(CURDATE\(\)\)',
+        r"strftime('%m', \1) = strftime('%m', 'now', 'localtime')",
+        query,
+        flags=re.IGNORECASE,
+    )
+    query = re.sub(r'\bCURDATE\(\)', "DATE('now', 'localtime')", query, flags=re.IGNORECASE)
+    return query
+
+
+def _sqlite_value(value):
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value)
+    return value
+
+
+def _sqlite_schema(script):
+    script = re.sub(r'^\s*--.*$', '', script, flags=re.MULTILINE)
+    script = re.sub(
+        r'\bINT\s+AUTO_INCREMENT\s+PRIMARY KEY\b',
+        'INTEGER PRIMARY KEY AUTOINCREMENT',
+        script,
+        flags=re.IGNORECASE,
+    )
+    script = re.sub(r'^\s*INDEX\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^\n]+\),?\s*$', '', script, flags=re.MULTILINE)
+    script = re.sub(
+        r'UNIQUE KEY\s+[A-Za-z_][A-Za-z0-9_]*\s*(\([^\n]+\))',
+        r'UNIQUE \1', script, flags=re.IGNORECASE
+    )
+    script = re.sub(r'\bMEDIUMTEXT\b', 'TEXT', script, flags=re.IGNORECASE)
+    script = re.sub(r'\)\s*ENGINE=InnoDB DEFAULT CHARSET=utf8mb4', ')', script, flags=re.IGNORECASE)
+    script = re.sub(r',\s*\)', '\n)', script)
+    script = re.sub(r'\bINSERT IGNORE\b', 'INSERT OR IGNORE', script, flags=re.IGNORECASE)
+    script = re.sub(r'\bFROM DUAL\b', '', script, flags=re.IGNORECASE)
+    return script
+
+
 def _connect(with_database=True):
     settings = database_settings()
+    database_type = settings.pop('type')
+    if database_type == 'sqlite':
+        path = Path(settings['database'])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(path, timeout=10)
+        connection.execute('PRAGMA foreign_keys = ON')
+        connection.row_factory = None
+        return Connection(connection, database_type)
+    if mysql is None:
+        raise RuntimeError(
+            'O driver MySQL não está instalado. Instale backend/requirements.txt '
+            'ou use DB_TYPE=sqlite.'
+        )
     if not with_database:
         settings.pop('database')
-    return mysql.connector.connect(
+    return Connection(mysql.connector.connect(
         **settings,
         charset='utf8mb4',
         autocommit=False,
         connection_timeout=10,
         client_flags=[ClientFlag.FOUND_ROWS],
-    )
+    ), database_type)
 
 
 def get_db_connection():
-    """Abre uma conexão MySQL; a transação é iniciada implicitamente (autocommit desligado)."""
-    return Connection(_connect())
+    """Abre uma conexão com o banco configurado; transações são explícitas."""
+    return _connect()
 
 
 def apply_demo_seed(connection):
@@ -139,6 +257,10 @@ def demo_mode_enabled():
 
 
 def create_database_if_missing():
+    if database_settings()['type'] == 'sqlite':
+        path = Path(database_settings()['database'])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return
     name = database_settings()['database']
     if not re.fullmatch(r'[A-Za-z0-9_$]+', name):
         raise ValueError('DB_NAME deve conter apenas letras, números, "_" ou "$".')
@@ -161,6 +283,19 @@ def create_database_if_missing():
 
 def _ensure_compatible_schema(connection):
     """Interrompe a inicialização se o banco contém tabelas de uma versão antiga do HelpTI."""
+    if database_settings()['type'] == 'sqlite':
+        row = connection.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'usuario'"
+        ).fetchone()
+        if not row[0]:
+            return
+        columns = {row[1] for row in connection.execute('PRAGMA table_info(usuario)')}
+        if 'id_workspace' not in columns:
+            raise RuntimeError(
+                'O arquivo SQLite configurado contém tabelas de uma versão antiga '
+                'do HelpTI. Defina outro DB_SQLITE_PATH ou migre os dados.'
+            )
+        return
     row = connection.execute(
         "SELECT COUNT(*) FROM information_schema.tables "
         "WHERE table_schema = DATABASE() AND table_name = 'usuario'"
@@ -186,9 +321,7 @@ def initialize_database():
     connection = get_db_connection()
     try:
         _ensure_compatible_schema(connection)
-        connection.executescript(
-            Path(__file__).with_name('schema.sql').read_text(encoding='utf-8')
-        )
+        connection.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
         if demo_mode_enabled():
             connection.executescript(
                 Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8')

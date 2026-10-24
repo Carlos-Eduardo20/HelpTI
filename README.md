@@ -51,7 +51,7 @@ Execute o arquivo principal na raiz do projeto:
 ```bash
 python app.py
 ```
-> O HelpTI usa **MySQL 8+**. Configure `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME` em `backend/.env` (veja [SETUP_MYSQL.md](SETUP_MYSQL.md)). O banco e as tabelas são criados automaticamente na primeira inicialização. O envio de códigos por e-mail pode usar o Zoho Mail (`smtp.zoho.com`, porta 587 ou 465).
+> Para executar localmente, o HelpTI usa **SQLite** e cria automaticamente `instance/helpti.sqlite3`, sem precisar instalar ou configurar um servidor de banco. MySQL continua disponível configurando `DB_TYPE=mysql` e as variáveis correspondentes em `backend/.env` (veja [SETUP_MYSQL.md](SETUP_MYSQL.md)). O envio de códigos por e-mail pode usar o Zoho Mail (`smtp.zoho.com`, porta 587 ou 465).
 
 ---
 
@@ -65,7 +65,7 @@ Deseja iniciar com a conta de teste HelpTI? [S/N]:
 
 ### Opção [S] — Modo de Teste / Demonstração (Recomendado)
 - Responda **`S`** e pressione Enter.
-- O sistema iniciará utilizando o banco de dados de demonstração (MySQL), pré-configurado com a conta administradora **HelpTI**, tipos de chamado e setor de suporte padrão.
+- O sistema iniciará utilizando o banco local (SQLite por padrão), pré-configurado com a conta administradora **HelpTI**, tipos de chamado e setor de suporte padrão.
 - **Acesse no navegador:** [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
 - **Credenciais de Teste:**
   - **E-mail:** `test@helpiti.com`
