@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "scripts": {
+    "build:education": "tsc -p tsconfig.education.json"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "three": "0.160.0",
+    "typescript": "^5.7.0"
+  }
+}

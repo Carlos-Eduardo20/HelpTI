@@ -127,12 +127,11 @@
   </header>
 
   <main class="education-container">
-    <div class="sketchfab-embed-wrapper">
+    <div class="education-interactive">
       <section class="card-torre">
         <h3>PC Interativo</h3>
-        <iframe id="api-frame" title="Modelo 3D Custom Gaming PC" frameborder="0"
-          allow="autoplay; fullscreen; xr-spatial-tracking; accelerometer; gyroscope; magnetometer" xr-spatial-tracking ></iframe>
-        <p class="legenda-instrucao">Arraste o modelo para observar outros ângulos. Selecione uma peça para consultar falhas comuns e possíveis soluções.</p>
+        <div id="canvas-pc-3d" role="img" aria-label="Modelo 3D interativo de um computador. Arraste para girar e selecione um componente."></div>
+        <p class="legenda-instrucao">Arraste para girar, use a roda para aproximar e selecione uma peça no computador ou nos botões para consultar falhas e soluções.</p>
       </section>
       <section id="info-card" class="info-card" aria-live="polite">
         <h3>Diagnóstico de componentes</h3>
@@ -143,8 +142,10 @@
     </div>
   </main>
 
-  <script src="https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js"></script>
-  <script src="../assets/js/educacao-3d.js"></script>
+  <script type="importmap">
+    {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+  </script>
+  <script type="module" src="../assets/js/educacao-3d.js"></script>
   <script type="module" src="../assets/js/main.js"></script>
 </body>
 

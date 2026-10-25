@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 import webbrowser
 from threading import Timer
 
+
 try:
     from dotenv import load_dotenv
 except ImportError:
