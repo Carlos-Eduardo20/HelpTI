@@ -15,7 +15,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#101720');
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-  camera.position.set(6, 5, 7);
+  // Enquadramento frontal e ligeiramente lateral, como no modelo de referência.
+  camera.position.set(6.4, 4.3, 9.5);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -131,6 +132,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
   floor.position.y = -0.03;
   scene.add(floor);
 
+  // O gabinete de referência tem proporção quase quadrada; alarga-se o eixo X
+  // do conjunto mantendo as peças alinhadas entre si.
+  scene.scale.x = 1.35;
+
   const componentNames: ComponentName[] = ['Gabinete', 'Placa-mãe', 'Processador', 'Módulos de RAM', 'Placa de vídeo', 'Fonte de alimentação', 'HD/SSD'];
   let diagnostics: Record<string, Diagnosis> = {};
   let selected: ComponentName | null = null;
@@ -192,6 +197,31 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
+  let hoverOutline: THREE.LineSegments | null = null;
+  const clearHoverOutline = () => {
+    if (!hoverOutline) return;
+    scene.remove(hoverOutline);
+    hoverOutline.geometry.dispose();
+    (hoverOutline.material as THREE.Material).dispose();
+    hoverOutline = null;
+  };
+  renderer.domElement.addEventListener('pointermove', event => {
+    const bounds = renderer.domElement.getBoundingClientRect();
+    pointer.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObjects(parts, false)[0];
+    clearHoverOutline();
+    if (!hit) return;
+    const hoveredMesh = hit.object as THREE.Mesh;
+    const edges = new THREE.EdgesGeometry(hoveredMesh.geometry, 12);
+    hoverOutline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x76d9ff, transparent: true, opacity: 0.95, depthTest: false }));
+    hoverOutline.position.copy(hoveredMesh.position);
+    hoverOutline.rotation.copy(hoveredMesh.rotation);
+    hoverOutline.scale.copy(hoveredMesh.scale);
+    hoverOutline.renderOrder = 10;
+    scene.add(hoverOutline);
+  });
+  renderer.domElement.addEventListener('pointerleave', clearHoverOutline);
   renderer.domElement.addEventListener('click', event => {
     const bounds = renderer.domElement.getBoundingClientRect();
     pointer.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
