@@ -344,6 +344,8 @@
       </div>
       <p class="resolution-time">Tempo de atendimento <strong id="tempoFinalChamado">00:00</strong></p>
       <label class="workflow-field">Descrição final<textarea name="descricao_final" rows="5" required placeholder="Registre a solução aplicada"></textarea></label>
+      <label class="resolution-knowledge-option"><input type="checkbox" id="criarArtigoResolucao"> <span><strong>Adicionar esta solução à base de conhecimento</strong><small>O artigo ficará disponível para ajudar na resolução de chamados parecidos.</small></span></label>
+      <label class="workflow-field resolution-article-title" id="campoTituloArtigoResolucao" hidden>Título do artigo <span>(opcional)</span><input type="text" id="tituloArtigoResolucao" maxlength="255" placeholder="Ex.: Como resolver falha de inicialização"></label>
       <p class="workflow-note">A confirmação envia o resumo para o e-mail cadastrado do cliente e move o chamado para Resolvidos.</p>
       <div class="workflow-actions"><button class="btn-secondary" type="button" data-fechar-modal>Cancelar</button><button class="btn-primary" type="submit">Enviar e encerrar</button></div>
     </form>

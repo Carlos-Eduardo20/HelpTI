@@ -167,6 +167,47 @@ import type { ComponentName, PcPart } from './pc-types.js';
       section.append(title, list);
       diagnosisPanel.append(section);
     });
+
+    const form = document.createElement('form');
+    form.className = 'diagnosis-ticket-form';
+    form.innerHTML = `
+      <div class="diagnosis-ticket-heading">
+        <span class="diagnosis-step">PRÓXIMO PASSO</span>
+        <h4>O problema continua?</h4>
+        <p>Registre o sintoma e o que já verificou. Essas informações seguem para a triagem do suporte.</p>
+      </div>
+      <label for="diagnosis-symptom">O que está acontecendo?</label>
+      <textarea id="diagnosis-symptom" name="sintoma" rows="3" required maxlength="1200" placeholder="Ex.: o computador reinicia quando abro um programa pesado"></textarea>
+      <label for="diagnosis-attempts">O que você já tentou? <span>(opcional)</span></label>
+      <textarea id="diagnosis-attempts" name="etapasTentadas" rows="2" maxlength="1200" placeholder="Ex.: conferi os cabos e reiniciei o computador"></textarea>
+      <button type="submit" class="diagnosis-ticket-button">Continuar em um chamado <span aria-hidden="true">→</span></button>
+    `;
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const dados = new FormData(form);
+      const pacote = {
+        componente: name,
+        sintoma: String(dados.get('sintoma') || '').trim(),
+        etapasTentadas: String(dados.get('etapasTentadas') || '').trim(),
+        verificacoes: data.erros,
+        solucoes: data.solucao,
+      };
+      try {
+        sessionStorage.setItem('helpti:diagnosticoChamado', JSON.stringify(pacote));
+        const destino = new URL('./chamados.html', window.location.href);
+        destino.searchParams.set('diagnostico', '1');
+        window.location.href = destino.toString();
+      } catch (error) {
+        diagnosisPanel.querySelector('.diagnosis-ticket-error')?.remove();
+        const aviso = document.createElement('p');
+        aviso.className = 'diagnosis-ticket-error';
+        aviso.setAttribute('role', 'alert');
+        aviso.textContent = 'Não foi possível preparar o chamado. Copie as informações e tente novamente.';
+        form.append(aviso);
+      }
+    });
+    diagnosisPanel.append(form);
   }
 
   function selectComponent(name: ComponentName): void {

@@ -349,7 +349,8 @@
 }
 
 .workflow-field select,
-.workflow-field textarea {
+.workflow-field textarea,
+.workflow-field input {
     width: 100%;
     min-height: 42px;
     padding: 10px 12px;
@@ -366,7 +367,8 @@
 }
 
 .workflow-field select:focus,
-.workflow-field textarea:focus {
+.workflow-field textarea:focus,
+.workflow-field input:focus {
     outline: 2px solid var(--blue-200, var(--palette-dbeafe));
     border-color: var(--blue-600, var(--palette-2563eb));
 }
@@ -396,6 +398,46 @@
     color: var(--text-subtle, var(--palette-8c847e));
     font-size: 12px;
     line-height: 1.5;
+}
+
+.resolution-knowledge-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px 14px;
+    border: 1px solid var(--border-color, var(--palette-e2dcd0));
+    border-radius: 8px;
+    background: var(--bg-beige-light, var(--palette-faf8f5));
+    cursor: pointer;
+}
+
+.resolution-knowledge-option input {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    margin: 2px 0 0;
+    accent-color: var(--blue-600, var(--palette-2563eb));
+}
+
+.resolution-knowledge-option span {
+    display: grid;
+    gap: 4px;
+}
+
+.resolution-knowledge-option strong {
+    color: var(--text-dark, var(--palette-1e1b18));
+    font-size: 13px;
+}
+
+.resolution-knowledge-option small,
+.resolution-article-title > span {
+    color: var(--text-subtle, var(--palette-8c847e));
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.resolution-article-title[hidden] {
+    display: none;
 }
 
 .action-buttons-group button:disabled {

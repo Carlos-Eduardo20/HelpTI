@@ -1,4 +1,4 @@
-import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro } from './api.js';
+import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro, criarDocumentacao } from './api.js';
 import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
@@ -1216,16 +1216,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         const form = event.currentTarget;
         await comCarregamento(form.querySelector('[type="submit"]'), async () => {
           try {
-            chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: new FormData(form).get('descricao_final') });
+            const dadosResolucao = new FormData(form);
+            const descricaoFinal = String(dadosResolucao.get('descricao_final') || '').trim();
+            const publicarArtigo = document.querySelector('#criarArtigoResolucao')?.checked || false;
+            const tituloInformado = document.querySelector('#tituloArtigoResolucao')?.value.trim() || '';
+            chamado = await atualizarChamado(id, { acao: 'encerrar', descricao_final: descricaoFinal });
             atualizarTelaChamado();
             modalEncerrar?.classList.remove('active');
             form.reset();
-            mostrarNotificacao('Chamado resolvido com sucesso.');
+            const campoTituloArtigo = document.querySelector('#campoTituloArtigoResolucao');
+            if (campoTituloArtigo) campoTituloArtigo.hidden = true;
+            if (publicarArtigo) {
+              try {
+                const ticket = `#TK-${String(chamado.id_chamado || id).padStart(4, '0')}`;
+                const grupoId = Number(localStorage.getItem('grupoId') || sessionStorage.getItem('grupoId')) || null;
+                await criarDocumentacao({
+                  titulo: tituloInformado || `Solução do chamado ${ticket}`,
+                  fornecedor: chamado.setor ? `HelpTI - ${chamado.setor}` : 'HelpTI',
+                  id_grupo_solucionadores: grupoId,
+                  conteudo: `Chamado de referência: ${ticket}\nCliente: ${chamado.cliente || 'Não informado'}\n\nProblema relatado:\n${chamado.descricao || 'Não informado'}\n\nSolução aplicada:\n${descricaoFinal}`
+                });
+                mostrarNotificacao('Chamado resolvido e solução adicionada à base de conhecimento.');
+              } catch (erroArtigo) {
+                mostrarNotificacao('Chamado resolvido com sucesso.');
+                mostrarErro(`O chamado foi encerrado, mas não foi possível criar o artigo: ${erroArtigo.message}`);
+              }
+            } else {
+              mostrarNotificacao('Chamado resolvido com sucesso.');
+            }
             if (!chamado.email_enviado && chamado.aviso_email) mostrarErro(chamado.aviso_email);
           } catch (error) {
             mostrarErro(`Não foi possível encerrar o chamado: ${error.message}`);
           }
         }, 'Encerrando...');
+      });
+      const opcaoArtigoResolucao = document.querySelector('#criarArtigoResolucao');
+      const campoTituloArtigoResolucao = document.querySelector('#campoTituloArtigoResolucao');
+      opcaoArtigoResolucao?.addEventListener('change', () => {
+        if (campoTituloArtigoResolucao) campoTituloArtigoResolucao.hidden = !opcaoArtigoResolucao.checked;
+        if (opcaoArtigoResolucao.checked) document.querySelector('#tituloArtigoResolucao')?.focus();
       });
       document.querySelector('#salvarAgendamento')?.addEventListener('click', async () => {
         const data = campoAgendamento?.value.split('T')[0];
