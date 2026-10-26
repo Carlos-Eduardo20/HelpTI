@@ -1,73 +1,135 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createPcCase } from './pc-case.js';
 import { createPcComponents } from './pc-components.js';
 (() => {
     const container = document.getElementById('canvas-pc-3d');
     const componentList = document.getElementById('component-list');
     const diagnosisContent = document.getElementById('diagnosis-content');
-    if (!container || !componentList || !diagnosisContent)
+    if (!(container instanceof HTMLElement) || !(componentList instanceof HTMLElement) || !(diagnosisContent instanceof HTMLElement))
         return;
     const pcContainer = container;
     const componentsElement = componentList;
     const diagnosisPanel = diagnosisContent;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#101720');
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    // Enquadramento frontal e ligeiramente lateral, como no modelo de referência.
-    camera.position.set(6.4, 4.3, 9.5);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
+    camera.position.set(5.7, 4.1, 8.5);
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.14;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setSize(pcContainer.clientWidth, pcContainer.clientHeight);
+    renderer.domElement.setAttribute('aria-hidden', 'true');
+    renderer.domElement.className = 'pc-3d-canvas';
     pcContainer.appendChild(renderer.domElement);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 1.9, 0);
-    controls.minDistance = 4;
-    controls.maxDistance = 11;
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x667477, 2));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
-    keyLight.position.set(5, 8, 6);
+    controls.dampingFactor = 0.055;
+    controls.enablePan = false;
+    controls.minDistance = 6.4;
+    controls.maxDistance = 12.5;
+    controls.minPolarAngle = 0.32;
+    controls.maxPolarAngle = 1.48;
+    controls.target.set(0, 1.93, 0);
+    controls.update();
+    scene.add(new THREE.HemisphereLight(0xd8f5f1, 0x28323b, 1.35));
+    const keyLight = new THREE.DirectionalLight(0xfff4df, 4.1);
+    keyLight.position.set(4.5, 7.5, 5.5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -5;
+    keyLight.shadow.camera.right = 5;
+    keyLight.shadow.camera.top = 7;
+    keyLight.shadow.camera.bottom = -3;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 20;
+    keyLight.shadow.bias = -0.0002;
+    keyLight.shadow.radius = 5;
     scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0x61d7c6, 1.2);
-    fillLight.position.set(-5, 3, -4);
-    scene.add(fillLight);
+    const rimLight = new THREE.DirectionalLight(0x71daca, 2.8);
+    rimLight.position.set(-4.5, 3.5, -4);
+    scene.add(rimLight);
+    const frontFill = new THREE.PointLight(0x8ab9ff, 34, 12, 2);
+    frontFill.position.set(2.5, 3.1, 4.5);
+    scene.add(frontFill);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0x111a20, roughness: 0.78, metalness: 0.22 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.065;
+    floor.receiveShadow = true;
+    scene.add(floor);
     const parts = [...createPcCase(scene), ...createPcComponents(scene)];
-    const componentNames = ['Gabinete', 'Placa-mãe', 'Processador', 'Módulos de RAM', 'Placa de vídeo', 'Fonte de alimentação', 'HD/SSD'];
+    const componentNames = [
+        'Gabinete',
+        'Placa-mãe',
+        'Processador',
+        'Módulos de RAM',
+        'Placa de vídeo',
+        'Fonte de alimentação',
+        'HD/SSD',
+    ];
     let diagnostics = {};
     let selected = null;
-    let highlighted = [];
-    const originalMaterials = new Map();
-    function selectComponent(name) {
-        highlighted.forEach(mesh => {
-            const originalMaterial = originalMaterials.get(mesh);
-            if (originalMaterial)
-                mesh.material = originalMaterial;
+    let hovered = null;
+    let pointerStart = null;
+    let dragged = false;
+    const outlines = new Map();
+    parts.forEach(mesh => {
+        const component = mesh.userData.component;
+        if (!component || !mesh.userData.outline)
+            return;
+        const material = new THREE.LineBasicMaterial({
+            color: 0x53e3d0,
+            transparent: true,
+            opacity: 0.98,
+            depthTest: true,
+            toneMapped: false,
         });
-        highlighted = [];
-        selected = name;
-        if (name) {
-            highlighted = parts.filter(mesh => mesh.userData.component === name);
-            highlighted.forEach(mesh => {
-                if (!originalMaterials.has(mesh))
-                    originalMaterials.set(mesh, mesh.material);
-                mesh.material = mesh.material.clone();
-                mesh.material.emissive = new THREE.Color(0x0f766e);
-                mesh.material.emissiveIntensity = 0.65;
+        const outline = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry, 22), material);
+        outline.scale.setScalar(1.014);
+        outline.renderOrder = 20;
+        outline.visible = false;
+        mesh.add(outline);
+        const group = outlines.get(component) ?? [];
+        group.push(outline);
+        outlines.set(component, group);
+    });
+    function updateOutlines() {
+        outlines.forEach((group, name) => {
+            const isHovered = hovered === name;
+            const isSelected = selected === name;
+            group.forEach(outline => {
+                outline.visible = isHovered || isSelected;
+                outline.material.color.setHex(isHovered ? 0x9cf8ff : 0x48d8b7);
+                outline.material.opacity = isHovered ? 1 : 0.9;
             });
-            showDiagnosis(name);
-        }
-        else
-            diagnosisPanel.replaceChildren();
-        componentsElement.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.component === name)));
+        });
+    }
+    function setHovered(name) {
+        if (hovered === name)
+            return;
+        hovered = name;
+        updateOutlines();
     }
     function showDiagnosis(name) {
+        diagnosisPanel.replaceChildren();
         const data = diagnostics[name];
         if (!data)
             return;
-        diagnosisPanel.replaceChildren();
-        const sections = [['Falhas comuns', data.erros], ['Possíveis soluções', data.solucao]];
+        const sections = [
+            ['Falhas comuns', data.erros],
+            ['Possíveis soluções', data.solucao],
+        ];
         sections.forEach(([heading, entries]) => {
             const section = document.createElement('section');
             const title = document.createElement('h4');
@@ -75,9 +137,21 @@ import { createPcComponents } from './pc-components.js';
             title.textContent = heading;
             if (heading === 'Possíveis soluções')
                 title.classList.add('solution-title');
-            entries.forEach(entry => { const item = document.createElement('li'); item.textContent = entry; list.append(item); });
+            entries.forEach(entry => {
+                const item = document.createElement('li');
+                item.textContent = entry;
+                list.append(item);
+            });
             section.append(title, list);
             diagnosisPanel.append(section);
+        });
+    }
+    function selectComponent(name) {
+        selected = name;
+        updateOutlines();
+        showDiagnosis(name);
+        componentsElement.querySelectorAll('button').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.component === name));
         });
     }
     componentNames.forEach(name => {
@@ -88,50 +162,80 @@ import { createPcComponents } from './pc-components.js';
         button.textContent = name;
         button.setAttribute('aria-pressed', 'false');
         button.addEventListener('click', () => selectComponent(name));
+        button.addEventListener('pointerenter', () => setHovered(name));
+        button.addEventListener('pointerleave', () => setHovered(null));
+        button.addEventListener('focus', () => setHovered(name));
+        button.addEventListener('blur', () => setHovered(null));
         componentsElement.append(button);
     });
     fetch('/api/educacao/diagnosticos')
-        .then(response => { if (!response.ok)
-        throw new Error(`HTTP ${response.status}`); return response.json(); })
-        .then(data => { diagnostics = data; if (selected)
-        showDiagnosis(selected); })
-        .catch(error => { diagnosisPanel.textContent = 'Não foi possível carregar os diagnósticos.'; console.error('[HelpTI] falha ao carregar diagnósticos', error); });
+        .then(response => {
+        if (!response.ok)
+            throw new Error('HTTP ' + response.status);
+        return response.json();
+    })
+        .then((data) => {
+        diagnostics = data;
+        if (selected)
+            showDiagnosis(selected);
+    })
+        .catch(error => {
+        diagnosisPanel.textContent = 'Não foi possível carregar os diagnósticos.';
+        console.error('[HelpTI] falha ao carregar diagnósticos', error);
+    });
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    let hoverOutline = null;
-    const clearHoverOutline = () => {
-        if (!hoverOutline)
-            return;
-        scene.remove(hoverOutline);
-        hoverOutline.geometry.dispose();
-        hoverOutline.material.dispose();
-        hoverOutline = null;
-    };
-    renderer.domElement.addEventListener('pointermove', event => {
+    function componentAt(clientX, clientY) {
         const bounds = renderer.domElement.getBoundingClientRect();
-        pointer.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
+        if (!bounds.width || !bounds.height)
+            return null;
+        pointer.set(((clientX - bounds.left) / bounds.width) * 2 - 1, -((clientY - bounds.top) / bounds.height) * 2 + 1);
         raycaster.setFromCamera(pointer, camera);
         const hit = raycaster.intersectObjects(parts, false)[0];
-        clearHoverOutline();
-        if (!hit)
-            return;
-        const hoveredMesh = hit.object;
-        const edges = new THREE.EdgesGeometry(hoveredMesh.geometry, 12);
-        hoverOutline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x76d9ff, transparent: true, opacity: 0.95, depthTest: false }));
-        hoverOutline.position.copy(hoveredMesh.position);
-        hoverOutline.rotation.copy(hoveredMesh.rotation);
-        hoverOutline.scale.copy(hoveredMesh.scale);
-        hoverOutline.renderOrder = 10;
-        scene.add(hoverOutline);
+        return hit?.object.userData.component ?? null;
+    }
+    renderer.domElement.addEventListener('pointerdown', event => {
+        pointerStart = { x: event.clientX, y: event.clientY };
+        dragged = false;
     });
-    renderer.domElement.addEventListener('pointerleave', clearHoverOutline);
+    renderer.domElement.addEventListener('pointermove', event => {
+        if (pointerStart) {
+            const dx = event.clientX - pointerStart.x;
+            const dy = event.clientY - pointerStart.y;
+            if (Math.hypot(dx, dy) > 6) {
+                dragged = true;
+                renderer.domElement.style.cursor = 'grabbing';
+                setHovered(null);
+                return;
+            }
+        }
+        const component = componentAt(event.clientX, event.clientY);
+        setHovered(component);
+        renderer.domElement.style.cursor = component ? 'pointer' : 'grab';
+    });
+    renderer.domElement.addEventListener('pointerup', () => {
+        pointerStart = null;
+        if (!dragged)
+            renderer.domElement.style.cursor = 'grab';
+    });
+    renderer.domElement.addEventListener('pointercancel', () => {
+        pointerStart = null;
+        dragged = false;
+        setHovered(null);
+    });
+    renderer.domElement.addEventListener('pointerleave', () => {
+        pointerStart = null;
+        renderer.domElement.style.cursor = 'grab';
+        setHovered(null);
+    });
     renderer.domElement.addEventListener('click', event => {
-        const bounds = renderer.domElement.getBoundingClientRect();
-        pointer.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
-        raycaster.setFromCamera(pointer, camera);
-        const hit = raycaster.intersectObjects(parts, false)[0];
-        if (hit)
-            selectComponent(hit.object.userData.component);
+        if (dragged) {
+            dragged = false;
+            return;
+        }
+        const component = componentAt(event.clientX, event.clientY);
+        if (component)
+            selectComponent(component);
     });
     function resize() {
         const width = pcContainer.clientWidth;
@@ -143,6 +247,10 @@ import { createPcComponents } from './pc-components.js';
         renderer.setSize(width, height);
     }
     new ResizeObserver(resize).observe(pcContainer);
-    function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
     animate();
 })();

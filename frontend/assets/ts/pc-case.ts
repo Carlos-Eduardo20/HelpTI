@@ -1,39 +1,125 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { ComponentName, PcPart } from './pc-types.js';
 
 export function createPcCase(scene: THREE.Scene): PcPart[] {
   const parts: PcPart[] = [];
-  const darkMetal = new THREE.MeshStandardMaterial({ color: 0x111821, metalness: 0.62, roughness: 0.32 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x27465a, metalness: 0.18, roughness: 0.2, transparent: true, opacity: 0.12, depthWrite: false });
+  const chassis = new THREE.MeshPhysicalMaterial({
+    color: 0x171f27,
+    metalness: 0.76,
+    roughness: 0.29,
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.24,
+  });
+  const edgeMetal = new THREE.MeshStandardMaterial({
+    color: 0x35434d,
+    metalness: 0.82,
+    roughness: 0.27,
+  });
+  const rubber = new THREE.MeshStandardMaterial({ color: 0x080b0e, roughness: 0.88 });
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: 0x8eb8c2,
+    metalness: 0.12,
+    roughness: 0.08,
+    transparent: true,
+    opacity: 0.105,
+    depthWrite: false,
+    clearcoat: 1,
+    clearcoatRoughness: 0.08,
+    side: THREE.DoubleSide,
+  });
+  const accent = new THREE.MeshStandardMaterial({
+    color: 0x1a9f91,
+    emissive: 0x0a514d,
+    emissiveIntensity: 0.55,
+    metalness: 0.48,
+    roughness: 0.34,
+  });
+  const black = new THREE.MeshStandardMaterial({ color: 0x080d12, metalness: 0.28, roughness: 0.46 });
 
-  const add = (geometry: THREE.BufferGeometry, material: THREE.MeshStandardMaterial, position: [number, number, number], component: ComponentName = 'Gabinete') => {
+  const add = (
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material,
+    position: [number, number, number],
+    component: ComponentName = 'Gabinete',
+    outline = false,
+    selectable = true,
+  ): PcPart => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(...position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.userData.component = component;
+    mesh.userData.outline = outline;
     scene.add(mesh);
-    parts.push(mesh);
+    if (selectable) parts.push(mesh);
     return mesh;
   };
-  const box = (size: [number, number, number], position: [number, number, number], material = darkMetal) =>
-    add(new THREE.BoxGeometry(...size), material, position);
 
-  // Chassi cúbico com interior aberto e painéis de vidro azulados.
-  box([2.9, 3.65, 0.12], [0, 2, -0.82]); // fundo
-  box([0.12, 3.85, 1.72], [-1.4, 2, 0]);
-  box([0.12, 3.85, 1.72], [1.4, 2, 0]);
-  box([2.9, 0.14, 1.72], [0, 0.12, 0]);
-  box([2.9, 0.14, 1.72], [0, 3.88, 0]);
-  add(new THREE.BoxGeometry(2.68, 3.65, 0.035), glass, [0, 2, 0.87]);
-  add(new THREE.BoxGeometry(0.035, 3.65, 1.62), glass, [1.4, 2, 0]);
+  const box = (
+    size: [number, number, number],
+    position: [number, number, number],
+    material: THREE.Material = chassis,
+    outline = false,
+    component: ComponentName = 'Gabinete',
+  ) => {
+    const radius = Math.min(0.035, Math.min(...size) * 0.24);
+    return add(new RoundedBoxGeometry(...size, 3, radius), material, position, component, outline);
+  };
 
-  // Colunas internas e trilhos visíveis na lateral do gabinete.
-  [-0.95, 0.95].forEach(x => {
-    for (let y = 0.55; y < 3.6; y += 0.58) {
-      box([0.035, 0.025, 0.12], [x, y, 0.72], new THREE.MeshStandardMaterial({ color: 0x38516c, metalness: 0.3, roughness: 0.48 }));
-    }
+  const frontButton = (radius: number, length: number, position: [number, number, number], material: THREE.Material) => {
+    const mesh = add(new THREE.CylinderGeometry(radius, radius, length, 28), material, position);
+    mesh.rotation.x = Math.PI / 2;
+    return mesh;
+  };
+
+  // Chassi aberto com estrutura de alumínio, parede traseira e vidro fumê frontal.
+  box([3.02, 3.9, 0.12], [0, 2.02, -0.96], chassis, true);
+  box([3.06, 0.14, 1.98], [0, 0.12, 0], chassis, true);
+  box([3.06, 0.14, 1.98], [0, 3.92, 0], chassis, true);
+  box([0.1, 3.76, 0.11], [-1.49, 2.02, 0.9], edgeMetal, true);
+  box([0.1, 3.76, 0.11], [1.49, 2.02, 0.9], edgeMetal, true);
+  box([0.1, 3.76, 0.11], [-1.49, 2.02, -0.9], edgeMetal, true);
+  box([0.1, 3.76, 0.11], [1.49, 2.02, -0.9], edgeMetal, true);
+  box([2.92, 0.08, 0.11], [0, 0.2, 0.9], edgeMetal, true);
+  box([2.92, 0.08, 0.11], [0, 3.84, 0.9], edgeMetal, true);
+
+  const glassPanel = new THREE.Mesh(new RoundedBoxGeometry(2.86, 3.56, 0.035, 4, 0.035), glass);
+  glassPanel.position.set(0, 2.02, 0.88);
+  glassPanel.renderOrder = 2;
+  glassPanel.castShadow = false;
+  glassPanel.receiveShadow = false;
+  scene.add(glassPanel);
+
+  // Trilhos internos e cobertura da fonte deixam o conjunto com uma montagem real.
+  box([2.86, 0.08, 1.52], [0, 0.78, -0.02], chassis, true);
+  [-1.18, 1.18].forEach(x => {
+    box([0.045, 2.95, 0.06], [x, 2.18, -0.36], edgeMetal);
+    [1.02, 1.74, 2.46, 3.18].forEach(y => {
+      box([0.1, 0.035, 0.12], [x, y, 0.46], edgeMetal);
+    });
   });
-  // Fita de luz violeta na base, como no print de referência.
-  const led = new THREE.MeshStandardMaterial({ color: 0x9c68ff, emissive: 0x7035ff, emissiveIntensity: 1.5, metalness: 0.15, roughness: 0.3 });
-  box([2.35, 0.035, 0.035], [0, 0.78, 0.76], led);
+
+  // Fendas de ventilação na parte superior do gabinete.
+  for (let index = 0; index < 9; index += 1) {
+    const x = -0.68 + index * 0.17;
+    box([0.025, 0.018, 0.8], [x, 4.0, -0.05], black);
+  }
+
+  // Painel frontal discreto: botão de energia, USB e acabamento anodizado.
+  box([0.28, 0.58, 0.08], [1.27, 3.44, 0.91], black, true);
+  frontButton(0.075, 0.035, [1.27, 3.62, 0.96], accent);
+  frontButton(0.035, 0.03, [1.2, 3.28, 0.96], edgeMetal);
+  frontButton(0.035, 0.03, [1.34, 3.28, 0.96], edgeMetal);
+  box([0.035, 0.15, 0.02], [1.27, 2.98, 0.96], accent);
+
+  // Pés de borracha isolam o gabinete da bancada.
+  [-1.08, 1.08].forEach(x => {
+    [-0.63, 0.63].forEach(z => {
+      add(new THREE.CylinderGeometry(0.13, 0.15, 0.12, 24), rubber, [x, 0.005, z]);
+      add(new THREE.CylinderGeometry(0.095, 0.095, 0.025, 24), edgeMetal, [x, 0.071, z]);
+    });
+  });
+
   return parts;
 }
