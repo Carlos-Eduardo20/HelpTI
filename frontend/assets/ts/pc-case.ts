@@ -5,33 +5,33 @@ import type { ComponentName, PcPart } from './pc-types.js';
 export function createPcCase(scene: THREE.Scene): PcPart[] {
   const parts: PcPart[] = [];
   const chassis = new THREE.MeshPhysicalMaterial({
-    color: 0x171f27,
-    metalness: 0.76,
-    roughness: 0.29,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.24,
+    color: 0x202a31,
+    metalness: 0.72,
+    roughness: 0.24,
+    clearcoat: 0.58,
+    clearcoatRoughness: 0.18,
   });
   const edgeMetal = new THREE.MeshStandardMaterial({
-    color: 0x35434d,
+    color: 0x71838b,
     metalness: 0.82,
-    roughness: 0.27,
+    roughness: 0.22,
   });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x080b0e, roughness: 0.88 });
   const glass = new THREE.MeshPhysicalMaterial({
-    color: 0x8eb8c2,
-    metalness: 0.12,
-    roughness: 0.08,
+    color: 0xc8e2e2,
+    metalness: 0.08,
+    roughness: 0.12,
     transparent: true,
-    opacity: 0.105,
+    opacity: 0.075,
     depthWrite: false,
     clearcoat: 1,
     clearcoatRoughness: 0.08,
     side: THREE.DoubleSide,
   });
   const accent = new THREE.MeshStandardMaterial({
-    color: 0x1a9f91,
-    emissive: 0x0a514d,
-    emissiveIntensity: 0.55,
+    color: 0x32d5bb,
+    emissive: 0x0b8d79,
+    emissiveIntensity: 0.85,
     metalness: 0.48,
     roughness: 0.34,
   });
@@ -84,8 +84,15 @@ export function createPcCase(scene: THREE.Scene): PcPart[] {
   box([2.92, 0.08, 0.11], [0, 0.2, 0.9], edgeMetal, true);
   box([2.92, 0.08, 0.11], [0, 3.84, 0.9], edgeMetal, true);
 
+  // Acabamento frontal em alumínio para destacar o formato panorâmico do gabinete.
+  box([0.045, 3.42, 0.045], [-1.405, 2.02, 0.925], edgeMetal, true);
+  box([0.045, 3.42, 0.045], [1.405, 2.02, 0.925], edgeMetal, true);
+  box([2.72, 0.035, 0.045], [0, 3.765, 0.925], edgeMetal);
+
   const glassPanel = new THREE.Mesh(new RoundedBoxGeometry(2.86, 3.56, 0.035, 4, 0.035), glass);
   glassPanel.position.set(0, 2.02, 0.88);
+  glassPanel.userData.component = 'Gabinete';
+  glassPanel.userData.casePanel = true;
   glassPanel.renderOrder = 2;
   glassPanel.castShadow = false;
   glassPanel.receiveShadow = false;

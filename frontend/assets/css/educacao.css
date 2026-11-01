@@ -642,3 +642,100 @@
         font-size: 11px;
     }
 }
+
+.pc-view-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 0 0 10px;
+}
+
+.pc-control-button {
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color, #dce5e4);
+    border-radius: 8px;
+    background: var(--card-bg, #fff);
+    color: var(--text-secondary, #53666a);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .18s ease, background-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+.pc-control-button:hover {
+    border-color: #25a995;
+    color: #0f766e;
+    transform: translateY(-1px);
+}
+
+.pc-control-button:focus-visible {
+    outline: 3px solid rgba(37, 185, 159, .25);
+    outline-offset: 2px;
+}
+
+.pc-control-button.is-active {
+    border-color: #168f81;
+    background: #e5f4f1;
+    color: #0f766e;
+}
+
+.pc-model-status {
+    min-height: 18px;
+    margin: 0 0 8px;
+    color: #718083;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.pc-label-layer {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.pc-component-label {
+    position: absolute;
+    max-width: min(150px, calc(100% - 12px));
+    padding: 5px 8px;
+    border: 1px solid rgba(111, 242, 219, .74);
+    border-radius: 7px;
+    background: rgba(5, 15, 20, .94);
+    color: #e5f7f4;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, .38), 0 0 14px rgba(38, 208, 179, .12);
+    will-change: transform;
+}
+
+#canvas-pc-3d .pc-model-fallback {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #101720;
+}
+
+#canvas-pc-3d .pc-model-fallback[hidden] {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .pc-view-controls {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 2px 0 6px;
+        scrollbar-width: thin;
+    }
+
+    .pc-control-button {
+        flex: 0 0 auto;
+    }
+}

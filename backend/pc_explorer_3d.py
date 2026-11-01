@@ -1,4 +1,5 @@
 from html import escape
+import math
 from urllib.parse import quote
 
 
@@ -123,35 +124,157 @@ def _build_parts(azimuth, elevation):
 
 
 def render_pc_svg(selected_part=None, azimuth=_DEFAULT_AZIMUTH, elevation=_DEFAULT_ELEVATION):
+    from io import StringIO
+
+    from matplotlib.backends.backend_svg import FigureCanvasSVG
+    from matplotlib.figure import Figure
+    from mpl_toolkits.mplot3d import Axes3D
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
     selected = selected_part if selected_part in DIAGNOSTICOS else None
     azimuth = _normalizar_orientacao(azimuth, _DEFAULT_AZIMUTH)
     elevation = _normalizar_orientacao(elevation, _DEFAULT_ELEVATION, 8, 65)
-    svg = [
-        '<svg xmlns="http://www.w3.org/2000/svg" class="model" viewBox="0 0 760 560" role="img" aria-label="Modelo 3D interativo de um computador">',
-        '<defs><linearGradient id="scene" x2="0" y2="1"><stop stop-color="#17212d"/><stop offset="1" stop-color="#0d131c"/></linearGradient></defs>',
-        '<rect width="760" height="560" rx="18" fill="url(#scene)"/>',
-        '<path d="M205 145 493 110 570 155 570 420 282 455 205 410Z" fill="#687586" stroke="#c1cbd3" stroke-width="8"/>',
-        '<path d="M222 162 482 132 482 390 222 420Z" fill="#173d38" stroke="#111923" stroke-width="5"/>',
-        '<path d="M493 126 555 160 555 405 493 390Z" fill="#29313b" fill-opacity=".8" stroke="#c1cbd3" stroke-width="5"/>',
-        '<rect x="300" y="195" width="75" height="70" rx="5" fill="#7f8d9a"/>',
-        '<rect x="390" y="165" width="18" height="150" rx="3" fill="#2c6255"/>',
-        '<rect x="420" y="165" width="18" height="150" rx="3" fill="#2c6255"/>',
-        '<rect x="285" y="320" width="220" height="48" rx="8" fill="#111923" stroke="#7f8d9a" stroke-width="5"/>',
-    ]
-    positions = ((285, 105), (275, 145), (300, 190), (440, 180), (405, 340), (260, 390), (480, 420))
-    for (key, (x, y)) in zip(DIAGNOSTICOS, positions):
-        fill = "#5eead4" if key == selected else "#101923"
-        svg.append(
-            f'<a class="component component-{quote(key, safe="")}" '
-            f'href="/educacao/pc-explorer?componente={quote(key, safe="")}'
-            f'&amp;azimute={azimuth:.1f}&amp;elevacao={elevation:.1f}" '
-            f'aria-label="Selecionar {escape(key, quote=True)}">'
-            f'<rect x="{x}" y="{y}" width="145" height="25" rx="12" fill="{fill}" stroke="#536472"/>'
-            f'<text x="{x + 72}" y="{y + 17}" text-anchor="middle" font-family="Arial,sans-serif" '
-            f'font-size="11" font-weight="700" fill="#ffffff">{escape(key)}</text></a>'
+
+    figure = Figure(figsize=(7.6, 5.6), dpi=100, facecolor="#0d131c")
+    canvas = FigureCanvasSVG(figure)
+    axes = figure.add_subplot(111, projection=Axes3D.name)
+    axes.set_facecolor("#0d131c")
+    axes.view_init(elev=elevation, azim=azimuth)
+    axes.set_xlim(-2.0, 2.0)
+    axes.set_ylim(-1.8, 1.8)
+    axes.set_zlim(0, 4.7)
+    axes.set_box_aspect((4.0, 3.6, 4.7))
+    axes.set_axis_off()
+
+    palette = {
+        "Gabinete": "#202A31",
+        "Placa-mãe": "#17604F",
+        "Processador": "#C1CDD0",
+        "Módulos de RAM": "#32D5BB",
+        "Placa de vídeo": "#465760",
+        "Fonte de alimentação": "#303C43",
+        "HD/SSD": "#91A5AD",
+    }
+    component_ids = {}
+
+    def add_box(component, origin, size, color=None, alpha=1.0, edge="#111923"):
+        x, y, z = origin
+        dx, dy, dz = size
+        corners = [
+            (x, y, z), (x + dx, y, z), (x + dx, y + dy, z), (x, y + dy, z),
+            (x, y, z + dz), (x + dx, y, z + dz), (x + dx, y + dy, z + dz), (x, y + dy, z + dz),
+        ]
+        faces = [
+            [corners[index] for index in face]
+            for face in ((0, 1, 2, 3), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7))
+        ]
+        face_color = color or palette.get(component, "#29313B")
+        if selected == component:
+            face_color = "#36CBB1"
+        mesh = Poly3DCollection(faces, facecolors=face_color, edgecolors=edge, linewidths=0.65, alpha=alpha)
+        encoded = quote(component, safe="")
+        component_ids[component] = component_ids.get(component, 0) + 1
+        mesh.set_gid(f"component-{encoded}-{component_ids[component]}")
+        mesh.set_url(
+            f"/educacao/pc-explorer?componente={encoded}"
+            f"&azimute={azimuth:.1f}&elevacao={elevation:.1f}"
         )
-    svg.append("</svg>")
-    return "".join(svg)
+        axes.add_collection3d(mesh)
+        return mesh
+
+    # Chassi em perspectiva, com painel de vidro translúcido.
+    add_box("Gabinete", (-1.52, -0.98, 0.12), (3.04, 0.12, 3.78), "#71838B")
+    add_box("Gabinete", (-1.52, -0.98, 0.12), (3.04, 1.94, 0.12), "#3A4550")
+    add_box("Gabinete", (-1.52, -0.98, 3.78), (3.04, 1.94, 0.12), "#3A4550")
+    add_box("Gabinete", (-1.52, -0.98, 0.12), (0.12, 1.94, 3.78), "#64727D")
+    add_box("Gabinete", (1.40, -0.98, 0.12), (0.12, 1.94, 3.78), "#64727D")
+    add_box("Gabinete", (-1.38, 0.91, 0.18), (2.76, 0.035, 3.64), "#9CC6C8", alpha=0.16, edge="#A9E7DF")
+    add_box("Gabinete", (-1.43, 0.96, 0.2), (0.045, 0.035, 3.4), "#71838B")
+    add_box("Gabinete", (1.385, 0.96, 0.2), (0.045, 0.035, 3.4), "#71838B")
+
+    # Placa, cooler, memória, armazenamento, placa de vídeo e fonte.
+    add_box("Placa-mãe", (-1.12, -0.73, 0.88), (2.24, 0.12, 2.78))
+    add_box("Processador", (0.12, -0.48, 2.42), (0.76, 0.28, 0.72), "#737E8D")
+    add_box("Processador", (0.18, -0.12, 2.46), (0.66, 0.56, 0.62), "#202B32")
+    add_box("Processador", (0.23, 0.43, 2.51), (0.56, 0.08, 0.52), "#465760")
+    for radius, color, width in ((0.28, "#4DE0C3", 2.5), (0.21, "#A7F5E8", 1.3), (0.12, "#D5A05A", 1.8)):
+        ring = [2 * index * math.pi / 64 for index in range(65)]
+        axes.plot(
+            [0.51 + radius * math.cos(angle) for angle in ring],
+            [0.53] * len(ring),
+            [2.77 + radius * math.sin(angle) for angle in ring],
+            color=color, linewidth=width,
+        )
+    # Radiador AIO de 360 mm alinhado às três ventoinhas ARGB frontais.
+    add_box("Processador", (1.02, 0.42, 0.9), (0.24, 0.28, 2.88), "#202B32")
+    for fin in range(12):
+        add_box("Processador", (1.015 + fin * 0.018, 0.72, 0.98), (0.009, 0.025, 2.72), "#91A5AD", edge="#53636C")
+    for points, color, width in (
+        (((0.76, 0.7, 3.0), (1.0, 0.76, 3.2), (1.29, 0.76, 3.58), (1.15, 0.76, 3.72)), "#111A20", 3.2),
+        (((0.76, 0.7, 2.6), (1.0, 0.76, 2.5), (1.3, 0.76, 1.95), (1.15, 0.76, 1.05)), "#111A20", 3.2),
+    ):
+        axes.plot([p[0] for p in points], [p[1] for p in points], [p[2] for p in points], color=color, linewidth=width)
+    for x in (-0.8, -0.52):
+        add_box("Módulos de RAM", (x, -0.33, 2.04), (0.18, 0.2, 1.12))
+        add_box("Módulos de RAM", (x + 0.02, -0.1, 3.0), (0.14, 0.04, 0.11), "#55D9BC")
+    add_box("HD/SSD", (-0.58, -0.43, 1.88), (0.88, 0.2, 0.15), "#92A4B0")
+    add_box("HD/SSD", (-1.13, -0.05, 0.55), (0.84, 0.66, 0.16), "#202B32")
+    add_box("HD/SSD", (-1.09, 0.57, 0.59), (0.76, 0.045, 0.08), "#91A5AD")
+    add_box("Placa de vídeo", (-1.25, -0.02, 1.20), (2.5, 0.66, 0.54))
+    add_box("Placa de vídeo", (-1.1, 0.64, 1.23), (2.2, 0.07, 0.48), "#303944", edge="#71808C")
+    add_box("Fonte de alimentação", (0.18, -0.55, 0.27), (1.12, 1.12, 0.56))
+    add_box("Fonte de alimentação", (0.26, 0.58, 0.31), (0.96, 0.04, 0.48), "#414B56")
+
+    # Ventoinhas na placa de vídeo e na entrada frontal do gabinete.
+    def add_fan(component, x, y, z, radius, color="#51D4BC"):
+        theta = [2 * index * math.pi / 48 for index in range(49)]
+        axes.plot(
+            [x + radius * math.cos(angle) for angle in theta],
+            [y] * len(theta),
+            [z + radius * math.sin(angle) for angle in theta],
+            color=color, linewidth=2.2,
+        )
+        for blade in range(7):
+            angle = blade * 2 * math.pi / 7
+            curve_angles = [angle + step * 0.012 for step in range(25)]
+            curve_radii = [radius * (0.2 + step * 0.022) for step in range(25)]
+            axes.plot(
+                [x + r * math.cos(a) for r, a in zip(curve_radii, curve_angles)],
+                [y] * len(curve_angles),
+                [z + r * math.sin(a) for r, a in zip(curve_radii, curve_angles)],
+                color="#B9C9CB" if selected != component else color, linewidth=1.45,
+            )
+        hub = radius * 0.2
+        axes.plot(
+            [x + hub * math.cos(angle) for angle in theta], [y] * len(theta),
+            [z + hub * math.sin(angle) for angle in theta], color="#D5A05A", linewidth=1.8,
+        )
+
+    for fan_x in (-0.72, 0, 0.72):
+        add_fan("Placa de vídeo", fan_x, 0.72, 1.47, 0.22, "#70E6D3" if selected == "Placa de vídeo" else "#72828D")
+    for fan_z in (1.35, 2.35, 3.35):
+        add_fan("Gabinete", 1.16, 0.82, fan_z, 0.22, "#50D8BE")
+    add_fan("Fonte de alimentação", 0.74, 0.63, 0.55, 0.15, "#50D8BE")
+
+    # Botões de seleção também ficam codificados nos elementos SVG gerados.
+    for key, (x, z) in zip(DIAGNOSTICOS, ((-1.15, 3.42), (-1.12, 3.05), (0.1, 3.55), (-0.75, 2.84), (-0.9, 1.17), (0.28, 0.42), (-0.6, 1.88))):
+        text = axes.text(x, 1.12, z, key, color="#F3F8F7", fontsize=6.2, ha="center", va="center")
+        encoded = quote(key, safe="")
+        text.set_gid(f"component-label-{encoded}")
+        text.set_url(
+            f"/educacao/pc-explorer?componente={encoded}"
+            f"&azimute={azimuth:.1f}&elevacao={elevation:.1f}"
+        )
+
+    figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    buffer = StringIO()
+    canvas.print_svg(buffer, metadata={"Date": None})
+    result = buffer.getvalue()
+    svg_start = result.find("<svg ")
+    svg_end = result.rfind("</svg>")
+    if svg_start < 0 or svg_end < svg_start:
+        raise RuntimeError("O Matplotlib não gerou um SVG válido para o modelo do PC.")
+    return result[svg_start:svg_end + len("</svg>")]
 
 
 _SKETCHFAB_SCRIPT = f"""
