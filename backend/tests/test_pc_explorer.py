@@ -50,7 +50,7 @@ class PcExplorerTests(unittest.TestCase):
         self.assertIn("#29313B", material_colors)
         self.assertIn("component-Gabinete", svg)
 
-    def test_first_viewer_uses_shared_sketchfab_model(self):
+    def test_diagnostic_route_and_education_page_use_current_viewers(self):
         page = render_pc_explorer()
         education_page = (
             Path(__file__).resolve().parents[2]
@@ -62,8 +62,18 @@ class PcExplorerTests(unittest.TestCase):
         self.assertIn(f'init("{SKETCHFAB_MODEL_UID}"', page)
         self.assertIn('id="modelViewer"', page)
         self.assertNotIn("src=\"https://sketchfab.com/models/", page)
-        self.assertIn('id="api-frame"', education_page)
-        self.assertNotIn('class="pc-explorer-frame"', education_page)
+        self.assertIn('id="canvas-pc-3d"', education_page)
+        self.assertIn('src="../assets/js/educacao-3d.js"', education_page)
+        controls = (
+            "pc-auto-rotate",
+            "pc-explode",
+            "pc-hide-case",
+            "pc-wireframe",
+            "pc-rgb",
+        )
+        for control in controls:
+            with self.subTest(control=control):
+                self.assertIn(f'id="{control}"', education_page)
 
     def test_page_shows_empty_state_without_selection(self):
         page = render_pc_explorer()

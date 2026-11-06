@@ -130,7 +130,19 @@
     <div class="education-interactive">
       <section class="card-torre">
         <h3>PC Interativo</h3>
-        <div id="canvas-pc-3d" role="img" aria-label="Modelo 3D interativo de um computador. Arraste para girar e selecione um componente."></div>
+        <div class="pc-view-controls" role="group" aria-label="Controles do modelo 3D">
+          <button type="button" class="pc-control-button" id="pc-reset-camera" title="Restaurar a câmera">↺ Câmera</button>
+          <button type="button" class="pc-control-button" id="pc-auto-rotate" aria-pressed="false">Giro automático</button>
+          <button type="button" class="pc-control-button" id="pc-toggle-labels" aria-pressed="false">Rótulos</button>
+          <button type="button" class="pc-control-button" id="pc-explode" aria-pressed="false">Separar peças</button>
+          <button type="button" class="pc-control-button" id="pc-hide-case" aria-pressed="false">Ocultar gabinete</button>
+          <button type="button" class="pc-control-button" id="pc-wireframe" aria-pressed="false">Modo aramado</button>
+          <button type="button" class="pc-control-button" id="pc-rgb" aria-pressed="false">Luz RGB</button>
+        </div>
+        <p id="pc-model-status" class="pc-model-status" role="status" aria-live="polite">Carregando modelo 3D…</p>
+        <div id="canvas-pc-3d" role="img" aria-label="Modelo 3D interativo de um computador. Arraste para girar e selecione um componente.">
+          <img id="pc-model-fallback" class="pc-model-fallback" src="/educacao/pc-explorer/modelo.svg" alt="Diagrama isométrico dos componentes do computador" hidden>
+        </div>
         <p class="legenda-instrucao">Passe o mouse por uma peça para destacar seu contorno. Arraste para girar, use a roda para aproximar ou clique na peça ou nos botões para ver falhas e soluções.</p>
       </section>
       <section id="info-card" class="info-card" aria-live="polite">
@@ -146,6 +158,27 @@
     {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
   </script>
   <script type="module" src="../assets/js/educacao-3d.js"></script>
+  <script>
+    (() => {
+      const viewport = document.getElementById('canvas-pc-3d');
+      const fallback = document.getElementById('pc-model-fallback');
+      const status = document.getElementById('pc-model-status');
+      if (!viewport || !(fallback instanceof HTMLImageElement) || !status) return;
+      let fallbackUnavailable = false;
+
+      fallback.addEventListener('error', () => {
+        fallbackUnavailable = true;
+        fallback.hidden = true;
+        status.textContent = 'O modelo 3D não pôde ser carregado neste navegador.';
+      }, { once: true });
+
+      window.setTimeout(() => {
+        if (viewport.dataset.modelReady === 'true' || fallbackUnavailable) return;
+        fallback.hidden = false;
+        status.textContent = 'Exibindo diagrama de contingência enquanto o visualizador 3D carrega.';
+      }, 8000);
+    })();
+  </script>
   <script type="module" src="../assets/js/main.js"></script>
 </body>
 
