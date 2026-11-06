@@ -399,14 +399,104 @@ def registrar_historico(cursor, id_chamado, evento, descricao, autor=None):
     )
 
 
+def provedor_email():
+    return os.getenv('EMAIL_PROVIDER', 'smtp').strip().lower() or 'smtp'
+
+
+def zoho_mail_api_configurado():
+    return all(os.getenv(chave, '').strip() for chave in (
+        'ZOHO_ACCOUNTS_BASE_URL',
+        'ZOHO_MAIL_API_BASE_URL',
+        'ZOHO_MAIL_ACCOUNT_ID',
+        'ZOHO_MAIL_FROM_ADDRESS',
+        'ZOHO_CLIENT_ID',
+        'ZOHO_CLIENT_SECRET',
+        'ZOHO_REFRESH_TOKEN',
+    ))
+
+
+def email_configurado():
+    provedor = provedor_email()
+    if provedor == 'zoho_api':
+        return zoho_mail_api_configurado()
+    if provedor == 'smtp':
+        return smtp_configurado()
+    return False
+
+
+def enviar_email_zoho_api(destinatario, assunto, conteudo):
+    contas_base = os.getenv('ZOHO_ACCOUNTS_BASE_URL', '').strip().rstrip('/')
+    mail_base = os.getenv('ZOHO_MAIL_API_BASE_URL', '').strip().rstrip('/')
+    account_id = os.getenv('ZOHO_MAIL_ACCOUNT_ID', '').strip()
+    remetente = os.getenv('ZOHO_MAIL_FROM_ADDRESS', '').strip()
+    if not all((destinatario, contas_base, mail_base, account_id, remetente)):
+        return False, 'A configuração da API do Zoho Mail está incompleta.'
+
+    if any(urlsplit(url).scheme != 'https' or not urlsplit(url).netloc for url in (contas_base, mail_base)):
+        return False, 'As URLs da API do Zoho precisam usar HTTPS.'
+
+    try:
+        token_response = requests.post(
+            f'{contas_base}/oauth/v2/token',
+            data={
+                'refresh_token': os.getenv('ZOHO_REFRESH_TOKEN', '').strip(),
+                'client_id': os.getenv('ZOHO_CLIENT_ID', '').strip(),
+                'client_secret': os.getenv('ZOHO_CLIENT_SECRET', '').strip(),
+                'grant_type': 'refresh_token',
+            },
+            timeout=15,
+        )
+        if not token_response.ok:
+            return False, f'O Zoho não autorizou o envio (HTTP {token_response.status_code}).'
+        token_payload = token_response.json()
+        access_token = token_payload.get('access_token') if isinstance(token_payload, dict) else None
+        if not isinstance(access_token, str) or not access_token:
+            return False, 'O Zoho não retornou um token de acesso válido.'
+
+        mail_response = requests.post(
+            f'{mail_base}/api/accounts/{account_id}/messages',
+            headers={
+                'Authorization': f'Zoho-oauthtoken {access_token}',
+                'Accept': 'application/json',
+            },
+            json={
+                'fromAddress': remetente,
+                'toAddress': destinatario,
+                'subject': assunto,
+                'content': conteudo,
+                'mailFormat': 'plaintext',
+            },
+            timeout=20,
+        )
+        if not mail_response.ok:
+            return False, f'A API de e-mail do Zoho respondeu HTTP {mail_response.status_code}.'
+        resultado = mail_response.json()
+        status = (resultado.get('status') or {}) if isinstance(resultado, dict) else {}
+        if status.get('code') not in (200, '200'):
+            return False, 'O Zoho recusou o envio do e-mail. Confira o remetente e as permissões OAuth.'
+        return True, None
+    except (requests.RequestException, ValueError) as error:
+        app.logger.warning('Falha na API de e-mail do Zoho: %s', error)
+        return False, 'Não foi possível conectar à API de e-mail do Zoho.'
+
+
 def enviar_email(destinatario, assunto, conteudo):
-    # Zoho Mail: use SSL na porta 465. As variáveis de ambiente podem
-    # substituir os padrões sem deixar a senha de aplicativo no código.
+    if not destinatario:
+        return False, 'Informe o e-mail de destino.'
+
+    provedor = provedor_email()
+    if provedor == 'zoho_api':
+        if not zoho_mail_api_configurado():
+            return False, 'Configure as credenciais da API do Zoho nas variáveis de ambiente.'
+        return enviar_email_zoho_api(destinatario, assunto, conteudo)
+    if provedor != 'smtp':
+        return False, 'EMAIL_PROVIDER deve ser smtp ou zoho_api.'
+
     smtp_host = os.getenv('SMTP_HOST', 'smtp.zoho.com').strip() or 'smtp.zoho.com'
     smtp_user = os.getenv('SMTP_USER', 'carlos.morais@helpiti.com.br').strip() or 'carlos.morais@helpiti.com.br'
     smtp_password = ''.join((os.getenv('SMTP_PASSWORD') or '').split())
-    if not smtp_password or not destinatario:
-        return False, 'Defina SMTP_PASSWORD com a senha de aplicativo Zoho e informe o e-mail de destino.'
+    if not smtp_password:
+        return False, 'Configure um provedor de e-mail nas variáveis de ambiente.'
 
     mensagem = EmailMessage()
     mensagem['Subject'] = assunto
@@ -1448,9 +1538,9 @@ def criar_conta():
         return jsonify({'erro': 'Use um e-mail empresarial; Gmail e Yahoo não são aceitos.'}), 400
     if len(senha) < 8:
         return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres'}), 400
-    if not smtp_configurado() and not codigo_no_terminal_permitido():
+    if not email_configurado() and not codigo_no_terminal_permitido():
         return jsonify({
-            'erro': 'O envio de códigos não está configurado. Configure SMTP no backend/.env.'
+            'erro': 'O envio de códigos não está configurado. Configure o provedor de e-mail no ambiente do backend.'
         }), 503
 
     conn = get_db_connection()
@@ -1502,7 +1592,7 @@ def criar_conta():
         cursor.close()
         conn.close()
 
-    if not smtp_configurado():
+    if not email_configurado():
         print(
             '\n' + '=' * 60 +
             f'\n[DEV MODE] Código de confirmação gerado para {email}: {codigo}\n' +
@@ -1533,7 +1623,7 @@ def criar_conta():
             conexao.close()
         app.logger.error('Falha ao enviar código de confirmação: %s', aviso)
         return jsonify({
-            'erro': 'Não foi possível enviar o código. Confira as configurações SMTP e tente novamente.'
+            'erro': 'Não foi possível enviar o código. Confira a configuração do provedor de e-mail e tente novamente.'
         }), 503
     return jsonify({
         'mensagem': 'Enviamos um código para esse endereço. Informe-o para confirmar o cadastro.'
@@ -1801,9 +1891,9 @@ def solicitar_codigo_recuperacao():
     email = (dados.get('email') or '').strip().lower()
     if not email_valido(email):
         return jsonify({'erro': 'Informe um endereço de e-mail válido.'}), 400
-    if not smtp_configurado():
+    if not email_configurado():
         return jsonify({
-            'erro': 'O envio de email não está configurado. Configure SMTP no backend/.env.'
+            'erro': 'O envio de e-mail não está configurado. Configure o provedor de e-mail no ambiente do backend.'
         }), 503
 
     conexao = get_db_connection()
@@ -1867,7 +1957,7 @@ def solicitar_codigo_recuperacao():
             conexao.commit()
             print(f'Falha ao enviar código de recuperação: {aviso_email}')
             return jsonify({
-                'erro': 'Não foi possível enviar o email. Confira as configurações SMTP e tente novamente.'
+                'erro': 'Não foi possível enviar o e-mail. Confira a configuração do provedor e tente novamente.'
             }), 503
         return jsonify({
             'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
