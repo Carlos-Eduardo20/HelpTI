@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, send_from_directory, session, g, url_for
+from flask import Flask, request, jsonify, redirect, send_from_directory, session, g
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 import os
@@ -6,14 +6,13 @@ import json
 import base64
 import re
 import secrets
-import hashlib
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 import webbrowser
-from threading import Timer
+from threading import Lock, Timer
 
 
 try:
@@ -23,21 +22,8 @@ except ImportError:
         return False
 
 try:
-    from authlib.integrations.base_client.errors import OAuthError
-    from authlib.integrations.flask_client import OAuth
-    from joserfc.errors import JoseError
     import requests
-    MICROSOFT_DISPONIVEL = True
 except ImportError:
-    OAuth = None
-    MICROSOFT_DISPONIVEL = False
-
-    class OAuthError(Exception):
-        pass
-
-    class JoseError(Exception):
-        pass
-
     class _RequestsAusente:
         class RequestException(Exception):
             pass
@@ -64,7 +50,6 @@ load_dotenv()
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-oauth = OAuth(app) if OAuth else None
 
 
 def _get_session_secret():
@@ -110,41 +95,23 @@ def _same_origin(value):
 
 def _registrar_tentativa_login():
     client = request.remote_addr or 'unknown'
-    client_hash = hashlib.sha256(
-        f'{app.config["SECRET_KEY"]}:{client}'.encode('utf-8')
-    ).hexdigest()
-    agora = datetime.now()
-    conexao = get_db_connection()
-    try:
-        cursor = conexao.cursor()
-        conexao.execute('BEGIN IMMEDIATE')
-        cursor.execute(
-            'SELECT window_started, attempts FROM login_rate_limit '
-            'WHERE client_hash = %s',
-            (client_hash,)
-        )
-        registro = cursor.fetchone()
-        if registro and agora - datetime.fromisoformat(
-            registro['window_started']
-        ) < timedelta(minutes=15):
-            if registro['attempts'] >= 10:
-                conexao.rollback()
-                return False
-            cursor.execute(
-                'UPDATE login_rate_limit SET attempts = attempts + 1 '
-                'WHERE client_hash = %s',
-                (client_hash,)
-            )
-        else:
-            cursor.execute(
-                'REPLACE INTO login_rate_limit '
-                '(client_hash, window_started, attempts) VALUES (%s, %s, 1)',
-                (client_hash, agora.isoformat(timespec='seconds'))
-            )
-        conexao.commit()
+    now = datetime.now().timestamp()
+    with _LOGIN_RATE_LIMIT_LOCK:
+        expired = [
+            address for address, (started, _attempts) in _LOGIN_RATE_LIMIT.items()
+            if now - started >= 15 * 60
+        ]
+        for address in expired:
+            del _LOGIN_RATE_LIMIT[address]
+        started, attempts = _LOGIN_RATE_LIMIT.get(client, (now, 0))
+        if attempts >= 10:
+            return False
+        _LOGIN_RATE_LIMIT[client] = (started, attempts + 1)
         return True
-    finally:
-        conexao.close()
+
+
+_LOGIN_RATE_LIMIT = {}
+_LOGIN_RATE_LIMIT_LOCK = Lock()
 
 
 @app.before_request
@@ -177,7 +144,7 @@ PERMISSOES_VALIDAS = {
     'educacao', 'configuracoes', 'gerenciar_equipe'
 }
 PAGINAS_PUBLICAS = {
-    'login.html', 'account.html', 'forgot-password.html'
+    'login.html', 'account.html'
 }
 PERMISSAO_PAGINA = {
     'dashboard.html': 'dashboard',
@@ -284,9 +251,7 @@ def _carregar_membro_da_sessao():
 def proteger_paginas_e_api():
     caminho = request.path
     if caminho in (
-        '/api/health', '/api/login', '/api/contas',
-        '/api/confirmar-conta', '/api/solicitar-codigo-recuperacao',
-        '/api/redefinir-senha', '/auth/microsoft', '/auth/microsoft/callback'
+        '/api/health', '/api/login', '/api/contas'
     ):
         return None
 
@@ -416,15 +381,6 @@ def zoho_mail_api_configurado():
     ))
 
 
-def email_configurado():
-    provedor = provedor_email()
-    if provedor == 'zoho_api':
-        return zoho_mail_api_configurado()
-    if provedor == 'smtp':
-        return smtp_configurado()
-    return False
-
-
 def enviar_email_zoho_api(destinatario, assunto, conteudo):
     contas_base = os.getenv('ZOHO_ACCOUNTS_BASE_URL', '').strip().rstrip('/')
     mail_base = os.getenv('ZOHO_MAIL_API_BASE_URL', '').strip().rstrip('/')
@@ -520,46 +476,6 @@ def enviar_email(destinatario, assunto, conteudo):
         return False, f'O e-mail não foi enviado: {error}'
 
 
-def codigo_no_terminal_permitido():
-    local = os.getenv('HELPTI_HOST', '127.0.0.1') in ('127.0.0.1', 'localhost', '::1')
-    producao = os.getenv('HELPTI_HTTPS_ONLY', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
-    return local and not producao and not os.getenv('PORT')
-
-
-def smtp_configurado():
-    return all((
-        os.getenv('SMTP_HOST', 'smtp.zoho.com').strip() or 'smtp.zoho.com',
-        os.getenv('SMTP_USER', 'carlos.morais@helpiti.com.br').strip() or 'carlos.morais@helpiti.com.br',
-        ''.join((os.getenv('SMTP_PASSWORD') or '').split()),
-    ))
-
-
-def cliente_microsoft():
-    client_id = os.getenv('MICROSOFT_CLIENT_ID', '').strip()
-    client_secret = os.getenv('MICROSOFT_CLIENT_SECRET', '').strip()
-    if not MICROSOFT_DISPONIVEL or not client_id or not client_secret:
-        return None
-
-    client = oauth.create_client('microsoft')
-    if client:
-        return client
-
-    tenant_id = os.getenv('MICROSOFT_TENANT_ID', 'common').strip() or 'common'
-    if not re.fullmatch(r'[A-Za-z0-9.-]+', tenant_id):
-        raise ValueError('MICROSOFT_TENANT_ID contém caracteres inválidos.')
-
-    return oauth.register(
-        name='microsoft',
-        client_id=client_id,
-        client_secret=client_secret,
-        server_metadata_url=(
-            f'https://login.microsoftonline.com/{tenant_id}/v2.0/'
-            '.well-known/openid-configuration'
-        ),
-        client_kwargs={'scope': 'openid profile email'},
-    )
-
-
 DOMINIOS_EMAIL_BLOQUEADOS = {
     'gmail.com', 'googlemail.com',
     'mailinator.com', 'tempmail.com', 'temp-mail.org', 'yopmail.com',
@@ -610,10 +526,9 @@ def get_chamados():
             nome_cliente = (g.membro.get('nome') or '').strip()
             cursor.execute('''
                 SELECT chamado.*, 
-                       COALESCE(chamado.setor, setor.nome, 'Geral') AS setor_nome,
+                       COALESCE(chamado.setor, 'Geral') AS setor_nome,
                        grupo_solucionadores.nome AS tecnico
                 FROM chamado
-                LEFT JOIN setor ON setor.id_setor = chamado.id_setor
                 LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
                 WHERE chamado.id_usuario = %s
                   AND (LOWER(chamado.email_cliente) = LOWER(%s) OR LOWER(chamado.cliente) = LOWER(%s))
@@ -622,10 +537,9 @@ def get_chamados():
         else:
             cursor.execute('''
                 SELECT chamado.*, 
-                       COALESCE(chamado.setor, setor.nome, 'Geral') AS setor_nome,
+                       COALESCE(chamado.setor, 'Geral') AS setor_nome,
                        grupo_solucionadores.nome AS tecnico
                 FROM chamado
-                LEFT JOIN setor ON setor.id_setor = chamado.id_setor
                 LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
                 WHERE chamado.id_usuario = %s
                 ORDER BY chamado.id_chamado DESC;
@@ -718,10 +632,9 @@ def get_chamado(id):
         workspace_id = _ws()
         cursor.execute('''
             SELECT chamado.*, 
-                   COALESCE(chamado.setor, setor.nome, 'Geral') AS setor_nome,
+                   COALESCE(chamado.setor, 'Geral') AS setor_nome,
                    grupo_solucionadores.nome AS tecnico
             FROM chamado
-            LEFT JOIN setor ON setor.id_setor = chamado.id_setor
             LEFT JOIN grupo_solucionadores ON grupo_solucionadores.id_grupo_solucionadores = chamado.id_grupo_solucionadores
             WHERE chamado.id_chamado = %s AND chamado.id_usuario = %s;
         ''', (id, workspace_id))
@@ -767,11 +680,11 @@ def create_chamado():
         telefone_cliente = (dados.get('telefone_cliente') or '').strip()
         contato_cliente = (dados.get('contato_cliente') or '').strip()
         telefone_contato = (dados.get('telefone_contato') or '').strip()
-        id_setor = dados.get('id_setor')
+        setor_nome = (dados.get('setor') or '').strip()
         id_grupo_solucionadores = dados.get('id_grupo_solucionadores')
         id_tipo_chamado = dados.get('id_tipo_chamado', 1)
 
-        if not cliente or not email_cliente or not telefone_cliente or not contato_cliente or not telefone_contato or not descricao or not id_setor or not id_grupo_solucionadores:
+        if not cliente or not email_cliente or not telefone_cliente or not contato_cliente or not telefone_contato or not descricao or not setor_nome or not id_grupo_solucionadores:
             return jsonify({'erro': 'Todos os campos do chamado são obrigatórios'}), 400
 
         conn = get_db_connection()
@@ -781,23 +694,17 @@ def create_chamado():
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT id_grupo_solucionadores
+            SELECT id_grupo_solucionadores, setor
             FROM grupo_solucionadores
-            WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO'
+            WHERE id_grupo_solucionadores = %s AND LOWER(TRIM(setor)) = LOWER(%s)
+              AND status = 'ATIVO'
               AND id_usuario = %s
-        ''', (id_grupo_solucionadores, id_setor, _ws()))
-        if not cursor.fetchone():
+        ''', (id_grupo_solucionadores, setor_nome, _ws()))
+        tecnico = cursor.fetchone()
+        if not tecnico:
             cursor.close()
             conn.close()
             return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
-
-        # Obter nome do setor para preencher o atributo 'setor'
-        setor_nome = (dados.get('setor') or '').strip()
-        if not setor_nome and id_setor:
-            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
-            row_setor = cursor.fetchone()
-            if row_setor:
-                setor_nome = row_setor[0]
 
         for _ in range(100):
             novo_id = 100000 + secrets.randbelow(900000)
@@ -809,11 +716,11 @@ def create_chamado():
         
         query = """
             INSERT INTO chamado
-                (id_chamado, id_tipo_chamado, id_setor, setor, id_grupo_solucionadores, status, cliente, descricao,
+                (id_chamado, id_tipo_chamado, setor, id_grupo_solucionadores, status, cliente, descricao,
                  email_cliente, telefone_cliente, contato_cliente, telefone_contato, id_usuario)
-            VALUES (%s, %s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (novo_id, id_tipo_chamado, id_setor, setor_nome, id_grupo_solucionadores,
+        cursor.execute(query, (novo_id, id_tipo_chamado, setor_nome, id_grupo_solucionadores,
                                cliente, descricao, email_cliente, telefone_cliente, contato_cliente, telefone_contato, _ws()))
         
         autor_chamado = g.membro.get('nome') if (hasattr(g, 'membro') and g.membro) else 'Sistema'
@@ -908,24 +815,34 @@ def update_chamado(id):
             evento_historico = 'pausado'
             descricao_historico = f'Atendimento pausado após {segundos // 60:02d}:{segundos % 60:02d} de trabalho.'
         elif acao == 'escalonar':
-            id_setor = dados.get('id_setor')
+            setor_destino_nome = (dados.get('setor_destino') or '').strip()
             id_tecnico = dados.get('id_grupo_solucionadores')
             motivo = (dados.get('descricao') or '').strip()
             if status != 'PAUSADO':
                 return jsonify({'erro': 'Pause o chamado antes de escaloná-lo'}), 400
-            if not id_setor or not id_tecnico or not motivo:
+            if not setor_destino_nome or not id_tecnico or not motivo:
                 return jsonify({'erro': 'Informe o setor, o técnico e a descrição do escalonamento'}), 400
-            cursor.execute("SELECT nivel, nome FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s AND id_setor = %s AND status = 'ATIVO' AND id_usuario = %s", (id_tecnico, id_setor, _ws()))
+            cursor.execute('''
+                SELECT nivel, nome, setor FROM grupo_solucionadores
+                WHERE id_grupo_solucionadores = %s
+                  AND LOWER(TRIM(setor)) = LOWER(%s)
+                  AND status = 'ATIVO' AND id_usuario = %s
+            ''', (id_tecnico, setor_destino_nome, _ws()))
             tecnico = cursor.fetchone()
             if not tecnico:
                 return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
-            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
-            setor_row = cursor.fetchone()
-            setor_destino_nome = setor_row[0] if setor_row else (dados.get('setor_destino') or '')
-            cursor.execute('UPDATE chamado SET id_setor = %s, setor = %s, id_grupo_solucionadores = %s WHERE id_chamado = %s', (id_setor, setor_destino_nome, id_tecnico, id))
-            cursor.execute('INSERT INTO escalonamento (id_chamado, motivo, nivel, data_escalonamento, id_setor_destino, setor_destino, id_grupo_destino) VALUES (%s, %s, %s, %s, %s, %s, %s)', (id, motivo, tecnico[0], agora.date(), id_setor, setor_destino_nome, id_tecnico))
+            cursor.execute(
+                'UPDATE chamado SET setor = %s, id_grupo_solucionadores = %s '
+                'WHERE id_chamado = %s',
+                (tecnico['setor'], id_tecnico, id),
+            )
+            cursor.execute('''
+                INSERT INTO escalonamento
+                    (id_chamado, motivo, nivel, data_escalonamento, setor_destino, id_grupo_destino)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (id, motivo, tecnico['nivel'], agora.date(), tecnico['setor'], id_tecnico))
             evento_historico = 'escalonado'
-            descricao_historico = f'Escalonado para {setor_destino_nome or "setor"} / {tecnico[1] or "técnico"}. Motivo: {motivo}'
+            descricao_historico = f'Escalonado para {tecnico["setor"] or "setor"} / {tecnico["nome"] or "técnico"}. Motivo: {motivo}'
         elif acao == 'encerrar':
             descricao_final = (dados.get('descricao_final') or '').strip()
             if status not in ('ANDAMENTO', 'PAUSADO') or not descricao_final:
@@ -1367,15 +1284,14 @@ def get_equipe():
         
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT grupo_solucionadores.*, setor.nome AS setor_nome
+            SELECT grupo_solucionadores.*
             FROM grupo_solucionadores
-            LEFT JOIN setor ON setor.id_setor = grupo_solucionadores.id_setor
             WHERE grupo_solucionadores.id_usuario = %s
             ORDER BY grupo_solucionadores.id_grupo_solucionadores DESC;
         ''', (g.membro['id_usuario'],))
         equipe = dict_fetchall(cursor)
         if 'equipe' not in _permissoes_do_membro(g.membro):
-            campos_de_apoio = ('id_grupo_solucionadores', 'nome', 'descricao', 'cargo', 'nivel', 'id_setor', 'setor_nome', 'status')
+            campos_de_apoio = ('id_grupo_solucionadores', 'nome', 'descricao', 'cargo', 'nivel', 'setor', 'status')
             equipe = [{campo: membro.get(campo) for campo in campos_de_apoio} for membro in equipe]
         for membro in equipe:
             membro.pop('senha', None)
@@ -1394,35 +1310,21 @@ def get_equipe():
 def create_equipe():
     try:
         dados = request.get_json() or {}
-        nome = dados.get('nome')
+        nome = (dados.get('nome') or '').strip()
         email = (dados.get('email') or '').strip().lower()
         cargo = 'Técnico'
-        try:
-            permissoes = _normalizar_permissoes(None, cargo)
-        except ValueError as error:
-            return jsonify({'erro': str(error)}), 400
         nivel = dados.get('nivel') or None
         valor_hora = dados.get('valor_hora') or None
-        id_setor = dados.get('id_setor') or None
         telefone = dados.get('telefone') or None
         data_inicio = dados.get('data_inicio') or datetime.now().date()
-        if not nome or not email:
-            return jsonify({'erro': 'Nome e e-mail são obrigatórios'}), 400
+        setor_nome = (dados.get('setor') or '').strip()
+        if not nome or not email or not setor_nome:
+            return jsonify({'erro': 'Nome, e-mail e setor são obrigatórios'}), 400
 
         conn = get_db_connection()
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        setor_nome = (dados.get('setor') or '').strip()
-        if id_setor:
-            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (id_setor, _ws()))
-            row_setor = cursor.fetchone()
-            if not row_setor:
-                cursor.close()
-                conn.close()
-                return jsonify({'erro': 'Setor inválido para esta empresa'}), 400
-            if not setor_nome:
-                setor_nome = row_setor[0]
         cursor.execute('SELECT 1 FROM grupo_solucionadores WHERE LOWER(email) = LOWER(%s)', (email,))
         if cursor.fetchone():
             cursor.close()
@@ -1430,19 +1332,18 @@ def create_equipe():
             return jsonify({'erro': 'Já existe um funcionário com este e-mail.'}), 409
         cursor.execute(
             """INSERT INTO grupo_solucionadores
-            (descricao, nivel, nome, email, cargo, setor, valor_hora, id_setor, data_inicio,
+            (descricao, nivel, nome, email, cargo, setor, valor_hora, data_inicio,
              status, senha, telefone, permissoes, id_usuario)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s, %s, %s)""",
-            (nome, nivel, nome, email, cargo, setor_nome, valor_hora, id_setor, data_inicio,
-             generate_password_hash(secrets.token_urlsafe(32)), telefone,
-             json.dumps(sorted(permissoes)), g.membro['id_usuario'])
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', '', %s, '[]', %s)""",
+            (nome, nivel, nome, email, cargo, setor_nome, valor_hora, data_inicio,
+             telefone, g.membro['id_usuario'])
         )
         conn.commit()
         novo_id = cursor.lastrowid
         cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (novo_id,))
         novo_membro = dict_fetchone(cursor)
         novo_membro.pop('senha', None)
-        novo_membro['permissoes'] = sorted(permissoes)
+        novo_membro.pop('permissoes', None)
         cursor.close()
         conn.close()
         return jsonify(novo_membro), 201
@@ -1454,12 +1355,11 @@ def update_equipe(id):
     dados = request.get_json() or {}
     if (dados.get('cargo') or '').strip().lower() == 'administrador':
         return jsonify({'erro': 'Funcionários não podem ser promovidos a administrador por esta operação.'}), 400
-    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'cargo', 'id_setor', 'setor', 'nivel', 'status') if campo in dados}
-    try:
-        if 'permissoes' in dados:
-            campos['permissoes'] = json.dumps(sorted(_normalizar_permissoes(dados['permissoes'], dados.get('cargo'))))
-    except ValueError as error:
-        return jsonify({'erro': str(error)}), 400
+    campos = {campo: dados[campo] for campo in ('email', 'telefone', 'data_inicio', 'valor_hora', 'setor', 'nivel', 'status') if campo in dados}
+    if 'setor' in campos:
+        campos['setor'] = (campos['setor'] or '').strip()
+        if not campos['setor']:
+            return jsonify({'erro': 'O setor não pode ficar vazio.'}), 400
     if not campos:
         return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
     try:
@@ -1467,15 +1367,6 @@ def update_equipe(id):
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        if campos.get('id_setor'):
-            cursor.execute('SELECT nome FROM setor WHERE id_setor = %s AND id_usuario = %s', (campos['id_setor'], _ws()))
-            row_setor = cursor.fetchone()
-            if not row_setor:
-                cursor.close()
-                conn.close()
-                return jsonify({'erro': 'Setor inválido para esta empresa'}), 400
-            if 'setor' not in campos or not campos['setor']:
-                campos['setor'] = row_setor[0]
         valores = list(campos.values()) + [id]
         cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s AND id_usuario = %s", valores + [g.membro['id_usuario']])
         conn.commit()
@@ -1538,192 +1429,56 @@ def criar_conta():
         return jsonify({'erro': 'Use um e-mail empresarial; Gmail e Yahoo não são aceitos.'}), 400
     if len(senha) < 8:
         return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres'}), 400
-    if not email_configurado() and not codigo_no_terminal_permitido():
-        return jsonify({
-            'erro': 'O envio de códigos não está configurado. Configure o provedor de e-mail no ambiente do backend.'
-        }), 503
 
     conn = get_db_connection()
-    cursor = conn.cursor()
-    email = email.lower()
     try:
+        cursor = conn.cursor()
+        conn.execute('BEGIN IMMEDIATE')
         cursor.execute('SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1', (email,))
         if cursor.fetchone():
+            conn.rollback()
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
 
         cursor.execute("SELECT id_usuario, nome FROM usuario WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = %s LIMIT 1", (email,))
         if cursor.fetchone():
+            conn.rollback()
             return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail'}), 409
 
+        cursor.execute(
+            "INSERT INTO usuario (nome, email, status, tipo_usuario, workspace_name, support_email) "
+            "VALUES (%s, %s, 'ATIVO', 'WORKSPACE', %s, %s)",
+            (empresa, email, empresa, email),
+        )
+        workspace_id = cursor.lastrowid
+        permissoes = sorted(PERMISSOES_VALIDAS)
         cursor.execute('''
-            SELECT criado_em FROM verificacao_cadastro_email
-            WHERE email = %s
-            ORDER BY id_verificacao DESC LIMIT 1
-        ''', (email,))
-        anterior = cursor.fetchone()
-        agora = datetime.now()
-        if anterior and agora - datetime.fromisoformat(anterior['criado_em']) < timedelta(seconds=60):
-            conn.rollback()
-            return jsonify({
-                'erro': 'Aguarde um minuto antes de solicitar outro código.'
-            }), 429
-
-        codigo = f'{secrets.randbelow(1_000_000):06d}'
-        cursor.execute('''
-            UPDATE verificacao_cadastro_email SET usado = 1
-            WHERE email = %s AND usado = 0
-        ''', (email,))
-        cursor.execute('''
-            INSERT INTO verificacao_cadastro_email
-                (nome, empresa, email, senha_hash, codigo_hash, criado_em, expira_em)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO grupo_solucionadores
+                (descricao, nome, email, cargo, setor, status, senha, id_usuario, permissoes)
+            VALUES (%s, %s, %s, 'Administrador', 'Suporte', 'ATIVO', %s, %s, %s)
         ''', (
-            nome, empresa, email, generate_password_hash(senha),
-            _hash_codigo_recuperacao(codigo),
-            agora.isoformat(timespec='seconds'),
-            (agora + timedelta(minutes=10)).isoformat(timespec='seconds')
+            empresa, nome, email, generate_password_hash(senha),
+            workspace_id, json.dumps(permissoes)
         ))
+        membro_id = cursor.lastrowid
         conn.commit()
     except Error as error:
         conn.rollback()
-        app.logger.exception('Não foi possível iniciar o cadastro da conta.', exc_info=error)
-        return jsonify({'erro': 'Não foi possível iniciar o cadastro da conta.'}), 500
+        app.logger.exception('Não foi possível criar a conta.', exc_info=error)
+        return jsonify({'erro': 'Não foi possível criar a conta.'}), 500
     finally:
         cursor.close()
         conn.close()
 
-    if not email_configurado():
-        print(
-            '\n' + '=' * 60 +
-            f'\n[DEV MODE] Código de confirmação gerado para {email}: {codigo}\n' +
-            '=' * 60 + '\n',
-            flush=True,
-        )
-        return jsonify({
-            'mensagem': 'Modo de desenvolvimento: o código foi exibido no terminal onde o HelpTI está rodando.'
-        }), 202
-
-    enviado, aviso = enviar_email(
-        email,
-        'Confirme seu e-mail para criar a conta HelpTI',
-        f'Olá, {nome}.\n\n'
-        f'Seu código de confirmação é: {codigo}\n'
-        'Ele expira em 10 minutos e pode ser usado uma única vez.'
-    )
-    if not enviado:
-        conexao = get_db_connection()
-        try:
-            cursor = conexao.cursor()
-            cursor.execute('''
-                UPDATE verificacao_cadastro_email SET usado = 1
-                WHERE email = %s AND usado = 0
-            ''', (email,))
-            conexao.commit()
-        finally:
-            conexao.close()
-        app.logger.error('Falha ao enviar código de confirmação: %s', aviso)
-        return jsonify({
-            'erro': 'Não foi possível enviar o código. Confira a configuração do provedor de e-mail e tente novamente.'
-        }), 503
+    session.clear()
+    session['grupo_id'] = membro_id
     return jsonify({
-        'mensagem': 'Enviamos um código para esse endereço. Informe-o para confirmar o cadastro.'
-    }), 202
-
-
-@app.route('/api/confirmar-conta', methods=['POST'])
-def confirmar_conta():
-    dados = request.get_json() or {}
-    email = (dados.get('email') or '').strip().lower()
-    codigo = (dados.get('codigo') or '').strip()
-    if not email_valido(email) or not re.fullmatch(r'[0-9]{6}', codigo):
-        return jsonify({'erro': 'Informe o e-mail e o código de seis dígitos.'}), 400
-
-    conexao = get_db_connection()
-    try:
-        cursor = conexao.cursor()
-        conexao.execute('BEGIN IMMEDIATE')
-        cursor.execute('''
-            SELECT id_verificacao, nome, empresa, senha_hash, codigo_hash, expira_em, tentativas
-            FROM verificacao_cadastro_email
-            WHERE email = %s AND usado = 0
-            ORDER BY id_verificacao DESC LIMIT 1
-        ''', (email,))
-        registro = cursor.fetchone()
-        agora = datetime.now()
-        if not registro or datetime.fromisoformat(registro['expira_em']) <= agora:
-            conexao.rollback()
-            return jsonify({'erro': 'Código inválido ou expirado. Solicite um novo código.'}), 400
-        if registro['tentativas'] >= 5:
-            cursor.execute(
-                'UPDATE verificacao_cadastro_email SET usado = 1 WHERE id_verificacao = %s',
-                (registro['id_verificacao'],)
-            )
-            conexao.commit()
-            return jsonify({'erro': 'Limite de tentativas excedido. Solicite um novo código.'}), 400
-        if not secrets.compare_digest(
-            registro['codigo_hash'], _hash_codigo_recuperacao(codigo)
-        ):
-            cursor.execute(
-                'UPDATE verificacao_cadastro_email SET tentativas = tentativas + 1 '
-                'WHERE id_verificacao = %s',
-                (registro['id_verificacao'],)
-            )
-            conexao.commit()
-            return jsonify({'erro': 'Código inválido ou expirado. Solicite um novo código.'}), 400
-
-        cursor.execute(
-            'SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE LOWER(email) = %s LIMIT 1',
-            (email,)
-        )
-        if cursor.fetchone():
-            conexao.rollback()
-            return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail.'}), 409
-        cursor.execute("SELECT id_usuario FROM usuario WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = %s LIMIT 1", (email,))
-        if cursor.fetchone():
-            conexao.rollback()
-            return jsonify({'erro': 'Já existe uma conta cadastrada com este e-mail.'}), 409
-
-        cursor.execute(
-            "INSERT INTO usuario (nome, email, status, tipo_usuario) VALUES (%s, %s, 'ATIVO', 'WORKSPACE')",
-            (registro['empresa'], email)
-        )
-        workspace_id = cursor.lastrowid
-        cursor.execute(
-            'UPDATE usuario SET workspace_name = %s, support_email = %s WHERE id_usuario = %s',
-            (registro['empresa'], email, workspace_id)
-        )
-        nome_membro = registro['nome'] or re.sub(r'[-_.]+', ' ', email.split('@', 1)[0]).title()
-        permissoes = sorted(PERMISSOES_VALIDAS)
-        cursor.execute('''
-            INSERT INTO grupo_solucionadores
-                (descricao, nome, email, cargo, status, email_verificado, senha, id_usuario, permissoes)
-            VALUES (%s, %s, %s, 'Administrador', 'ATIVO', 1, %s, %s, %s)
-        ''', (
-            registro['empresa'], nome_membro, email, registro['senha_hash'],
-            workspace_id, json.dumps(permissoes)
-        ))
-        membro_id = cursor.lastrowid
-        cursor.execute(
-            'UPDATE verificacao_cadastro_email SET usado = 1 WHERE email = %s',
-            (email,)
-        )
-        conexao.commit()
-        session.clear()
-        session['grupo_id'] = membro_id
-        return jsonify({
-            'id': membro_id,
-            'nome': nome_membro,
-            'email': email,
-            'empresaNome': registro['empresa'],
-            'cargo': 'Administrador',
-            'permissoes': permissoes
-        }), 201
-    except Error as error:
-        conexao.rollback()
-        app.logger.exception('Não foi possível confirmar o cadastro da conta.', exc_info=error)
-        return jsonify({'erro': 'Não foi possível confirmar o cadastro da conta.'}), 500
-    finally:
-        conexao.close()
+        'id': membro_id,
+        'nome': nome,
+        'email': email,
+        'empresaNome': empresa,
+        'cargo': 'Administrador',
+        'permissoes': permissoes,
+    }), 201
 
 
 @app.route('/api/login', methods=['POST'])
@@ -1782,252 +1537,6 @@ def login():
         'empresaNome': usuario.get('empresa_nome') or obter_nome_empresa(usuario['email']),
         'permissoes': permissoes
     }), 200
-
-
-@app.route('/auth/microsoft')
-def entrar_com_microsoft():
-    client = cliente_microsoft()
-    if not client:
-        return redirect('/frontend/pages/login.html?erro=microsoft_nao_configurado')
-    redirect_uri = os.getenv('MICROSOFT_REDIRECT_URI') or url_for(
-        'callback_microsoft', _external=True
-    )
-    return client.authorize_redirect(redirect_uri)
-
-
-@app.route('/auth/microsoft/callback')
-def callback_microsoft():
-    client = cliente_microsoft()
-    if not client:
-        return redirect('/frontend/pages/login.html?erro=microsoft_nao_configurado')
-    try:
-        token = client.authorize_access_token(claims_options={
-            'iss': {'essential': True, 'validate': _validar_issuer_microsoft},
-            'tid': {'essential': True, 'validate': _tenant_microsoft_valido},
-        })
-    except (OAuthError, JoseError, requests.RequestException):
-        app.logger.warning('A autenticação Microsoft foi cancelada ou recusada.')
-        return redirect('/frontend/pages/login.html?erro=microsoft_cancelado')
-
-    identidade = token.get('userinfo')
-    if not identidade:
-        identidade = client.userinfo(token=token)
-    subject = identidade.get('sub')
-    tenant_id = identidade.get('tid')
-    email = (identidade.get('email') or identidade.get('preferred_username') or '').strip().lower()
-    if not subject or not tenant_id or not email_valido(email):
-        app.logger.warning('A resposta de identidade Microsoft não incluiu os identificadores esperados.')
-        return redirect('/frontend/pages/login.html?erro=microsoft_identidade_invalida')
-
-    conexao = get_db_connection()
-    try:
-        cursor = conexao.cursor()
-        conexao.execute('BEGIN IMMEDIATE')
-        cursor.execute('''
-            SELECT membro.id_grupo_solucionadores AS id, membro.email, membro.cargo,
-                   membro.status, membro.email_verificado, membro.id_usuario,
-                   membro.nome, usuario.nome AS empresa_nome
-            FROM identidade_microsoft AS identidade
-            JOIN grupo_solucionadores AS membro
-              ON membro.id_grupo_solucionadores = identidade.id_grupo_solucionadores
-            JOIN usuario ON usuario.id_usuario = membro.id_usuario
-            WHERE identidade.tenant_id = %s AND identidade.object_id = %s
-        ''', (tenant_id, subject))
-        membro = cursor.fetchone()
-        if not membro:
-            cursor.execute('''
-                SELECT membro.id_grupo_solucionadores AS id, membro.email, membro.cargo,
-                       membro.status, membro.email_verificado, membro.id_usuario,
-                       membro.nome, usuario.nome AS empresa_nome
-                FROM grupo_solucionadores AS membro
-                JOIN usuario ON usuario.id_usuario = membro.id_usuario
-                WHERE LOWER(membro.email) = %s
-                ORDER BY membro.id_grupo_solucionadores DESC LIMIT 1
-            ''', (email,))
-            membro = cursor.fetchone()
-            if not membro or not membro['email_verificado']:
-                return redirect('/frontend/pages/login.html?erro=microsoft_sem_conta')
-            try:
-                cursor.execute('''
-                    INSERT INTO identidade_microsoft
-                        (id_grupo_solucionadores, tenant_id, object_id)
-                    VALUES (%s, %s, %s)
-                ''', (membro['id'], tenant_id, subject))
-                conexao.commit()
-            except Error:
-                conexao.rollback()
-                return redirect('/frontend/pages/login.html?erro=microsoft_conta_vinculada')
-    finally:
-        conexao.close()
-
-    if membro['status'] not in (None, 'ATIVO'):
-        return redirect('/frontend/pages/login.html?erro=conta_inativa')
-    session.clear()
-    session['grupo_id'] = membro['id']
-    session.permanent = True
-    return redirect('/frontend/pages/login.html?microsoft=ok')
-
-
-def _tenant_microsoft_valido(_claims, tenant_id):
-    return isinstance(tenant_id, str) and bool(re.fullmatch(
-        r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
-        tenant_id.lower()
-    ))
-
-
-def _validar_issuer_microsoft(claims, issuer):
-    tenant_id = claims.get('tid')
-    return (
-        _tenant_microsoft_valido(claims, tenant_id)
-        and issuer == f'https://login.microsoftonline.com/{tenant_id.lower()}/v2.0'
-    )
-
-
-def _hash_codigo_recuperacao(codigo):
-    return hashlib.sha256(codigo.encode('ascii')).hexdigest()
-
-
-@app.route('/api/solicitar-codigo-recuperacao', methods=['POST'])
-def solicitar_codigo_recuperacao():
-    dados = request.get_json() or {}
-    email = (dados.get('email') or '').strip().lower()
-    if not email_valido(email):
-        return jsonify({'erro': 'Informe um endereço de e-mail válido.'}), 400
-    if not email_configurado():
-        return jsonify({
-            'erro': 'O envio de e-mail não está configurado. Configure o provedor de e-mail no ambiente do backend.'
-        }), 503
-
-    conexao = get_db_connection()
-    try:
-        cursor = conexao.cursor()
-        cursor.execute('''
-            SELECT id_grupo_solucionadores, nome
-            FROM grupo_solucionadores
-            WHERE LOWER(email) = %s AND status = 'ATIVO'
-            ORDER BY id_grupo_solucionadores DESC
-            LIMIT 1
-        ''', (email,))
-        membro = cursor.fetchone()
-        if not membro:
-            return jsonify({
-                'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
-            }), 202
-
-        agora = datetime.now()
-        cursor.execute('''
-            SELECT criado_em FROM codigo_recuperacao_senha
-            WHERE id_grupo_solucionadores = %s
-            ORDER BY id_codigo DESC LIMIT 1
-        ''', (membro['id_grupo_solucionadores'],))
-        codigo_anterior = cursor.fetchone()
-        if codigo_anterior:
-            criado_em = datetime.fromisoformat(codigo_anterior['criado_em'])
-            if agora - criado_em < timedelta(seconds=60):
-                return jsonify({
-                    'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
-                }), 202
-
-        codigo = f'{secrets.randbelow(1_000_000):06d}'
-        cursor.execute('''
-            UPDATE codigo_recuperacao_senha SET usado = 1
-            WHERE id_grupo_solucionadores = %s AND usado = 0
-        ''', (membro['id_grupo_solucionadores'],))
-        cursor.execute('''
-            INSERT INTO codigo_recuperacao_senha
-                (id_grupo_solucionadores, codigo_hash, criado_em, expira_em)
-            VALUES (%s, %s, %s, %s)
-        ''', (
-            membro['id_grupo_solucionadores'],
-            _hash_codigo_recuperacao(codigo),
-            agora.isoformat(timespec='seconds'),
-            (agora + timedelta(minutes=10)).isoformat(timespec='seconds')
-        ))
-        conexao.commit()
-        email_enviado, aviso_email = enviar_email(
-            email,
-            'Código para redefinir sua senha do HelpTI',
-            f"Olá, {membro['nome'] or 'usuário'}.\n\n"
-            f'Seu código de recuperação é: {codigo}\n'
-            'Ele expira em 10 minutos e pode ser usado uma única vez.'
-        )
-        if not email_enviado:
-            cursor.execute('''
-                UPDATE codigo_recuperacao_senha SET usado = 1
-                WHERE id_grupo_solucionadores = %s AND usado = 0
-            ''', (membro['id_grupo_solucionadores'],))
-            conexao.commit()
-            print(f'Falha ao enviar código de recuperação: {aviso_email}')
-            return jsonify({
-                'erro': 'Não foi possível enviar o e-mail. Confira a configuração do provedor e tente novamente.'
-            }), 503
-        return jsonify({
-            'mensagem': 'Se o email estiver cadastrado, enviaremos um código de recuperação.'
-        }), 202
-    finally:
-        conexao.close()
-
-
-@app.route('/api/redefinir-senha', methods=['POST'])
-def redefinir_senha():
-    dados = request.get_json() or {}
-    email = (dados.get('email') or '').strip().lower()
-    codigo = (dados.get('codigo') or '').strip()
-    senha = dados.get('senha') or ''
-    if not email_valido(email) or not re.fullmatch(r'[0-9]{6}', codigo):
-        return jsonify({'erro': 'Informe o email e o código de seis dígitos.'}), 400
-    if len(senha) < 8:
-        return jsonify({'erro': 'A nova senha deve ter pelo menos 8 caracteres.'}), 400
-
-    conexao = get_db_connection()
-    try:
-        cursor = conexao.cursor()
-        cursor.execute('''
-            SELECT reset.id_codigo, reset.id_grupo_solucionadores,
-                   reset.codigo_hash, reset.expira_em, reset.tentativas
-            FROM codigo_recuperacao_senha AS reset
-            JOIN grupo_solucionadores AS membro
-              ON membro.id_grupo_solucionadores = reset.id_grupo_solucionadores
-            WHERE LOWER(membro.email) = %s
-              AND membro.status = 'ATIVO'
-              AND reset.usado = 0
-            ORDER BY reset.id_codigo DESC
-            LIMIT 1
-        ''', (email,))
-        registro = cursor.fetchone()
-        agora = datetime.now()
-        if not registro or datetime.fromisoformat(registro['expira_em']) <= agora:
-            conexao.rollback()
-            return jsonify({'erro': 'Código inválido ou expirado. Solicite outro código.'}), 400
-        if registro['tentativas'] >= 5:
-            cursor.execute(
-                'UPDATE codigo_recuperacao_senha SET usado = 1 WHERE id_codigo = %s',
-                (registro['id_codigo'],)
-            )
-            conexao.commit()
-            return jsonify({'erro': 'Limite de tentativas excedido. Solicite outro código.'}), 400
-        if not secrets.compare_digest(
-            registro['codigo_hash'], _hash_codigo_recuperacao(codigo)
-        ):
-            cursor.execute(
-                'UPDATE codigo_recuperacao_senha SET tentativas = tentativas + 1 WHERE id_codigo = %s',
-                (registro['id_codigo'],)
-            )
-            conexao.commit()
-            return jsonify({'erro': 'Código inválido ou expirado. Solicite outro código.'}), 400
-
-        cursor.execute(
-            'UPDATE grupo_solucionadores SET senha = %s WHERE id_grupo_solucionadores = %s',
-            (generate_password_hash(senha), registro['id_grupo_solucionadores'])
-        )
-        cursor.execute(
-            'UPDATE codigo_recuperacao_senha SET usado = 1 WHERE id_grupo_solucionadores = %s',
-            (registro['id_grupo_solucionadores'],)
-        )
-        conexao.commit()
-        return jsonify({'mensagem': 'Senha redefinida. Faça login com a nova senha.'}), 200
-    finally:
-        conexao.close()
 
 
 @app.route('/api/sessao', methods=['GET'])
@@ -2092,76 +1601,16 @@ def get_setores():
         if not conn:
             return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
         cursor = conn.cursor()
-        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_usuario = %s ORDER BY nome;', (_ws(),))
+        cursor.execute('''
+            SELECT DISTINCT TRIM(setor) AS nome
+            FROM grupo_solucionadores
+            WHERE id_usuario = %s AND setor IS NOT NULL AND TRIM(setor) <> ''
+            ORDER BY nome
+        ''', (_ws(),))
         setores = dict_fetchall(cursor)
-        for setor in setores:
-            try:
-                setor['niveis'] = json.loads(setor.get('niveis') or '[]')
-            except (TypeError, json.JSONDecodeError):
-                setor['niveis'] = []
         cursor.close()
         conn.close()
         return jsonify(setores), 200
-    except Error as e:
-        return jsonify({'erro': str(e)}), 500
-
-@app.route('/api/setores', methods=['POST'])
-def create_setor():
-    try:
-        dados = request.get_json() or {}
-        nome = (dados.get('nome') or '').strip()
-        descricao = (dados.get('descricao') or '').strip()
-        niveis = dados.get('niveis') or []
-        if not nome:
-            return jsonify({'erro': 'Nome do setor é obrigatório'}), 400
-        if not isinstance(niveis, list):
-            return jsonify({'erro': 'Os níveis devem ser uma lista'}), 400
-        niveis = [f'Nível {indice}' for indice, _ in enumerate(niveis, start=1)]
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
-        cursor = conn.cursor()
-        cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_usuario = %s AND LOWER(nome) = LOWER(%s) LIMIT 1;', (_ws(), nome))
-        setor = dict_fetchone(cursor)
-        if not setor:
-            cursor.execute('INSERT INTO setor (nome, descricao, niveis, id_usuario) VALUES (%s, %s, %s, %s);', (nome, descricao, json.dumps(niveis, ensure_ascii=False), _ws()))
-            conn.commit()
-            cursor.execute('SELECT id_setor, nome, descricao, niveis FROM setor WHERE id_setor = %s;', (cursor.lastrowid,))
-            setor = dict_fetchone(cursor)
-        cursor.close()
-        conn.close()
-        try:
-            setor['niveis'] = json.loads(setor.get('niveis') or '[]')
-        except (TypeError, json.JSONDecodeError):
-            setor['niveis'] = []
-        return jsonify(setor), 201
-    except Error as e:
-        return jsonify({'erro': str(e)}), 500
-
-@app.route('/api/setores/<int:id>', methods=['DELETE'])
-def delete_setor(id):
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'erro': 'Erro ao conectar ao banco'}), 500
-
-        cursor = conn.cursor()
-        cursor.execute('SELECT 1 FROM setor WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
-        if not cursor.fetchone():
-            cursor.close()
-            conn.close()
-            return jsonify({'erro': 'Setor não encontrado'}), 404
-        cursor.execute('UPDATE grupo_solucionadores SET id_setor = NULL, nivel = NULL WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
-        cursor.execute('UPDATE chamado SET id_setor = NULL WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
-        cursor.execute('DELETE FROM setor WHERE id_setor = %s AND id_usuario = %s;', (id, _ws()))
-        removido = cursor.rowcount
-        conn.commit()
-
-        cursor.close()
-        conn.close()
-        if not removido:
-            return jsonify({'erro': 'Setor não encontrado'}), 404
-        return jsonify({'mensagem': 'Setor e níveis removidos com sucesso'}), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
 
@@ -2286,7 +1735,6 @@ def update_configuracoes():
 # Tabelas do workspace e a cláusula que as restringe à empresa ativa.
 _WS_TABELAS_BACKUP = (
     ('usuario', 'id_usuario = %s OR id_workspace = %s', 2),
-    ('setor', 'id_usuario = %s', 1),
     ('grupo_solucionadores', 'id_usuario = %s', 1),
     ('cliente', 'id_workspace = %s OR id_usuario IN (SELECT id_usuario FROM usuario WHERE id_workspace = %s)', 2),
     ('chamado', 'id_usuario = %s', 1),
@@ -2402,7 +1850,6 @@ def admin_db_reset_demo():
         conn.execute('DELETE FROM chamado WHERE id_usuario = %s', (ws,))
         conn.execute("DELETE FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = %s", (ws,))
         conn.execute('DELETE FROM grupo_solucionadores WHERE id_usuario = %s AND LOWER(email) <> %s', (ws, DEMO_EMAIL))
-        conn.execute("DELETE FROM setor WHERE id_usuario = %s AND LOWER(nome) <> 'suporte'", (ws,))
         conn.commit()
         apply_demo_seed(conn)
         return jsonify({

@@ -16,7 +16,7 @@ O arquivo `backend/app.py` inicia a API e também serve o frontend. A rota `/` r
 
 #### Banco de dados
 
-O SQLite armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações em `instance/helpti.sqlite3`. Configure `DB_SQLITE_PATH` somente se precisar usar outro caminho. A aplicação cria as tabelas automaticamente. No modo demonstração, a conta local `test@helpiti.com` / `HelpTI2026!` e um setor vazio `Suporte` são criados.
+O SQLite armazena chamados, clientes, contatos, equipe, escalonamentos e configurações em `instance/helpti.sqlite3`. O setor é um campo de texto nos funcionários e chamados; não existe tabela `setor`. Configure `DB_SQLITE_PATH` somente se precisar usar outro caminho. A aplicação cria as tabelas automaticamente. Com `HELPTI_DEMO_MODE=true`, é criada a conta local `test@helpiti.com` / `HelpTI2026!!`, associada ao setor `Suporte`.
 
 ## Endpoints da API
 
@@ -100,7 +100,7 @@ await criarChamado({
   telefone_cliente: '1133334444',
   contato_cliente: 'Ana Souza',
   telefone_contato: '11999998888',
-  id_setor: 1,
+  setor: 'Suporte',
   id_grupo_solucionadores: 1,
   descricao: 'Falha ao conectar na rede',
 });

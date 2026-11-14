@@ -121,63 +121,40 @@
   <main class="main-container">
     <div class="page-title-bar">
       <div>
-        <h1>Funcionários e Setores</h1>
-        <p>Controle de equipe interna e permissões de acesso.</p>
+        <h1>Funcionários</h1>
+        <p>Consulte o resumo dos funcionários e seus setores.</p>
       </div>
     </div>
 
     <section class="content-card">
       <div class="card-header">
-        <h2>Setores</h2>
+        <h2>Funcionários</h2>
         <div class="card-header-actions">
-          <button class="btn-primary" type="button" onclick="openModal('modal-setor')">
+          <button class="btn-primary" type="button" onclick="openModal('modal-equipe')">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
               stroke="var(--white)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               class="lucide lucide-plus-icon lucide-plus">
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
-            Novo Setor</button>
+            Novo Funcionário</button>
         </div>
       </div>
       <div class="table-wrapper">
         <table class="data-table">
-          <tbody id="tabelaSetores"></tbody>
+          <thead>
+            <tr>
+              <th>Funcionário</th>
+              <th>Cargo</th>
+              <th>Setor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaEquipe"></tbody>
         </table>
       </div>
     </section>
 
-    <div id="modal-setor" class="modal-overlay">
-      <div class="modal-card sector-modal-card">
-        <div class="modal-header">
-          <h2>Novo Setor</h2>
-          <button class="modal-close" type="button" onclick="closeModal('modal-setor')">&times;</button>
-        </div>
-        <form id="form-novo-setor" onsubmit="salvarSetor(event)">
-          <div class="form-group">
-            <label for="nome-setor">Nome do setor</label>
-            <input id="nome-setor" name="nome" type="text" required placeholder="Ex: Infraestrutura">
-          </div>
-          <label class="level-toggle" for="possui-nivel">
-            <input id="possui-nivel" type="checkbox">
-            <span>Possui Nível?</span>
-          </label>
-          <div id="levels-editor" class="levels-editor" hidden>
-            <div class="levels-editor-header">
-              <span>Níveis do setor</span>
-              <button type="button" class="button button--secondary" id="adicionar-nivel">Adicionar nível</button>
-            </div>
-            <div id="levels-list" class="levels-list"></div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="button button--secondary" onclick="closeModal('modal-setor')">Cancelar</button>
-            <button type="submit" class="button button--primary">Criar Setor</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- MODAL 2: Novo Membro da Equipe -->
     <div id="modal-equipe" class="modal-overlay">
       <div class="modal-card">
         <div class="modal-header">
@@ -198,75 +175,15 @@
             <input name="email" type="email" required placeholder="ana@helpti.com">
           </div>
           <div class="form-group">
-            <label>Valor Hora (R$)</label>
-            <input name="valor_hora" type="number" step="0.01" required placeholder="35.00">
-          </div>
-          <div class="form-group">
             <label for="setor-membro">Setor</label>
-            <input id="setor-membro" name="setor" type="text" list="setores-disponiveis" required pattern="[A-Za-zÀ-ÿ ]+" title="Digite apenas letras e espaços"
-              placeholder="Digite ou selecione um setor">
-            <datalist id="setores-disponiveis"></datalist>
+            <input id="setor-membro" name="setor" type="text" required maxlength="120" placeholder="Ex: Suporte">
           </div>
-          <div class="form-group">
-            <label for="nivel-membro">Nível</label>
-            <select id="nivel-membro" name="nivel">
-              <option value="">Selecione um setor primeiro</option>
-            </select>
-          </div>
-          <p class="form-helper">O funcionário poderá criar uma senha usando “Esqueceu a senha?” na tela de login.</p>
           <div class="modal-footer">
             <button type="button" class="button button--secondary"
               onclick="closeModal('modal-equipe')">Cancelar</button>
             <button type="submit" class="button button--primary">Cadastrar membro</button>
           </div>
         </form>
-      </div>
-    </div>
-
-    <div id="modal-participantes" class="modal-overlay">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2 id="participantes-titulo">Participantes</h2>
-          <button class="modal-close" onclick="closeModal('modal-participantes')"></button>
-        </div>
-        <div id="lista-participantes" class="participants-list">
-          <button>
-            <a href="equipe-detalhe.html"></a>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="modal-nivel" class="modal-overlay">
-      <div class="modal-card level-detail-card">
-        <div class="modal-header">
-          <div>
-            <h2 id="nivel-titulo">Nível</h2>
-            <p id="nivel-setor" class="modal-subtitle"></p>
-          </div>
-          <button class="modal-close" type="button" onclick="closeModal('modal-nivel')">&times;</button>
-        </div>
-        <div id="nivel-membros" class="level-members-list"></div>
-        <div class="modal-footer">
-          <button type="button" class="button button--secondary" onclick="closeModal('modal-nivel')">Fechar</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="modal-adicionar-nivel" class="modal-overlay">
-      <div class="modal-card level-detail-card">
-        <div class="modal-header">
-          <div>
-            <h2>Adicionar funcionário</h2>
-            <p id="adicionar-nivel-titulo" class="modal-subtitle"></p>
-          </div>
-          <button class="modal-close" type="button" onclick="closeModal('modal-adicionar-nivel')">&times;</button>
-        </div>
-        <div id="funcionarios-disponiveis" class="available-members-list"></div>
-        <div class="modal-footer">
-          <button type="button" class="button button--secondary" onclick="closeModal('modal-adicionar-nivel')">Cancelar</button>
-          <button type="button" class="button button--primary" id="confirmar-adicao-nivel">Adicionar selecionados</button>
-        </div>
       </div>
     </div>
 

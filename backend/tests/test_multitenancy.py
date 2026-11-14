@@ -1,7 +1,6 @@
 import os
-import re
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from backend import app as app_module
 from backend import database
@@ -26,13 +25,8 @@ class MultiTenancyTests(unittest.TestCase):
         client = app_module.app.test_client()
         cadastro = {'nome': empresa, 'empresa': empresa, 'email': email,
                     'senha': 'senha-segura-123'}
-        smtp = MagicMock()
-        server = smtp.__enter__.return_value
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp):
-            self.assertEqual(client.post('/api/contas', json=cadastro).status_code, 202)
-        code = re.search(r'\b(\d{6})\b', server.send_message.call_args.args[0].get_content()).group(1)
-        r = client.post('/api/confirmar-conta', json={'email': email, 'codigo': code})
-        self.assertIn(r.status_code, (200, 201), r.get_json())
+        r = client.post('/api/contas', json=cadastro)
+        self.assertEqual(r.status_code, 201, r.get_json())
         r = client.post('/api/login', json={'email': email, 'senha': cadastro['senha']})
         self.assertEqual(r.status_code, 200, r.get_json())
         return client
@@ -42,33 +36,44 @@ class MultiTenancyTests(unittest.TestCase):
             return client.post('/api/chamados', json={
                 'cliente': 'C', 'descricao': 'd', 'email_cliente': 'c@x.test',
                 'telefone_cliente': '1', 'contato_cliente': 'c', 'telefone_contato': '1',
-                'id_setor': setor, 'id_grupo_solucionadores': tecnico})
+                'setor': setor, 'id_grupo_solucionadores': tecnico})
 
     def test_workspaces_are_isolated(self):
         a = self._register('a@outlook.com', 'Empresa A')
         b = self._register('b@outlook.com', 'Empresa B')
 
-        r = a.post('/api/setores', json={'nome': 'Suporte', 'descricao': 'x', 'niveis': ['N1']})
-        self.assertIn(r.status_code, (200, 201), r.get_json())
-        r = b.post('/api/setores', json={'nome': 'Suporte', 'descricao': 'y', 'niveis': ['N1']})
-        self.assertIn(r.status_code, (200, 201), r.get_json())
+        tecnico_a = a.post('/api/equipe', json={
+            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test', 'setor': 'Apoio A'
+        })
+        tecnico_b = b.post('/api/equipe', json={
+            'nome': 'Tecnico B', 'email': 'tecnico.b@helpti.test', 'setor': 'Apoio B'
+        })
+        self.assertEqual(tecnico_a.status_code, 201, tecnico_a.get_json())
+        self.assertEqual(tecnico_b.status_code, 201, tecnico_b.get_json())
 
-        setores_a = a.get('/api/setores').get_json()
-        setores_b = b.get('/api/setores').get_json()
-        self.assertEqual(len(setores_a), 1)
-        self.assertEqual(len(setores_b), 1)
-        self.assertNotEqual(setores_a[0]['id_setor'], setores_b[0]['id_setor'])
+        setores_a = {item['nome'] for item in a.get('/api/setores').get_json()}
+        setores_b = {item['nome'] for item in b.get('/api/setores').get_json()}
+        self.assertEqual(setores_a, {'Suporte', 'Apoio A'})
+        self.assertEqual(setores_b, {'Suporte', 'Apoio B'})
+        self.assertEqual(a.delete('/api/setores').status_code, 405)
 
         connection = database.get_db_connection()
-        owners = {row[0] for row in connection.execute('SELECT id_usuario FROM setor')}
+        owners = {row[0] for row in connection.execute('SELECT DISTINCT id_usuario FROM grupo_solucionadores')}
         connection.close()
         self.assertEqual(len(owners), 2)
-        self.assertNotIn(None, owners)
+        self.assertNotIn('Apoio B', setores_a)
+        self.assertNotIn('Apoio A', setores_b)
+        ticket_a = self._ticket(
+            a, 'Apoio A', tecnico_a.get_json()['id_grupo_solucionadores']
+        )
+        ticket_b = self._ticket(
+            b, 'Apoio B', tecnico_b.get_json()['id_grupo_solucionadores']
+        )
+        self.assertEqual(ticket_a.status_code, 201, ticket_a.get_json())
+        self.assertEqual(ticket_b.status_code, 201, ticket_b.get_json())
 
-        self.assertEqual(a.delete(f"/api/setores/{setores_b[0]['id_setor']}").status_code, 404)
-        self.assertEqual(len(b.get('/api/setores').get_json()), 1)
-
-        self.assertEqual(a.get('/api/chamados').get_json(), [])
+        self.assertEqual([ticket['setor'] for ticket in a.get('/api/chamados').get_json()], ['Apoio A'])
+        self.assertEqual([ticket['setor'] for ticket in b.get('/api/chamados').get_json()], ['Apoio B'])
         self.assertEqual(a.get('/api/clientes').get_json(), [])
         cfg_a = a.get('/api/configuracoes').get_json()
         cfg_b = b.get('/api/configuracoes').get_json()

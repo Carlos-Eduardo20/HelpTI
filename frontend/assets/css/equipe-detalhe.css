@@ -92,6 +92,14 @@
 	margin-bottom: 20px;
 }
 
+.team-record-grid {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.team-record-grid .info-card {
+	max-width: 760px;
+}
+
 .client-header-profile {
 	display: flex;
 	justify-content: space-between;

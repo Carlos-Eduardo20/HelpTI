@@ -54,7 +54,7 @@ Conforme especificação explícita do projeto, **o setor não necessita de uma 
 - `grupo_solucionadores.setor`: Nome do setor/departamento onde o técnico atua.
 - `escalonamento.setor_destino`: Nome do setor para o qual o chamado foi transferido.
 
-*Nota técnica:* A tabela `setor` é mantida no SQLite para configurações de níveis hierárquicos e autocompletes visuais, além de relacionar os chamados ao setor.
+Não existe uma tabela independente de setores. A rota `GET /api/setores` retorna os nomes distintos já cadastrados nos campos de texto da equipe e dos chamados.
 
 ### 3.2. Dicionário das Tabelas do Sistema (Conforme ERD)
 
@@ -78,13 +78,12 @@ Classificação padrão de tipos de atendimento do helpdesk.
 Técnicos, analistas e membros das equipes de resolução de chamados.
 - `id_grupo_solucionadores` (INTEGER, PK): Identificador do solucionador.
 - `id_usuario` (INTEGER, FK -> `usuario.id_usuario`): Workspace ao qual o técnico pertence.
-- `id_setor` (INTEGER, FK opcional): Referência opcional à tabela auxiliar de setores.
 - `nome` (TEXT): Nome completo do atendente.
 - `email` (TEXT): E-mail corporativo.
 - `cargo` (TEXT): Função/cargo na equipe.
 - `telefone` (TEXT): Telefone de contato.
 - `setor` (TEXT): **Atributo de setor/departamento** do atendente.
-- `nivel` (INTEGER): Nível de atendimento (N1, N2, N3).
+- `nivel` (INTEGER): Nível de atendimento, quando aplicável.
 - `status` (TEXT): 'ATIVO' ou 'INATIVO'.
 - `permissoes` (TEXT): Permissões de acesso em formato JSON.
 
@@ -93,7 +92,6 @@ Entidade central que armazena os tickets de atendimento.
 - `id_chamado` (INTEGER, PK): Identificador numérico único do ticket (#TK-XXXX).
 - `id_tipo_chamado` (INTEGER, FK -> `tipo_chamado.id_tipo_chamado`): Tipo do chamado.
 - `id_grupo_solucionadores` (INTEGER, FK opcional): Técnico atribuído.
-- `id_setor` (INTEGER, FK opcional): Setor de suporte.
 - `cliente` (TEXT, NOT NULL): Razão social ou nome da empresa cliente.
 - `email_cliente` (TEXT): E-mail da empresa solicitante.
 - `telefone_cliente` (TEXT): Telefone da empresa solicitante.
@@ -116,7 +114,6 @@ Registro de transferências de chamados para outros níveis ou técnicos.
 - `id_escalonamento` (INTEGER, PK): Identificador do escalonamento.
 - `id_chamado` (INTEGER, FK -> `chamado.id_chamado`): Chamado escalonado.
 - `id_grupo_destino` (INTEGER, FK opcional): Novo técnico responsável.
-- `id_setor_destino` (INTEGER, FK opcional): Identificador do setor de destino.
 - `setor_destino` (TEXT): **Atributo do nome do setor de destino**.
 - `motivo` (TEXT): Justificativa do escalonamento.
 - `nivel` (INTEGER): Novo nível técnico (ex: Nível 2 ou 3).
@@ -195,15 +192,13 @@ Repositório de documentação técnica, manuais de fornecedores e procedimentos
 | --- | --- | --- |
 | `GET` | `/api/equipe` | Lista todos os técnicos e membros cadastrados no grupo solucionador. |
 | `POST` | `/api/equipe` | Adiciona novo membro à equipe técnica. |
-| `PUT` | `/api/equipe/<id>` | Atualiza informações, cargo, nível ou setor do técnico. |
+| `PUT` | `/api/equipe/<id>` | Atualiza os dados textuais do funcionário. |
 | `DELETE` | `/api/equipe/<id>` | Remove um membro da equipe técnica. |
 
 ### Setores e Departamentos (`/api/setores`)
 | Método | Endpoint | Descrição |
 | --- | --- | --- |
-| `GET` | `/api/setores` | Lista os setores disponíveis com estrutura de níveis de atendimento. |
-| `POST` | `/api/setores` | Cria um novo setor. |
-| `DELETE` | `/api/setores/<id>` | Exclui um setor. |
+| `GET` | `/api/setores` | Lista os nomes distintos de setor existentes nos funcionários e chamados. |
 
 ### Relatórios e Métricas (`/api/relatorios`)
 | Método | Endpoint | Descrição |

@@ -10,7 +10,7 @@ Por padrão, o banco fica em `instance/helpti.sqlite3`. Para escolher outro cami
 DB_SQLITE_PATH=instance/helpti.sqlite3
 ```
 
-Inicie a aplicação com `python app.py`. O arquivo do banco contém os chamados, clientes, equipe, setores e configurações; não o apague se quiser preservar esses dados.
+Inicie a aplicação com `python app.py`. O arquivo do banco contém os chamados, clientes, equipe e configurações; o setor é armazenado como texto nos registros da equipe e dos chamados. Não apague o arquivo se quiser preservar esses dados.
 
 ## Docker Compose
 

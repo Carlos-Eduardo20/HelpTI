@@ -1,9 +1,7 @@
 import os
-import re
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 from werkzeug.security import check_password_hash
 
@@ -29,6 +27,7 @@ class TicketEmailTests(unittest.TestCase):
         self.addCleanup(self.environment.stop)
         database.initialize_database()
         app_module.app.config.update(TESTING=True, SECRET_KEY='test-secret')
+        app_module._LOGIN_RATE_LIMIT.clear()
         self.client = app_module.app.test_client()
 
     def _create_account(self):
@@ -38,37 +37,13 @@ class TicketEmailTests(unittest.TestCase):
             'email': 'admin@outlook.com',
             'senha': 'senha-segura-123',
         }
-        smtp_context = MagicMock()
-        smtp_server = smtp_context.__enter__.return_value
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
-            response = self.client.post('/api/contas', json=cadastro)
-        self.assertEqual(response.status_code, 202, response.get_json())
-        message = smtp_server.send_message.call_args.args[0]
-        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
-        confirmation = self.client.post('/api/confirmar-conta', json={
-            'email': cadastro['email'],
-            'codigo': code,
-        })
-        self.assertEqual(confirmation.status_code, 201, confirmation.get_json())
-        return confirmation.get_json()
+        response = self.client.post('/api/contas', json=cadastro)
+        self.assertEqual(response.status_code, 201, response.get_json())
+        return response.get_json()
 
     def _prepare_ticket(self):
-        account = self._create_account()
-        connection = database.get_db_connection()
-        try:
-            cursor = connection.cursor()
-            cursor.execute(
-                "INSERT INTO setor (nome, descricao) VALUES ('Suporte', 'Atendimento')"
-            )
-            sector_id = cursor.lastrowid
-            cursor.execute(
-                'UPDATE grupo_solucionadores SET id_setor = %s WHERE id_grupo_solucionadores = %s',
-                (sector_id, account['id'])
-            )
-            connection.commit()
-            return sector_id
-        finally:
-            connection.close()
+        self._create_account()
+        return 'Suporte'
 
     def _ticket_payload(self, sector_id):
         return {
@@ -78,7 +53,7 @@ class TicketEmailTests(unittest.TestCase):
             'telefone_cliente': '11999990000',
             'contato_cliente': 'Ana Teste',
             'telefone_contato': '11999990000',
-            'id_setor': sector_id,
+            'setor': sector_id,
             'id_grupo_solucionadores': self.client.get('/api/sessao').get_json()['id'],
         }
 
@@ -124,9 +99,12 @@ class TicketEmailTests(unittest.TestCase):
             self.assertEqual(
                 connection.execute('SELECT COUNT(*) FROM cliente').fetchone()[0], 0
             )
-            self.assertEqual(
-                connection.execute('SELECT COUNT(*) FROM setor').fetchone()[0], 0
-            )
+            tables = {
+                row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+            self.assertNotIn('setor', tables)
         finally:
             connection.close()
 
@@ -152,118 +130,30 @@ class TicketEmailTests(unittest.TestCase):
             self.assertEqual(response.status_code, 400)
             self.assertIn('Gmail e Yahoo', response.get_json()['erro'])
 
-        smtp_context = MagicMock()
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
-            response = self.client.post('/api/contas', json={
-                'nome': 'Admin',
-                'empresa': 'Empresa',
-                'email': 'admin@outlook.com',
-                'senha': 'senha-segura-123',
-            })
-        self.assertEqual(response.status_code, 202, response.get_json())
-        message = smtp_context.__enter__.return_value.send_message.call_args.args[0]
-        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
-        account = self.client.post('/api/confirmar-conta', json={
+        account = self.client.post('/api/contas', json={
+            'nome': 'Admin',
+            'empresa': 'Empresa',
             'email': 'admin@outlook.com',
-            'codigo': code,
+            'senha': 'senha-segura-123',
         })
         self.assertEqual(account.status_code, 201, account.get_json())
         self.assertEqual(account.get_json()['email'], 'admin@outlook.com')
-
-    def test_signup_requires_mailbox_code_before_creating_workspace(self):
-        smtp_context = MagicMock()
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
-            signup = self.client.post('/api/contas', json={
-                'nome': 'Ana Teste',
-                'empresa': 'Empresa Teste',
-                'email': 'admin@outlook.com',
-                'senha': 'senha-segura-123',
-            })
-        self.assertEqual(signup.status_code, 202, signup.get_json())
         connection = database.get_db_connection()
         try:
-            self.assertEqual(
-                connection.execute(
-                    "SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'WORKSPACE'"
-                ).fetchone()[0],
-                0,
-            )
+            self.assertEqual(connection.execute(
+                "SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'WORKSPACE'"
+            ).fetchone()[0], 1)
         finally:
             connection.close()
-
-        message = smtp_context.__enter__.return_value.send_message.call_args.args[0]
-        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
-        codigo_incorreto = f'{(int(code) + 1) % 1_000_000:06d}'
-        invalid = self.client.post('/api/confirmar-conta', json={
-            'email': 'admin@outlook.com',
-            'codigo': codigo_incorreto,
-        })
-        self.assertEqual(invalid.status_code, 400)
-
-        confirmed = self.client.post('/api/confirmar-conta', json={
-            'email': 'admin@outlook.com',
-            'codigo': code,
-        })
-        self.assertEqual(confirmed.status_code, 201, confirmed.get_json())
         self.assertEqual(self.client.get('/api/sessao').status_code, 200)
-
-    def test_microsoft_sign_in_links_verified_email_and_starts_session(self):
-        account = self._create_account()
-        microsoft = MagicMock()
-        microsoft.authorize_access_token.return_value = {
-            'userinfo': {
-                'sub': 'microsoft-subject-123',
-                'tid': 'microsoft-tenant-456',
-                'email': account['email'],
-                'name': account['nome'],
-            }
-        }
-
-        with patch.object(app_module, 'cliente_microsoft', return_value=microsoft):
-            response = self.client.get('/auth/microsoft/callback')
-
-        claims_options = microsoft.authorize_access_token.call_args.kwargs['claims_options']
-        self.assertTrue(claims_options['iss']['essential'])
-        self.assertTrue(claims_options['tid']['essential'])
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers['Location'].endswith(
-            '/frontend/pages/login.html?microsoft=ok'
-        ))
-        session_response = self.client.get('/api/sessao')
-        self.assertEqual(session_response.status_code, 200)
-        self.assertEqual(session_response.get_json()['empresaNome'], 'Empresa Teste')
-
-        connection = database.get_db_connection()
-        try:
-            self.assertEqual(
-                connection.execute('SELECT COUNT(*) FROM identidade_microsoft').fetchone()[0],
-                1,
-            )
-        finally:
-            connection.close()
-
-    def test_microsoft_issuer_validation_matches_only_the_token_tenant(self):
-        tenant_id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-        claims = {'tid': tenant_id}
-        self.assertTrue(app_module._validar_issuer_microsoft(
-            claims, f'https://login.microsoftonline.com/{tenant_id}/v2.0'
-        ))
-        self.assertFalse(app_module._validar_issuer_microsoft(
-            claims, 'https://attacker.example/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-        ))
-        self.assertFalse(app_module._tenant_microsoft_valido({}, 'not-a-tenant-id'))
-
-    def test_microsoft_sign_in_without_configuration_returns_to_login_with_explanation(self):
-        with patch.dict(os.environ, {
-            'MICROSOFT_CLIENT_ID': '',
-            'MICROSOFT_CLIENT_SECRET': '',
-        }):
-            response = self.client.get('/auth/microsoft')
-
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers['Location'].endswith(
-            '/frontend/pages/login.html?erro=microsoft_nao_configurado'
-        ))
+        for endpoint in (
+            '/api/confirmar-conta',
+            '/api/solicitar-codigo-recuperacao',
+            '/api/redefinir-senha',
+            '/auth/microsoft',
+            '/auth/microsoft/callback',
+        ):
+            self.assertIn(self.client.post(endpoint).status_code, (404, 405))
 
     def test_documented_demo_account_can_log_in(self):
         with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'true'}):
@@ -275,7 +165,7 @@ class TicketEmailTests(unittest.TestCase):
                     "SELECT senha FROM grupo_solucionadores WHERE email = 'test@helpiti.com'"
                 ).fetchone()
                 self.assertIsNotNone(row)
-                self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!'))
+                self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!!'))
                 self.assertEqual(
                     connection.execute('SELECT COUNT(*) FROM chamado').fetchone()[0], 0
                 )
@@ -288,12 +178,15 @@ class TicketEmailTests(unittest.TestCase):
                     ).fetchone()[0],
                     0
                 )
-                self.assertEqual(
-                    connection.execute('SELECT COUNT(*) FROM setor').fetchone()[0], 1
-                )
+                tables = {
+                    item[0] for item in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'"
+                    ).fetchall()
+                }
+                self.assertNotIn('setor', tables)
                 demo = connection.execute('''
                     SELECT usuario.nome AS empresa, membro.id_grupo_solucionadores,
-                           membro.id_setor, membro.nome, membro.cargo
+                           membro.setor, membro.nome, membro.cargo
                     FROM grupo_solucionadores AS membro
                     JOIN usuario ON usuario.id_usuario = membro.id_usuario
                     WHERE membro.email = 'test@helpiti.com'
@@ -301,13 +194,13 @@ class TicketEmailTests(unittest.TestCase):
                 self.assertEqual(demo['empresa'], 'HelpTI')
                 self.assertEqual(demo['nome'], 'Conta teste HelpTI')
                 self.assertEqual(demo['cargo'], 'Administrador')
-                self.assertIsNotNone(demo['id_setor'])
+                self.assertEqual(demo['setor'], 'Suporte')
             finally:
                 connection.close()
 
             response = self.client.post('/api/login', json={
                 'email': 'test@helpiti.com',
-                'senha': 'HelpTI2026!',
+                'senha': 'HelpTI2026!!',
             })
         self.assertEqual(response.status_code, 200, response.get_json())
         with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'true'}), \
@@ -319,7 +212,7 @@ class TicketEmailTests(unittest.TestCase):
                 'telefone_cliente': '11999990000',
                 'contato_cliente': 'Contato Teste',
                 'telefone_contato': '11999990000',
-                'id_setor': demo['id_setor'],
+                'setor': demo['setor'],
                 'id_grupo_solucionadores': demo['id_grupo_solucionadores'],
             })
         self.assertEqual(ticket_response.status_code, 201, ticket_response.get_json())
@@ -349,7 +242,7 @@ class TicketEmailTests(unittest.TestCase):
             row = connection.execute(
                 "SELECT senha FROM grupo_solucionadores WHERE email = 'test@helpiti.com'"
             ).fetchone()
-            self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!'))
+            self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!!'))
         finally:
             connection.close()
 
@@ -404,56 +297,6 @@ class TicketEmailTests(unittest.TestCase):
         smtp.assert_not_called()
         self.assertEqual(len(self.client.get('/api/chamados').get_json()), 1)
 
-    def test_password_recovery_sends_one_time_code_and_replaces_password(self):
-        account = self._create_account()
-        smtp_context = MagicMock()
-        smtp_server = smtp_context.__enter__.return_value
-
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context):
-            response = self.client.post(
-                '/api/solicitar-codigo-recuperacao',
-                json={'email': account['email']}
-            )
-        self.assertEqual(response.status_code, 202, response.get_json())
-        message = smtp_server.send_message.call_args.args[0]
-        self.assertEqual(message['To'], account['email'])
-        code = re.search(r'\b(\d{6})\b', message.get_content()).group(1)
-
-        reset = self.client.post('/api/redefinir-senha', json={
-            'email': account['email'],
-            'codigo': code,
-            'senha': 'nova-senha-segura-456',
-        })
-        self.assertEqual(reset.status_code, 200, reset.get_json())
-        self.assertEqual(self.client.post('/api/logout').status_code, 200)
-        self.assertEqual(self.client.post('/api/login', json={
-            'email': account['email'],
-            'senha': 'senha-segura-123',
-        }).status_code, 401)
-        self.assertEqual(self.client.post('/api/login', json={
-            'email': account['email'],
-            'senha': 'nova-senha-segura-456',
-        }).status_code, 200)
-        self.assertEqual(self.client.post('/api/redefinir-senha', json={
-            'email': account['email'],
-            'codigo': code,
-            'senha': 'outra-senha-segura-789',
-        }).status_code, 400)
-
-    def test_microsoft_redirect_uses_https_forwarded_by_proxy(self):
-        with patch.dict(os.environ, {'MICROSOFT_REDIRECT_URI': ''}):
-            with patch.object(app_module, 'cliente_microsoft') as microsoft_client:
-                microsoft_client.return_value.authorize_redirect.return_value = (
-                    'redirect', 302
-                )
-                self.client.get(
-                    '/auth/microsoft',
-                    headers={'X-Forwarded-Proto': 'https'},
-                )
-
-        redirect_uri = microsoft_client.return_value.authorize_redirect.call_args.args[0]
-        self.assertEqual(redirect_uri, 'https://localhost/auth/microsoft/callback')
-
     def test_mutating_requests_reject_cross_site_origins(self):
         response = self.client.post(
             '/api/logout',
@@ -489,24 +332,6 @@ class TicketEmailTests(unittest.TestCase):
             response.headers['Referrer-Policy'],
             'strict-origin-when-cross-origin',
         )
-
-    def test_password_recovery_requests_are_rate_limited(self):
-        account = self._create_account()
-        smtp_context = MagicMock()
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp_context) as smtp:
-            first = self.client.post(
-                '/api/solicitar-codigo-recuperacao',
-                json={'email': account['email']}
-            )
-            second = self.client.post(
-                '/api/solicitar-codigo-recuperacao',
-                json={'email': account['email']}
-            )
-
-        self.assertEqual(first.status_code, 202)
-        self.assertEqual(second.status_code, 202)
-        self.assertEqual(first.get_json()['mensagem'], second.get_json()['mensagem'])
-        smtp.assert_called_once()
 
     def test_security_check_passes_safe_local_configuration(self):
         app_module.app.config['SECRET_KEY'] = 'x' * 48

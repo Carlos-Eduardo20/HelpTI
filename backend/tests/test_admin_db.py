@@ -17,15 +17,23 @@ class AdminDatabaseTests(_mt.MultiTenancyTests):
         self.addCleanup(patcher.stop)
         database.initialize_database()
         client = app_module.app.test_client()
-        r = client.post('/api/login', json={'email': 'test@helpiti.com', 'senha': 'HelpTI2026!'})
+        r = client.post('/api/login', json={'email': 'test@helpiti.com', 'senha': 'HelpTI2026!!'})
         self.assertEqual(r.status_code, 200, r.get_json())
         return client
 
     def test_stats_and_backup_are_scoped_and_redacted(self):
         a = self._register('a@outlook.com', 'Empresa A')
         b = self._register('b@outlook.com', 'Empresa B')
-        for client, nome in ((a, 'SetorA'), (b, 'SetorB')):
-            self.assertIn(client.post('/api/setores', json={'nome': nome, 'descricao': 'x', 'niveis': ['N1']}).status_code, (200, 201))
+        for client, nome, email in (
+            (a, 'SetorA', 'tecnico.a@outlook.com'),
+            (b, 'SetorB', 'tecnico.b@outlook.com'),
+        ):
+            response = client.post('/api/equipe', json={
+                'nome': nome,
+                'email': email,
+                'setor': nome,
+            })
+            self.assertEqual(response.status_code, 201, response.get_json())
 
         stats = a.get('/api/admin/db/stats')
         self.assertEqual(stats.status_code, 200)

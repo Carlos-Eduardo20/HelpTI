@@ -6,7 +6,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 DEMO_EMAIL = 'test@helpiti.com'
 Error = sqlite3.Error
 
@@ -183,14 +183,252 @@ def _migrate_profile_and_settings(connection):
         connection.execute('DROP TABLE configuracao')
 
 
+def _migrate_sector_and_auth_tables(connection):
+    """Move sector names to text fields and remove tables no longer used."""
+    tables = {
+        row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    group_columns = {
+        row[1] for row in connection.execute(
+            'PRAGMA table_info(grupo_solucionadores)'
+        ).fetchall()
+    } if 'grupo_solucionadores' in tables else set()
+    ticket_columns = {
+        row[1] for row in connection.execute(
+            'PRAGMA table_info(chamado)'
+        ).fetchall()
+    } if 'chamado' in tables else set()
+    escalation_columns = {
+        row[1] for row in connection.execute(
+            'PRAGMA table_info(escalonamento)'
+        ).fetchall()
+    } if 'escalonamento' in tables else set()
+
+    remove_auth_tables = {
+        'codigo_recuperacao_senha',
+        'identidade_microsoft',
+        'login_rate_limit',
+        'verificacao_cadastro_email',
+    } & tables
+    rebuild_group = bool(group_columns & {'id_setor', 'email_verificado'})
+    rebuild_ticket = 'id_setor' in ticket_columns
+    rebuild_escalation = 'id_setor_destino' in escalation_columns
+    remove_sector_table = 'setor' in tables
+    if not (
+        remove_auth_tables or rebuild_group or rebuild_ticket
+        or rebuild_escalation or remove_sector_table
+    ):
+        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        return
+
+    connection.execute('PRAGMA foreign_keys = OFF')
+    try:
+        connection.execute('BEGIN IMMEDIATE')
+        for table in remove_auth_tables:
+            connection.execute(f'DROP TABLE IF EXISTS {table}')
+
+        if 'id_setor' in group_columns and 'setor' not in group_columns:
+            connection.execute('ALTER TABLE grupo_solucionadores ADD COLUMN setor TEXT')
+        if 'id_setor' in ticket_columns and 'setor' not in ticket_columns:
+            connection.execute('ALTER TABLE chamado ADD COLUMN setor TEXT')
+        if 'id_setor_destino' in escalation_columns and 'setor_destino' not in escalation_columns:
+            connection.execute('ALTER TABLE escalonamento ADD COLUMN setor_destino TEXT')
+
+        if remove_sector_table and 'id_setor' in group_columns:
+            connection.execute('''
+                UPDATE grupo_solucionadores
+                SET setor = (
+                    SELECT setor.nome FROM setor
+                    WHERE setor.id_setor = grupo_solucionadores.id_setor
+                )
+                WHERE (setor IS NULL OR TRIM(setor) = '') AND id_setor IS NOT NULL
+            ''')
+        if remove_sector_table and 'id_setor' in ticket_columns:
+            connection.execute('''
+                UPDATE chamado
+                SET setor = (
+                    SELECT setor.nome FROM setor
+                    WHERE setor.id_setor = chamado.id_setor
+                )
+                WHERE (setor IS NULL OR TRIM(setor) = '') AND id_setor IS NOT NULL
+            ''')
+        if remove_sector_table and 'id_setor_destino' in escalation_columns:
+            connection.execute('''
+                UPDATE escalonamento
+                SET setor_destino = (
+                    SELECT setor.nome FROM setor
+                    WHERE setor.id_setor = escalonamento.id_setor_destino
+                )
+                WHERE (setor_destino IS NULL OR TRIM(setor_destino) = '')
+                  AND id_setor_destino IS NOT NULL
+            ''')
+
+        if rebuild_group:
+            connection.execute('''
+                CREATE TABLE grupo_solucionadores_novo (
+                    id_grupo_solucionadores INTEGER PRIMARY KEY AUTOINCREMENT,
+                    descricao TEXT,
+                    nivel INTEGER,
+                    data_inicio TEXT,
+                    data_fim TEXT,
+                    nome TEXT,
+                    email TEXT,
+                    cargo TEXT,
+                    valor_hora NUMERIC,
+                    telefone TEXT,
+                    setor TEXT,
+                    status TEXT NOT NULL DEFAULT 'ATIVO',
+                    senha TEXT NOT NULL DEFAULT '',
+                    permissoes TEXT NOT NULL DEFAULT '[]',
+                    foto_perfil TEXT,
+                    id_usuario INTEGER NOT NULL,
+                    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+                )
+            ''')
+            connection.execute('''
+                INSERT INTO grupo_solucionadores_novo (
+                    id_grupo_solucionadores, descricao, nivel, data_inicio, data_fim,
+                    nome, email, cargo, valor_hora, telefone, setor, status, senha,
+                    permissoes, foto_perfil, id_usuario
+                )
+                SELECT id_grupo_solucionadores, descricao, nivel, data_inicio, data_fim,
+                       nome, email, cargo, valor_hora, telefone, setor, status, senha,
+                       permissoes, foto_perfil, id_usuario
+                FROM grupo_solucionadores
+            ''')
+            connection.execute('DROP TABLE grupo_solucionadores')
+            connection.execute(
+                'ALTER TABLE grupo_solucionadores_novo RENAME TO grupo_solucionadores'
+            )
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor '
+                'ON grupo_solucionadores (setor)'
+            )
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario '
+                'ON grupo_solucionadores (id_usuario)'
+            )
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_email '
+                'ON grupo_solucionadores (email)'
+            )
+
+        if rebuild_ticket:
+            connection.execute('''
+                CREATE TABLE chamado_novo (
+                    id_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_tipo_chamado INTEGER NOT NULL DEFAULT 1,
+                    setor TEXT,
+                    id_grupo_solucionadores INTEGER,
+                    status TEXT NOT NULL DEFAULT 'ABERTO',
+                    cliente TEXT NOT NULL,
+                    assunto TEXT,
+                    descricao TEXT,
+                    email_cliente TEXT,
+                    telefone_cliente TEXT,
+                    contato_cliente TEXT,
+                    telefone_contato TEXT,
+                    descricao_final TEXT,
+                    documentacao TEXT,
+                    tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0,
+                    tempo_inicio TEXT,
+                    data_abertura TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    data_fechamento TEXT,
+                    data_agendada TEXT,
+                    hora_agendada TEXT,
+                    classificacao TEXT,
+                    id_usuario INTEGER,
+                    FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
+                    FOREIGN KEY (id_grupo_solucionadores)
+                        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL,
+                    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+                )
+            ''')
+            connection.execute('''
+                INSERT INTO chamado_novo (
+                    id_chamado, id_tipo_chamado, setor, id_grupo_solucionadores,
+                    status, cliente, assunto, descricao, email_cliente, telefone_cliente,
+                    contato_cliente, telefone_contato, descricao_final, documentacao,
+                    tempo_decorrido_segundos, tempo_inicio, data_abertura, data_fechamento,
+                    data_agendada, hora_agendada, classificacao, id_usuario
+                )
+                SELECT id_chamado, id_tipo_chamado, setor, id_grupo_solucionadores,
+                       status, cliente, assunto, descricao, email_cliente, telefone_cliente,
+                       contato_cliente, telefone_contato, descricao_final, documentacao,
+                       tempo_decorrido_segundos, tempo_inicio, data_abertura, data_fechamento,
+                       data_agendada, hora_agendada, classificacao, id_usuario
+                FROM chamado
+            ''')
+            connection.execute('DROP TABLE chamado')
+            connection.execute('ALTER TABLE chamado_novo RENAME TO chamado')
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_chamado_status_data '
+                'ON chamado (status, data_abertura)'
+            )
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado (setor)'
+            )
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_chamado_workspace '
+                'ON chamado (id_usuario, id_chamado)'
+            )
+
+        if rebuild_escalation:
+            connection.execute('''
+                CREATE TABLE escalonamento_novo (
+                    id_escalonamento INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_chamado INTEGER NOT NULL,
+                    motivo TEXT,
+                    nivel INTEGER,
+                    setor_destino TEXT,
+                    id_grupo_destino INTEGER,
+                    data_escalonamento TEXT,
+                    FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE,
+                    FOREIGN KEY (id_grupo_destino)
+                        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+                )
+            ''')
+            connection.execute('''
+                INSERT INTO escalonamento_novo (
+                    id_escalonamento, id_chamado, motivo, nivel, setor_destino,
+                    id_grupo_destino, data_escalonamento
+                )
+                SELECT id_escalonamento, id_chamado, motivo, nivel, setor_destino,
+                       id_grupo_destino, data_escalonamento
+                FROM escalonamento
+            ''')
+            connection.execute('DROP TABLE escalonamento')
+            connection.execute('ALTER TABLE escalonamento_novo RENAME TO escalonamento')
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado '
+                'ON escalonamento (id_chamado)'
+            )
+
+        if remove_sector_table:
+            connection.execute('DROP TABLE setor')
+
+        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.execute('PRAGMA foreign_keys = ON')
+
+
 def initialize_database():
     """Cria o banco, as tabelas e os dados iniciais sem sobrescrever registros existentes."""
     create_database_if_missing()
     connection = get_db_connection()
     try:
         _ensure_compatible_schema(connection)
+        _migrate_sector_and_auth_tables(connection)
         connection.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
         _migrate_profile_and_settings(connection)
+        connection.commit()
+        _migrate_sector_and_auth_tables(connection)
         if demo_mode_enabled():
             connection.executescript(
                 Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8')

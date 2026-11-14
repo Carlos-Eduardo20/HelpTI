@@ -471,19 +471,20 @@ async function carregarClientesNoChamado() {
   }
 }
 
-function renderizarOpcoesTecnicos(idSetor = '') {
+function renderizarOpcoesTecnicos(setorNome = '') {
   const campo = document.querySelector('#tecnicoChamado');
   if (!campo) return;
-  const tecnicos = equipeDoChamado.filter((membro) => String(membro.id_setor) === String(idSetor) && (membro.status || 'ATIVO') === 'ATIVO');
+  const setorNormalizado = normalizarBusca(setorNome);
+  const tecnicos = equipeDoChamado.filter((membro) => normalizarBusca(membro.setor) === setorNormalizado && (membro.status || 'ATIVO') === 'ATIVO');
   const busca = document.querySelector('#tecnicoSearchInput');
   const lista = document.querySelector('#tecnicoDropdownList');
   if (!busca || !lista) return;
   campo.value = '';
   busca.value = '';
-  busca.disabled = !idSetor || !tecnicos.length;
-  lista.innerHTML = idSetor && tecnicos.length
+  busca.disabled = !setorNome || !tecnicos.length;
+  lista.innerHTML = setorNome && tecnicos.length
     ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
-    : `<li class="select-empty">${idSetor ? 'Nenhum técnico disponível' : 'Selecione primeiro o setor'}</li>`;
+    : `<li class="select-empty">${setorNome ? 'Nenhum técnico disponível' : 'Selecione primeiro o setor'}</li>`;
 }
 
 function renderizarOpcoesSetores(termo = '') {
@@ -492,16 +493,16 @@ function renderizarOpcoesSetores(termo = '') {
   const busca = normalizarBusca(termo);
   const setores = setoresDoChamado.filter((setor) => normalizarBusca(setor.nome).includes(busca));
   lista.innerHTML = setores.length
-    ? setores.map((setor) => `<li data-setor-id="${escaparHtml(setor.id_setor)}"><strong>${escaparHtml(setor.nome)}</strong><span>${escaparHtml(setor.descricao || 'Setor de atendimento')}</span></li>`).join('')
+    ? setores.map((setor) => `<li data-setor="${escaparHtml(setor.nome)}"><strong>${escaparHtml(setor.nome)}</strong><span>Setor de atendimento</span></li>`).join('')
     : '<li class="select-empty">Nenhum setor encontrado.</li>';
 }
 
 function filtrarOpcoesTecnicos(termo = '') {
   const lista = document.querySelector('#tecnicoDropdownList');
-  const idSetor = document.querySelector('#setorChamado')?.value || '';
+  const setorNome = document.querySelector('#setorChamado')?.value || '';
   if (!lista) return;
   const busca = normalizarBusca(termo);
-  const tecnicos = equipeDoChamado.filter((membro) => String(membro.id_setor) === String(idSetor) && (membro.status || 'ATIVO') === 'ATIVO' && normalizarBusca(`${membro.nome || ''} ${membro.descricao || ''} ${membro.cargo || ''} ${membro.email || ''}`).includes(busca));
+  const tecnicos = equipeDoChamado.filter((membro) => normalizarBusca(membro.setor) === normalizarBusca(setorNome) && (membro.status || 'ATIVO') === 'ATIVO' && normalizarBusca(`${membro.nome || ''} ${membro.descricao || ''} ${membro.cargo || ''} ${membro.email || ''}`).includes(busca));
   lista.innerHTML = tecnicos.length
     ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
     : '<li class="select-empty">Nenhum técnico encontrado.</li>';
@@ -524,12 +525,12 @@ function configurarBuscaResponsaveis() {
     listaSetor.classList.remove('hidden');
   });
   listaSetor.addEventListener('click', (event) => {
-    const opcao = event.target.closest('[data-setor-id]');
+    const opcao = event.target.closest('[data-setor]');
     if (!opcao) return;
-    const setor = setoresDoChamado.find((item) => String(item.id_setor) === opcao.dataset.setorId);
+    const setor = setoresDoChamado.find((item) => item.nome === opcao.dataset.setor);
     if (!setor) return;
     buscaSetor.value = setor.nome || '';
-    campoSetor.value = setor.id_setor;
+    campoSetor.value = setor.nome;
     listaSetor.classList.add('hidden');
     renderizarOpcoesTecnicos(campoSetor.value);
   });
@@ -631,7 +632,7 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.contato_cliente.value.trim() || !campos.telefone_contato.value.trim() || !campos.id_setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
+  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.contato_cliente.value.trim() || !campos.telefone_contato.value.trim() || !campos.setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
     form.reportValidity();
     return;
   }
@@ -645,9 +646,8 @@ async function salvarChamado(event) {
       telefone_cliente: formatBrazilianPhone(campos.telefone_cliente.value),
       contato_cliente: campos.contato_cliente.value.trim(),
       telefone_contato: formatBrazilianPhone(campos.telefone_contato.value),
-      id_setor: campos.id_setor.value,
-      id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
       setor: setorTexto,
+      id_grupo_solucionadores: campos.id_grupo_solucionadores.value,
       descricao: campos.descricao.value.trim()
     });
     fecharModalChamado(); form.reset(); await carregarChamados(); mostrarNotificacao('Chamado criado com sucesso.');

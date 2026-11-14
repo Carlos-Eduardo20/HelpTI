@@ -94,14 +94,6 @@ export async function buscarSetores() {
   return request('/setores');
 }
 
-export async function criarSetor(dados) {
-  return request('/setores', { method: 'POST', body: JSON.stringify(dados) });
-}
-
-export async function excluirSetor(id) {
-  return request(`/setores/${id}`, { method: 'DELETE' });
-}
-
 // ============ RELATÓRIOS ============
 
 // Busca dados para relatórios

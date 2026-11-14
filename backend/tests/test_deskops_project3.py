@@ -1,7 +1,6 @@
 import os
-import re
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from backend import app as app_module
 from backend import database
@@ -26,37 +25,25 @@ class DeskOpsProject3Tests(unittest.TestCase):
         client = app_module.app.test_client()
         cadastro = {'nome': empresa, 'empresa': empresa, 'email': email,
                     'senha': 'senha-segura-123'}
-        smtp = MagicMock()
-        server = smtp.__enter__.return_value
-        with patch.object(app_module.smtplib, 'SMTP', return_value=smtp):
-            self.assertEqual(client.post('/api/contas', json=cadastro).status_code, 202)
-        code = re.search(r'\b(\d{6})\b', server.send_message.call_args.args[0].get_content()).group(1)
-        r = client.post('/api/confirmar-conta', json={'email': email, 'codigo': code})
-        self.assertIn(r.status_code, (200, 201), r.get_json())
+        r = client.post('/api/contas', json=cadastro)
+        self.assertEqual(r.status_code, 201, r.get_json())
         r = client.post('/api/login', json={'email': email, 'senha': cadastro['senha']})
         self.assertEqual(r.status_code, 200, r.get_json())
         return client
 
     def _setup_empresa_com_tecnico(self):
         admin = self._register('admin@helpti.test', 'TechDesk Corp')
-        setor_resp = admin.post('/api/setores', json={'nome': 'Suporte N1', 'descricao': 'Primeiro nivel', 'niveis': ['N1']})
-        setor_id = setor_resp.get_json()['id_setor']
         
         tecnico_resp = admin.post('/api/equipe', json={
             'nome': 'Carlos Silva',
             'email': 'carlos@helpti.test',
-            'senha': 'senha-tecnico-123',
-            'cargo': 'tecnico',
-            'id_setor': setor_id,
             'setor': 'Suporte N1',
-            'nivel': 1,
-            'permissoes': ['dashboard', 'chamados']
         })
         tecnico_id = tecnico_resp.get_json()['id_grupo_solucionadores']
-        return admin, setor_id, tecnico_id
+        return admin, 'Suporte N1', tecnico_id
 
     def test_chamado_com_setor_atributo_simples(self):
-        admin, setor_id, tecnico_id = self._setup_empresa_com_tecnico()
+        admin, setor, tecnico_id = self._setup_empresa_com_tecnico()
         
         with patch.object(app_module.smtplib, 'SMTP'):
             resp = admin.post('/api/chamados', json={
@@ -66,7 +53,6 @@ class DeskOpsProject3Tests(unittest.TestCase):
                 'telefone_cliente': '11999999999',
                 'contato_cliente': 'João Solicitante',
                 'telefone_contato': '11988888888',
-                'id_setor': setor_id,
                 'setor': 'Suporte N1',
                 'id_grupo_solucionadores': tecnico_id
             })
@@ -83,18 +69,18 @@ class DeskOpsProject3Tests(unittest.TestCase):
         self.assertTrue(detalhe['historico'][0]['autor'])
 
     def test_metricas_deskops_calculo(self):
-        admin, setor_id, tecnico_id = self._setup_empresa_com_tecnico()
+        admin, setor, tecnico_id = self._setup_empresa_com_tecnico()
         
         with patch.object(app_module.smtplib, 'SMTP'):
             r1 = admin.post('/api/chamados', json={
                 'cliente': 'Cliente 1', 'descricao': 'D1', 'email_cliente': 'c1@test.com',
                 'telefone_cliente': '111', 'contato_cliente': 'C1', 'telefone_contato': '111',
-                'id_setor': setor_id, 'id_grupo_solucionadores': tecnico_id
+                'setor': setor, 'id_grupo_solucionadores': tecnico_id
             })
             r2 = admin.post('/api/chamados', json={
                 'cliente': 'Cliente 2', 'descricao': 'D2', 'email_cliente': 'c2@test.com',
                 'telefone_cliente': '222', 'contato_cliente': 'C2', 'telefone_contato': '222',
-                'id_setor': setor_id, 'id_grupo_solucionadores': tecnico_id
+                'setor': setor, 'id_grupo_solucionadores': tecnico_id
             })
         
         id2 = r2.get_json()['id_chamado']
@@ -112,7 +98,7 @@ class DeskOpsProject3Tests(unittest.TestCase):
         self.assertIn('mttr_formatado', metricas)
 
     def test_crud_documentacao_tecnica(self):
-        admin, setor_id, tecnico_id = self._setup_empresa_com_tecnico()
+        admin, _setor, tecnico_id = self._setup_empresa_com_tecnico()
 
         # Criar documentação
         create_resp = admin.post('/api/documentacoes', json={
