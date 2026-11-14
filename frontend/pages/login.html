@@ -55,13 +55,27 @@
               <label for="password">Senha de acesso</label>
               <a href="forgot-password.html" class="forgot-link">Esqueceu a senha?</a>
             </div>
-            <input 
-              type="password" 
-              id="password" 
-              placeholder="••••••••" 
-              autocomplete="new-password"
-              required
-            >
+            <div class="password-input-wrapper">
+              <input
+                type="password"
+                id="password"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+              >
+              <button
+                type="button"
+                class="toggle-password"
+                aria-label="Mostrar senha"
+                aria-controls="password"
+                aria-pressed="false"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div class="checkbox-group">
@@ -71,11 +85,6 @@
 
           <button type="submit" class="btn-login">Entrar</button>
 
-          <div class="login-divider" aria-hidden="true"><span>ou</span></div>
-          <a class="btn-microsoft-login" href="/auth/microsoft">
-            <span class="microsoft-logo" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-            Entrar com Microsoft
-          </a>
           <p class="login-feedback" id="loginFeedback" role="status" aria-live="polite"></p>
         
         </form>
@@ -157,23 +166,19 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-      if (await continuarLoginMicrosoft()) return;
       limparSessaoExpirada();
       if (await abrirSessaoLembrada()) return;
       limparEstadoBotao();
       limparCamposLogin();
-      const errosMicrosoft = {
-        microsoft_nao_configurado: 'O acesso Microsoft ainda não foi configurado pelo administrador.',
-        microsoft_cancelado: 'A autenticação Microsoft foi cancelada ou não autorizada.',
-        microsoft_identidade_invalida: 'A Microsoft não retornou um endereço de e-mail válido.',
-        microsoft_sem_conta: 'Crie e confirme primeiro sua conta HelpTI com o mesmo e-mail.',
-        microsoft_conta_vinculada: 'Esta conta já está vinculada a outra identidade Microsoft.',
-        conta_inativa: 'Esta conta está inativa.'
-      };
-      const codigoErro = new URLSearchParams(window.location.search).get('erro');
-      if (errosMicrosoft[codigoErro]) {
-        document.getElementById('loginFeedback').textContent = errosMicrosoft[codigoErro];
-      }
+      const password = document.getElementById('password');
+      const togglePassword = document.querySelector('.toggle-password');
+      togglePassword.addEventListener('click', () => {
+        const mostrarSenha = password.type === 'password';
+        password.type = mostrarSenha ? 'text' : 'password';
+        togglePassword.setAttribute('aria-pressed', String(mostrarSenha));
+        togglePassword.setAttribute('aria-label', mostrarSenha ? 'Ocultar senha' : 'Mostrar senha');
+        password.focus();
+      });
     });
     window.addEventListener('pageshow', async (event) => {
       if (event.persisted) verificacaoSessaoLembrada = undefined;
@@ -181,26 +186,6 @@
       limparEstadoBotao();
       limparCamposLogin();
     });
-
-    async function continuarLoginMicrosoft() {
-      if (new URLSearchParams(window.location.search).get('microsoft') !== 'ok') return false;
-      const feedback = document.getElementById('loginFeedback');
-      try {
-        const response = await fetch(`${window.location.origin}/api/sessao`, {
-          credentials: 'same-origin',
-          cache: 'no-store'
-        });
-        if (!response.ok) throw new Error('Não foi possível confirmar a sessão Microsoft.');
-        const dados = (await response.json()) ?? {};
-        sessionStorage.setItem('grupoId', String(dados.id ?? ''));
-        sessionStorage.setItem('perfilNome', dados.nome || '');
-        sessionStorage.setItem('empresaNome', dados.empresaNome || 'HelpTI');
-        window.location.replace('dashboard.html');
-      } catch (error) {
-        if (feedback) feedback.textContent = error.message;
-      }
-      return true;
-    }
 
     window.realizarLogin = async function realizarLogin(event) {
       event.preventDefault();

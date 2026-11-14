@@ -128,6 +128,50 @@ body, html {
   background-color: var(--card-bg);
 }
 
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-input-wrapper input {
+  padding-right: 44px;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.toggle-password:hover {
+  color: var(--blue-600);
+}
+
+.toggle-password:focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 1px;
+}
+
+.toggle-password svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
 .checkbox-group {
   display: flex;
   align-items: center;
@@ -155,56 +199,6 @@ body, html {
 .btn-login:hover {
   background-color: var(--blue-700);
 }
-
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 18px 0;
-  color: var(--text-subtle);
-  font-size: 12px;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: var(--border-color);
-}
-
-.btn-microsoft-login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 44px;
-  box-sizing: border-box;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--card-bg);
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.btn-microsoft-login:hover {
-  background: var(--bg-beige-light);
-}
-
-.microsoft-logo {
-  display: grid;
-  grid-template-columns: repeat(2, 9px);
-  grid-template-rows: repeat(2, 9px);
-  gap: 2px;
-}
-
-.microsoft-logo i:nth-child(1) { background: #f25022; }
-.microsoft-logo i:nth-child(2) { background: #7fba00; }
-.microsoft-logo i:nth-child(3) { background: #00a4ef; }
-.microsoft-logo i:nth-child(4) { background: #ffb900; }
 
 .login-feedback {
   margin: 12px 0 0;

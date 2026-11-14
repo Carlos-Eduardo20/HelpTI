@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: help-ti
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_TYPE
+        value: sqlite
+      - key: DB_SQLITE_PATH
+        value: /var/data/helpti.sqlite3
+      - key: HELPTI_DEMO_MODE
+        value: "false"
+      - key: HELPTI_HTTPS_ONLY
+        value: "true"
+    disk:
+      name: help-ti-data
+      mountPath: /var/data
+      sizeGB: 1

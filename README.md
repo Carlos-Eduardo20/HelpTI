@@ -97,7 +97,14 @@ docker compose down
 
 O projeto não gerencia certificado SSL, domínio ou registros DNS. Configure o domínio e os registros DNS no Registro.br e associe o domínio personalizado ao serviço na Render, que fornecerá e renovará o certificado HTTPS.
 
-Na Render, use `gunicorn wsgi:app` como **Start Command** e defina a variável de ambiente `HELPTI_HTTPS_ONLY=true`. O `compose.yaml` é destinado somente ao ambiente local e usa HTTP em `localhost`.
+O sistema usa SQLite por padrão, mas o sistema de arquivos da Render é temporário. Para manter clientes, setores, equipe e chamados após reinicializações:
+
+1. No serviço, abra **Disks** e adicione um disco persistente (disponível em serviços pagos), montado em `/var/data`.
+2. Configure `DB_TYPE=sqlite` e `DB_SQLITE_PATH=/var/data/helpti.sqlite3`.
+3. Configure `HELPTI_DEMO_MODE=false` e `HELPTI_HTTPS_ONLY=true`.
+4. Mantenha uma única instância do serviço: um disco persistente da Render só pode ser usado por uma instância.
+
+O arquivo [render.yaml](render.yaml) já descreve essa configuração para novos serviços Render Blueprint. Para serviços existentes, configure o disco e as variáveis no Dashboard e faça um novo deploy. Se o disco for adicionado depois, os dados que já foram perdidos no armazenamento temporário não podem ser recuperados; exporte qualquer banco ainda disponível antes de trocar o caminho.
 
 ---
 

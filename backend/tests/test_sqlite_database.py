@@ -11,6 +11,37 @@ from backend import database
 
 
 class SQLiteDatabaseTests(unittest.TestCase):
+    def test_initialization_preserves_records_in_configured_database(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'helpti.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    connection.execute(
+                        'INSERT INTO tipo_chamado (nome, classificacao, descricao) '
+                        'VALUES (%s, %s, %s)',
+                        ('Persistente', 'Teste', 'Registro de validação'),
+                    )
+                    connection.commit()
+                finally:
+                    connection.close()
+
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    record = connection.execute(
+                        'SELECT descricao FROM tipo_chamado WHERE nome = %s',
+                        ('Persistente',),
+                    ).fetchone()
+                    self.assertEqual(record['descricao'], 'Registro de validação')
+                finally:
+                    connection.close()
+
     def test_initialization_creates_demo_account_and_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / 'helpti.sqlite3'
