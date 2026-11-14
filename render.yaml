@@ -7,8 +7,6 @@ services:
     dockerContext: .
     healthCheckPath: /api/health
     envVars:
-      - key: DB_TYPE
-        value: sqlite
       - key: DB_SQLITE_PATH
         value: /var/data/helpti.sqlite3
       - key: HELPTI_DEMO_MODE

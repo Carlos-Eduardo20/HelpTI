@@ -117,9 +117,10 @@ def _registrar_tentativa_login():
     conexao = get_db_connection()
     try:
         cursor = conexao.cursor()
+        conexao.execute('BEGIN IMMEDIATE')
         cursor.execute(
             'SELECT window_started, attempts FROM login_rate_limit '
-            'WHERE client_hash = %s FOR UPDATE',
+            'WHERE client_hash = %s',
             (client_hash,)
         )
         registro = cursor.fetchone()
@@ -496,7 +497,7 @@ def enviar_email(destinatario, assunto, conteudo):
     smtp_user = os.getenv('SMTP_USER', 'carlos.morais@helpiti.com.br').strip() or 'carlos.morais@helpiti.com.br'
     smtp_password = ''.join((os.getenv('SMTP_PASSWORD') or '').split())
     if not smtp_password:
-        return False, 'Configure um provedor de e-mail nas variáveis de ambiente.'
+        return False, 'O envio de e-mail não está configurado. Configure o provedor nas variáveis de ambiente.'
 
     mensagem = EmailMessage()
     mensagem['Subject'] = assunto
@@ -662,7 +663,7 @@ def get_metricas_deskops():
                 SUM(CASE WHEN UPPER(ch.status) = 'PAUSADO' THEN 1 ELSE 0 END) AS pausados,
                 SUM(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' THEN 1 ELSE 0 END) AS resolvidos,
                 SUM(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' 
-                         AND DATE(COALESCE(ch.data_fechamento, ch.data_abertura)) = CURDATE() 
+                         AND DATE(COALESCE(ch.data_fechamento, ch.data_abertura)) = DATE('now', 'localtime')
                          THEN 1 ELSE 0 END) AS resolvidos_hoje,
                 AVG(CASE WHEN UPPER(ch.status) = 'RESOLVIDO' AND ch.tempo_decorrido_segundos > 0 
                          THEN ch.tempo_decorrido_segundos ELSE NULL END) AS mttr_segundos_medio
@@ -857,7 +858,8 @@ def update_chamado(id):
         
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s AND id_usuario = %s FOR UPDATE', (id, _ws()))
+        conn.execute('BEGIN IMMEDIATE')
+        cursor.execute('SELECT * FROM chamado WHERE id_chamado = %s AND id_usuario = %s', (id, _ws()))
         chamado = dict_fetchone(cursor)
         if not chamado:
             cursor.close()
@@ -1128,7 +1130,7 @@ def update_documentacao(id):
             UPDATE documentacao
             SET titulo = %s, conteudo = %s, fornecedor = %s, 
                 id_grupo_solucionadores = COALESCE(%s, id_grupo_solucionadores),
-                data_atualizacao = NOW()
+                data_atualizacao = CURRENT_TIMESTAMP
             WHERE id_documentacao = %s AND id_usuario = %s
         ''', (titulo, conteudo, fornecedor, id_grupo, id, _ws()))
         if cursor.rowcount == 0:
@@ -1394,12 +1396,9 @@ def create_equipe():
         dados = request.get_json() or {}
         nome = dados.get('nome')
         email = (dados.get('email') or '').strip().lower()
-        senha = dados.get('senha')
-        cargo = dados.get('cargo', 'tecnico')
-        if (cargo or '').strip().lower() == 'administrador':
-            return jsonify({'erro': 'O cargo Administrador não pode ser criado por este formulário.'}), 400
+        cargo = 'Técnico'
         try:
-            permissoes = _normalizar_permissoes(dados.get('permissoes'), cargo)
+            permissoes = _normalizar_permissoes(None, cargo)
         except ValueError as error:
             return jsonify({'erro': str(error)}), 400
         nivel = dados.get('nivel') or None
@@ -1407,8 +1406,8 @@ def create_equipe():
         id_setor = dados.get('id_setor') or None
         telefone = dados.get('telefone') or None
         data_inicio = dados.get('data_inicio') or datetime.now().date()
-        if not nome or not email or not senha:
-            return jsonify({'erro': 'Nome, e-mail e senha são obrigatórios'}), 400
+        if not nome or not email:
+            return jsonify({'erro': 'Nome e e-mail são obrigatórios'}), 400
 
         conn = get_db_connection()
         if not conn:
@@ -1435,7 +1434,8 @@ def create_equipe():
              status, senha, telefone, permissoes, id_usuario)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ATIVO', %s, %s, %s, %s)""",
             (nome, nivel, nome, email, cargo, setor_nome, valor_hora, id_setor, data_inicio,
-             generate_password_hash(senha), telefone, json.dumps(sorted(permissoes)), g.membro['id_usuario'])
+             generate_password_hash(secrets.token_urlsafe(32)), telefone,
+             json.dumps(sorted(permissoes)), g.membro['id_usuario'])
         )
         conn.commit()
         novo_id = cursor.lastrowid
@@ -1641,11 +1641,12 @@ def confirmar_conta():
     conexao = get_db_connection()
     try:
         cursor = conexao.cursor()
+        conexao.execute('BEGIN IMMEDIATE')
         cursor.execute('''
             SELECT id_verificacao, nome, empresa, senha_hash, codigo_hash, expira_em, tentativas
             FROM verificacao_cadastro_email
             WHERE email = %s AND usado = 0
-            ORDER BY id_verificacao DESC LIMIT 1 FOR UPDATE
+            ORDER BY id_verificacao DESC LIMIT 1
         ''', (email,))
         registro = cursor.fetchone()
         agora = datetime.now()
@@ -1821,6 +1822,7 @@ def callback_microsoft():
     conexao = get_db_connection()
     try:
         cursor = conexao.cursor()
+        conexao.execute('BEGIN IMMEDIATE')
         cursor.execute('''
             SELECT membro.id_grupo_solucionadores AS id, membro.email, membro.cargo,
                    membro.status, membro.email_verificado, membro.id_usuario,
@@ -1990,7 +1992,7 @@ def redefinir_senha():
               AND membro.status = 'ATIVO'
               AND reset.usado = 0
             ORDER BY reset.id_codigo DESC
-            LIMIT 1 FOR UPDATE
+            LIMIT 1
         ''', (email,))
         registro = cursor.fetchone()
         agora = datetime.now()
@@ -2179,11 +2181,11 @@ def get_relatorios():
         filtro_data = 'WHERE id_usuario = %s'
         if periodo == 'mes':
             filtro_data += (
-                ' AND YEAR(data_abertura) = YEAR(CURDATE())'
-                ' AND MONTH(data_abertura) = MONTH(CURDATE())'
+                " AND strftime('%Y', data_abertura) = strftime('%Y', 'now', 'localtime')"
+                " AND strftime('%m', data_abertura) = strftime('%m', 'now', 'localtime')"
             )
         elif periodo == 'dia':
-            filtro_data += ' AND DATE(data_abertura) = CURDATE()'
+            filtro_data += " AND DATE(data_abertura) = DATE('now', 'localtime')"
 
         cursor.execute("""
             SELECT UPPER(TRIM(status)) AS status, COUNT(*) AS total
@@ -2308,8 +2310,6 @@ def _sql_literal(valor):
     if isinstance(valor, bytes):
         return "X'" + valor.hex() + "'"
     texto = str(valor).replace("'", "''")
-    if database_settings()['type'] != 'sqlite':
-        texto = texto.replace('\\', '\\\\')
     return "'" + texto + "'"
 
 
@@ -2331,17 +2331,13 @@ def admin_db_stats():
         return negado
     conn = get_db_connection()
     try:
-        config = database_settings()
-        if config['type'] == 'sqlite':
-            database_path = Path(config['database'])
-            tamanho = database_path.stat().st_size if database_path.exists() else 0
-            caminho = f"sqlite:///{database_path}"
-        else:
-            tamanho = conn.execute(
-                'SELECT COALESCE(SUM(data_length + index_length), 0) FROM information_schema.tables '
-                'WHERE table_schema = DATABASE()'
-            ).fetchone()[0]
-            caminho = f"mysql://{config['host']}:{config['port']}/{config['database']}"
+        database_path = Path(database_settings()['database'])
+        tamanho = sum(
+            candidate.stat().st_size
+            for candidate in (database_path, Path(f'{database_path}-wal'))
+            if candidate.exists()
+        )
+        caminho = f"sqlite:///{database_path}"
         return jsonify({
             'tamanhoBytes': int(tamanho),
             'registros': _contagens_do_workspace(conn, _ws()),
@@ -2361,16 +2357,17 @@ def admin_db_backup():
     ws = _ws()
     conn = get_db_connection()
     try:
-        sqlite_mode = database_settings()['type'] == 'sqlite'
         linhas = [
             '-- Backup HelpTI (somente dados deste workspace)',
             f'-- Gerado em {datetime.now().isoformat(timespec="seconds")}',
             f'-- Versão do schema: {SCHEMA_VERSION}',
-            'PRAGMA foreign_keys = OFF;' if sqlite_mode else 'SET FOREIGN_KEY_CHECKS = 0;',
-            'BEGIN;' if sqlite_mode else 'START TRANSACTION;',
+            'PRAGMA foreign_keys = OFF;',
+            'BEGIN;',
         ]
         for tabela, filtro, qtd in _WS_TABELAS_BACKUP:
-            colunas = [c[0] for c in conn.execute(f'SHOW COLUMNS FROM {tabela}')]
+            colunas = [
+                coluna[1] for coluna in conn.execute(f'PRAGMA table_info({tabela})')
+            ]
             lista = ', '.join(f'`{col}`' for col in colunas)
             for registro in conn.execute(f'SELECT {lista} FROM {tabela} WHERE {filtro}', (ws,) * qtd):
                 valores = ', '.join(
@@ -2380,7 +2377,7 @@ def admin_db_backup():
                 linhas.append(f'REPLACE INTO {tabela} ({lista}) VALUES ({valores});')
         linhas += [
             'COMMIT;',
-            'PRAGMA foreign_keys = ON;' if sqlite_mode else 'SET FOREIGN_KEY_CHECKS = 1;',
+            'PRAGMA foreign_keys = ON;',
             '',
         ]
     finally:

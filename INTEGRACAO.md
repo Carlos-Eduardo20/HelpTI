@@ -2,7 +2,7 @@
 
 ## Estrutura da Integração
 
-Esta aplicação HelpTI integra frontend (HTML/CSS/JavaScript), backend (Python/Flask) e banco MySQL (veja [SETUP_MYSQL.md](SETUP_MYSQL.md)).
+Esta aplicação HelpTI integra frontend (HTML/CSS/JavaScript), backend (Python/Flask) e banco SQLite (veja [SETUP_SQLITE.md](SETUP_SQLITE.md)).
 
 ### Componentes
 
@@ -16,7 +16,7 @@ O arquivo `backend/app.py` inicia a API e também serve o frontend. A rota `/` r
 
 #### Banco de dados
 
-O MySQL armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações no banco definido por `DB_NAME` (padrão `helpti_app`). A aplicação cria o banco e aplica o schema automaticamente. No modo demonstração, a conta local `test@helpiti.com` / `HelpTI2026!` e um setor vazio `Suporte` são criados. Configure as credenciais `DB_*` em `backend/.env`.
+O SQLite armazena chamados, clientes, contatos, equipe, setores, escalonamentos e configurações em `instance/helpti.sqlite3`. Configure `DB_SQLITE_PATH` somente se precisar usar outro caminho. A aplicação cria as tabelas automaticamente. No modo demonstração, a conta local `test@helpiti.com` / `HelpTI2026!` e um setor vazio `Suporte` são criados.
 
 ## Endpoints da API
 
@@ -151,8 +151,8 @@ Com SMTP configurado, também é enviado um aviso ao abrir um chamado. A recuper
 
 ### "Module not found"
 
-### Erro de tabela ou coluna no MySQL
-- Confirme que o MySQL está ativo e que `DB_*` em `backend/.env` estão corretos.
+### Erro de tabela ou coluna no SQLite
+- Confirme que o usuário do processo pode gravar no diretório indicado por `DB_SQLITE_PATH`.
 - Confira se o schema em `backend/schema.sql` contém a tabela/coluna esperada.
 - Faça backup antes de apagar ou recriar o banco: ele contém os dados da aplicação.
 
@@ -166,7 +166,7 @@ Depois, abra `http://127.0.0.1:5000/`. Digite um e-mail, entre no dashboard, cri
 
 Escolha uma tarefa, faça uma branch com um nome claro e mantenha as alterações focadas. Antes de abrir um pull request:
 
-1. Inicie o sistema com `python app.py` na raiz; o MySQL é inicializado automaticamente.
+1. Inicie o sistema com `python app.py` na raiz; o arquivo SQLite e as tabelas são inicializados automaticamente.
 2. Teste a API e o fluxo relacionado à alteração.
 3. Descreva os passos de teste no pull request. Não versione o `backend/.env`.
 

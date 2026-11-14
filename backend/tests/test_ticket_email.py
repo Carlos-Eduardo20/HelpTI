@@ -84,10 +84,10 @@ class TicketEmailTests(unittest.TestCase):
 
     def test_startup_prompt_selects_demo_mode_and_default_database(self):
         with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'prompt'}):
-            os.environ.pop('DB_NAME', None)
+            os.environ.pop('DB_SQLITE_PATH', None)
             demo = configure_startup(input_fn=lambda _prompt: 's')
             self.assertTrue(demo['demo_mode'])
-            self.assertEqual(demo['database'], 'helpti_app')
+            self.assertEqual(demo['database'], 'instance/helpti.sqlite3')
 
         with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'prompt'}):
             company = configure_startup(input_fn=lambda _prompt: 'n')

@@ -153,23 +153,11 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
                     <input id="buscaChamados" type="search" placeholder="Buscar ID, cliente, setor ou assunto...">
                 </label>
-                <select id="filtroPeriodoDeskops" class="deskops-filter-select" aria-label="Filtrar por período de abertura">
-                    <option value="todos" selected>Todo o período</option>
-                    <option value="hoje">Abertos hoje</option>
-                    <option value="ontem">Abertos ontem</option>
-                    <option value="mes">Último mês</option>
-                    <option value="ano">Último ano</option>
-                </select>
                 <span class="table-result-count" id="resultadosChamados" aria-live="polite"></span>
                 <div class="table-toolbar-actions">
-                    <button class="btn-secondary" id="limparFiltrosChamados" type="button">Limpar filtros</button>
                     <button class="btn-secondary" id="btnAtualizarFila" type="button" onclick="window.carregarChamados && window.carregarChamados()" title="Atualizar fila">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                         Atualizar
-                    </button>
-                    <button class="btn-secondary" id="btnExportarCsv" type="button" onclick="window.exportarChamadosCsv && window.exportarChamadosCsv()" title="Exportar chamados em CSV">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                        Exportar CSV
                     </button>
                     <button class="btn-primary" id="btnNovoChamado" type="button" onclick="window.abrirModalChamado ? window.abrirModalChamado() : document.getElementById('modalChamado')?.classList.add('active')">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--white)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
@@ -181,26 +169,17 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th aria-sort="none"><button class="table-sort-button" type="button" data-sort-key="id_chamado" aria-label="Ordenar por ticket">Ticket <span aria-hidden="true">↕</span></button></th>
-                            <th aria-sort="none"><button class="table-sort-button" type="button" data-sort-key="cliente" aria-label="Ordenar por cliente">Cliente / Solicitante <span aria-hidden="true">↕</span></button></th>
-                            <th aria-sort="none"><button class="table-sort-button" type="button" data-sort-key="setor" aria-label="Ordenar por setor">Setor <span aria-hidden="true">↕</span></button></th>
-                            <th aria-sort="none"><button class="table-sort-button" type="button" data-sort-key="tecnico" aria-label="Ordenar por responsável">Responsável <span aria-hidden="true">↕</span></button></th>
-                            <th aria-sort="none"><button class="table-sort-button" type="button" data-sort-key="sla" aria-label="Ordenar por SLA restante">SLA restante <span aria-hidden="true">↕</span></button></th>
-                            <th aria-sort="none"><button class="table-sort-button" type="button" data-sort-key="status" aria-label="Ordenar por status">Status <span aria-hidden="true">↕</span></button></th>
-                        </tr>
-                        <tr class="table-column-filters">
-                            <th><input id="filtroTicketChamados" type="search" aria-label="Filtrar por ticket" placeholder="Ticket"></th>
-                            <th><input id="filtroClienteChamados" type="search" aria-label="Filtrar por cliente ou solicitante" placeholder="Cliente / nome"></th>
-                            <th><select id="filtroSetorDeskops" aria-label="Filtrar por setor"><option value="">Todos</option></select></th>
-                            <th><select id="filtroResponsavelDeskops" aria-label="Filtrar por responsável"><option value="">Todos</option></select></th>
-                            <th><select id="filtroSlaChamados" aria-label="Filtrar por SLA"><option value="">Todos</option><option value="em-dia">Dentro do prazo</option><option value="proximo">Próximo do limite</option><option value="estourado">Estourado</option></select></th>
-                            <th><select id="filtroStatusChamados" aria-label="Filtrar por status"><option value="">Todos</option><option value="ABERTO">Aberto</option><option value="ANDAMENTO">Em andamento</option><option value="AGUARDANDO">Aguardando</option><option value="PAUSADO">Pausado</option><option value="RESOLVIDO">Resolvido</option></select></th>
+                            <th>Ticket</th>
+                            <th>Cliente / Solicitante</th>
+                            <th>Setor</th>
+                            <th>Responsável</th>
+                            <th>SLA restante</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody id="tabelaChamados"></tbody>
                 </table>
             </div>
-            <p class="table-empty-filter-note" id="avisoFiltrosChamados" hidden>Tente outro termo ou limpe os filtros para ver chamados.</p>
             <div class="pagination" id="paginacaoChamados" aria-label="Paginação dos chamados"></div>
         </section>
     </main>

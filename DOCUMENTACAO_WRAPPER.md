@@ -10,7 +10,7 @@ O **HelpTI** é uma plataforma moderna e completa de gerenciamento de chamados e
 O projeto foi projetado com uma arquitetura desacoplada e leve:
 - **Frontend:** Interface rica, responsiva e dinâmica construída em HTML5, CSS3 moderno (com suporte a variáveis de design e temas Claro/Escuro) e JavaScript ES Modules nativo.
 - **Backend:** Servidor em Python com microframework Flask, estruturado para expor uma API RESTful completa, segura e de alta performance.
-- **Persistência de Dados:** Suporte nativo para banco de dados relacional **MySQL** com criação automática do esquema (`backend/schema.sql`).
+- **Persistência de Dados:** Banco de dados relacional **SQLite**, com criação automática do esquema (`backend/schema.sql`) e armazenamento local no backend.
 
 ---
 
@@ -54,7 +54,7 @@ Conforme especificação explícita do projeto, **o setor não necessita de uma 
 - `grupo_solucionadores.setor`: Nome do setor/departamento onde o técnico atua.
 - `escalonamento.setor_destino`: Nome do setor para o qual o chamado foi transferido.
 
-*Nota técnica:* Para fins de compatibilidade retroativa com configurações de níveis hierárquicos e autocompletes visuais do frontend, a tabela `setor` é mantida no MySQL de forma auxiliar, sem restringir a integridade referencial dos chamados.
+*Nota técnica:* A tabela `setor` é mantida no SQLite para configurações de níveis hierárquicos e autocompletes visuais, além de relacionar os chamados ao setor.
 
 ### 3.2. Dicionário das Tabelas do Sistema (Conforme ERD)
 
@@ -233,13 +233,9 @@ Resultado validado: **34 testes executados e 100% aprovados**.
 
 ---
 
-## 7. Scripts SQL para Ambientes de Produção
+## 7. Schema SQLite
 
-### 7.1. MySQL (`backend/schema.sql`)
-O arquivo `backend/schema.sql` contém a definição relacional (InnoDB, utf8mb4) com índices para aceleração de consultas por workspace, cliente, status e datas.
-
-### 7.2. Oracle Database (`Banco de dados ORACLE/schema_oracle.sql`)
-O arquivo `Banco de dados ORACLE/schema_oracle.sql` contém as instruções DDL corporativas prontas para deploy em Oracle Database:
+O arquivo `backend/schema.sql` define as tabelas e índices do banco SQLite. O backend usa o arquivo `instance/helpti.sqlite3` por padrão; defina `DB_SQLITE_PATH` para alterar o local. Não há servidor de banco separado para instalar ou manter.
 - Tipos de dados específicos do Oracle (`NUMBER`, `VARCHAR2`, `TIMESTAMP`, `CLOB`).
 - Sequências automáticas e `IDENTITY COLUMNS` para chaves primárias.
 - Definição completa de `FOREIGN KEY` com integridade referencial.

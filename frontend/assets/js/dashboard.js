@@ -19,7 +19,6 @@ let agendaPagina = 0;
 let agendaModoAnterior = false;
 let ultimaDataAgenda = '';
 let paginaChamados = 1;
-let ordenacaoChamados = { chave: 'id_chamado', direcao: 'desc' };
 const chamadosPorPagina = 5;
 const SLA_LIMITE_SEGUNDOS = 25 * 60;
 
@@ -150,36 +149,8 @@ function linhaChamado(chamado) {
   `;
 }
 
-function dataAberturaDoChamado(chamado) {
-  const valor = chamado.data_abertura;
-  if (!valor) return null;
-  const data = new Date(valor.includes('T') ? valor : `${valor}T12:00:00`);
-  return Number.isNaN(data.getTime()) ? null : data;
-}
-
-function correspondeAoPeriodoDeAbertura(chamado, periodo) {
-  if (!periodo || periodo === 'todos') return true;
-  const dataAbertura = dataAberturaDoChamado(chamado);
-  if (!dataAbertura) return false;
-  const hoje = new Date();
-  const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  const inicioAbertura = new Date(dataAbertura.getFullYear(), dataAbertura.getMonth(), dataAbertura.getDate());
-  const diferencaDias = Math.floor((inicioHoje - inicioAbertura) / 86400000);
-  return periodo === 'hoje' ? diferencaDias === 0
-    : periodo === 'ontem' ? diferencaDias === 1
-      : periodo === 'mes' ? diferencaDias >= 0 && diferencaDias < 30
-        : diferencaDias >= 0 && diferencaDias < 365;
-}
-
 function aplicarFiltrosChamados() {
   const busca = document.querySelector('#buscaChamados')?.value.trim().toLowerCase() || '';
-  const filtroTicket = document.querySelector('#filtroTicketChamados')?.value.trim().toLowerCase() || '';
-  const filtroCliente = document.querySelector('#filtroClienteChamados')?.value.trim().toLowerCase() || '';
-  const responsavel = document.querySelector('#filtroResponsavelDeskops')?.value || '';
-  const setor = document.querySelector('#filtroSetorDeskops')?.value || '';
-  const periodoDeskops = document.querySelector('#filtroPeriodoDeskops')?.value || '';
-  const filtroSla = document.querySelector('#filtroSlaChamados')?.value || '';
-  const filtroStatus = document.querySelector('#filtroStatusChamados')?.value || '';
 
   const chamadosFiltrados = chamadosEmMemoria.filter((chamado) => {
     const ticketFormatado = `#tk-${String(chamado.id_chamado).padStart(4, '0')}`;
@@ -192,51 +163,15 @@ function aplicarFiltrosChamados() {
       chamado.tecnico,
       chamado.descricao
     ].some((valor) => String(valor || '').toLowerCase().includes(busca));
-    const correspondeTicket = !filtroTicket || [chamado.id_chamado, ticketFormatado]
-      .some((valor) => String(valor || '').toLowerCase().includes(filtroTicket));
-    const correspondeCliente = !filtroCliente || [chamado.cliente, chamado.contato_cliente]
-      .some((valor) => String(valor || '').toLowerCase().includes(filtroCliente));
-
     let correspondeAba = true;
     if (abaDeskopsAtiva === 'TRIAGEM') correspondeAba = chamado.status === 'ABERTO';
     else if (abaDeskopsAtiva === 'ANDAMENTO') correspondeAba = chamado.status === 'ANDAMENTO';
     else if (abaDeskopsAtiva === 'PAUSADO') correspondeAba = chamado.status === 'PAUSADO' || chamado.status === 'AGUARDANDO';
     else if (abaDeskopsAtiva === 'RESOLVIDO') correspondeAba = chamado.status === 'RESOLVIDO';
 
-    const correspondeResponsavel = !responsavel || String(chamado.tecnico || '').trim() === responsavel;
-    const correspondeSetor = !setor || String(chamado.setor || '').trim().toLowerCase() === setor.toLowerCase();
-    const correspondePeriodo = correspondeAoPeriodoDeAbertura(chamado, periodoDeskops);
-    const correspondeStatus = !filtroStatus || chamado.status === filtroStatus;
-    const slaRestante = segundosSlaRestantes(chamado);
-    const correspondeSla = !filtroSla
-      || (filtroSla === 'estourado' && slaRestante < 0)
-      || (filtroSla === 'proximo' && slaRestante >= 0 && slaRestante <= 5 * 60)
-      || (filtroSla === 'em-dia' && slaRestante > 5 * 60);
-
-    return correspondeBusca && correspondeTicket && correspondeCliente && correspondeAba
-      && correspondeResponsavel && correspondeSetor && correspondePeriodo && correspondeStatus && correspondeSla;
+    return correspondeBusca && correspondeAba;
   });
-
-  const extrairValorOrdenacao = (chamado) => {
-    if (ordenacaoChamados.chave === 'sla') return segundosSlaRestantes(chamado);
-    if (ordenacaoChamados.chave === 'id_chamado') return Number(chamado.id_chamado) || 0;
-    return String(chamado[ordenacaoChamados.chave] || '').toLocaleLowerCase('pt-BR');
-  };
-  chamadosFiltrados.sort((a, b) => {
-    const valorA = extrairValorOrdenacao(a);
-    const valorB = extrairValorOrdenacao(b);
-    const comparacao = typeof valorA === 'number' && typeof valorB === 'number'
-      ? valorA - valorB
-      : String(valorA).localeCompare(String(valorB), 'pt-BR');
-    return ordenacaoChamados.direcao === 'asc' ? comparacao : -comparacao;
-  });
-
-  document.querySelectorAll('.table-sort-button').forEach((botao) => {
-    const ativo = botao.dataset.sortKey === ordenacaoChamados.chave;
-    botao.closest('th')?.setAttribute('aria-sort', ativo ? (ordenacaoChamados.direcao === 'asc' ? 'ascending' : 'descending') : 'none');
-    const indicador = botao.querySelector('span');
-    if (indicador) indicador.textContent = ativo ? (ordenacaoChamados.direcao === 'asc' ? '↑' : '↓') : '↕';
-  });
+  chamadosFiltrados.sort((a, b) => Number(b.id_chamado) - Number(a.id_chamado));
 
   const totalPaginas = Math.max(1, Math.ceil(chamadosFiltrados.length / chamadosPorPagina));
   paginaChamados = Math.min(paginaChamados, totalPaginas);
@@ -248,8 +183,6 @@ function aplicarFiltrosChamados() {
   }
   const contador = document.querySelector('#resultadosChamados');
   if (contador) contador.textContent = `${chamadosFiltrados.length} ${chamadosFiltrados.length === 1 ? 'chamado' : 'chamados'}`;
-  const aviso = document.querySelector('#avisoFiltrosChamados');
-  if (aviso) aviso.hidden = chamadosFiltrados.length > 0 || chamadosEmMemoria.length === 0;
   atualizarSlasVisiveis();
   renderizarPaginacao(chamadosFiltrados.length, totalPaginas);
 }
@@ -288,68 +221,14 @@ function criarListaPaginas(totalPaginas, paginaAtual) {
   );
 }
 
-function popularOpcoesFiltrosDeskops(chamados) {
-  const selResponsavel = document.querySelector('#filtroResponsavelDeskops');
-  if (selResponsavel) {
-    const valAtual = selResponsavel.value;
-    const responsaveis = [...new Set(chamados.map((c) => c.tecnico).filter(Boolean))].sort();
-    selResponsavel.innerHTML = '<option value="">Todos os responsáveis</option>' +
-      responsaveis.map((r) => `<option value="${escaparHtml(r)}" ${r === valAtual ? 'selected' : ''}>${escaparHtml(r)}</option>`).join('');
-  }
-
-  const selSetor = document.querySelector('#filtroSetorDeskops');
-  if (selSetor) {
-    const valAtual = selSetor.value;
-    const setores = [...new Set(chamados.map((c) => c.setor).filter(Boolean))].sort();
-    selSetor.innerHTML = '<option value="">Todos os setores</option>' +
-      setores.map((s) => `<option value="${escaparHtml(s)}" ${s === valAtual ? 'selected' : ''}>${escaparHtml(s)}</option>`).join('');
-  }
-}
-
-function exportarChamadosCsv() {
-  if (!chamadosEmMemoria.length) {
-    mostrarErro('Nenhum chamado disponível para exportação.');
-    return;
-  }
-  const cabecalhos = ['Ticket', 'Cliente', 'Solicitante', 'Email_Cliente', 'Telefone', 'Setor', 'Responsavel', 'Status', 'Data_Abertura', 'Data_Fechamento'];
-  const linhas = [cabecalhos.join(';')];
-
-  chamadosEmMemoria.forEach((c) => {
-    const ticket = `#TK-${String(c.id_chamado).padStart(4, '0')}`;
-    const cliente = `"${(c.cliente || '').replace(/"/g, '""')}"`;
-    const solicitante = `"${(c.contato_cliente || '').replace(/"/g, '""')}"`;
-    const email = `"${(c.email_cliente || '').replace(/"/g, '""')}"`;
-    const tel = `"${(c.telefone_cliente || '').replace(/"/g, '""')}"`;
-    const setor = `"${(c.setor || '').replace(/"/g, '""')}"`;
-    const responsavel = `"${(c.tecnico || 'Não atribuído').replace(/"/g, '""')}"`;
-    const status = c.status || 'ABERTO';
-    const abertura = c.data_abertura || '';
-    const fechamento = c.data_fechamento || '';
-
-    linhas.push([ticket, cliente, solicitante, email, tel, setor, responsavel, status, abertura, fechamento].join(';'));
-  });
-
-  const conteudoCsv = '\uFEFF' + linhas.join('\r\n');
-  const blob = new Blob([conteudoCsv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  const hoje = dataLocalISO();
-  link.setAttribute('href', url);
-  link.setAttribute('download', `chamados_helpti_deskops_${hoje}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-  mostrarNotificacao('Exportação CSV gerada com sucesso.');
-}
-
 async function carregarChamados() {
   const [chamadosRes, metricasRes] = await Promise.allSettled([
     buscarChamados(),
     buscarMetricasDeskops()
   ]);
 
-  const chamados = chamadosRes.status === 'fulfilled' ? chamadosRes.value : [];
+  if (chamadosRes.status === 'rejected') throw chamadosRes.reason;
+  const chamados = chamadosRes.value;
   chamadosEmMemoria = chamados;
 
   // Atualiza métricas DeskOps nos cards superiores
@@ -386,7 +265,6 @@ async function carregarChamados() {
   if (elTabPausado) elTabPausado.textContent = countPausado;
   if (elTabResolvido) elTabResolvido.textContent = countResolvido;
 
-  popularOpcoesFiltrosDeskops(chamados);
   aplicarFiltrosChamados();
 
   const contagens = ['ABERTO', 'ANDAMENTO', 'AGUARDANDO', 'RESOLVIDO'].map((status) => chamados.filter((item) => item.status === status).length);
@@ -813,20 +691,7 @@ window.mudarDia = mudarDia;
 window.abrirNovoClienteDoChamado = abrirNovoClienteDoChamado;
 window.cancelarNovoClienteDoChamado = cancelarNovoClienteDoChamado;
 window.salvarNovoClienteDoChamado = salvarNovoClienteDoChamado;
-window.exportarChamadosCsv = exportarChamadosCsv;
 window.carregarChamados = carregarChamados;
-
-document.addEventListener('click', (event) => {
-  const botaoOrdenacao = event.target.closest('[data-sort-key]');
-  if (!botaoOrdenacao) return;
-  const chave = botaoOrdenacao.dataset.sortKey;
-  ordenacaoChamados = {
-    chave,
-    direcao: ordenacaoChamados.chave === chave && ordenacaoChamados.direcao === 'asc' ? 'desc' : 'asc'
-  };
-  paginaChamados = 1;
-  aplicarFiltrosChamados();
-});
 
 document.addEventListener('click', (event) => {
   const btnNovo = event.target.closest('#btnNovoChamado, [data-acao="novo-chamado"]');
@@ -911,8 +776,7 @@ function inicializarDashboard() {
   });
   atualizarPerfil();
   const statusInicial = new URLSearchParams(window.location.search).get('status');
-  const filtroStatus = document.querySelector('#filtroStatusChamados');
-  if (statusInicial === 'RESOLVIDO' && filtroStatus) filtroStatus.value = statusInicial;
+  if (statusInicial === 'RESOLVIDO') abaDeskopsAtiva = statusInicial;
   const agendaData = document.querySelector('#agendaData');
   if (agendaData && !agendaData.value) agendaData.value = dataLocalISO();
   if (agendaData) document.querySelector('#agendaDataLabel').textContent = formatarDataCurtaAgenda(agendaData.value);
@@ -941,33 +805,7 @@ function inicializarDashboard() {
   document.querySelector('#modalCalendarioAgenda')?.addEventListener('click', (event) => {
     if (event.target.id === 'modalCalendarioAgenda') fecharCalendarioAgenda();
   });
-  ['#buscaChamados', '#filtroTicketChamados', '#filtroClienteChamados'].forEach((seletor) => {
-    document.querySelector(seletor)?.addEventListener('input', () => {
-      paginaChamados = 1;
-      aplicarFiltrosChamados();
-    });
-  });
-  ['#filtroStatusChamados', '#filtroResponsavelDeskops', '#filtroSetorDeskops', '#filtroSlaChamados', '#filtroPeriodoDeskops'].forEach((seletor) => {
-    document.querySelector(seletor)?.addEventListener('change', () => {
-      paginaChamados = 1;
-      aplicarFiltrosChamados();
-    });
-  });
-  document.querySelector('#limparFiltrosChamados')?.addEventListener('click', () => {
-    ['#buscaChamados', '#filtroTicketChamados', '#filtroClienteChamados'].forEach((seletor) => {
-      const campo = document.querySelector(seletor);
-      if (campo) campo.value = '';
-    });
-    ['#filtroStatusChamados', '#filtroResponsavelDeskops', '#filtroSetorDeskops', '#filtroSlaChamados'].forEach((seletor) => {
-      const campo = document.querySelector(seletor);
-      if (campo) campo.value = '';
-    });
-    const periodo = document.querySelector('#filtroPeriodoDeskops');
-    if (periodo) periodo.value = 'todos';
-    abaDeskopsAtiva = 'TODOS';
-    document.querySelectorAll('#tabsDeskops [data-deskops-tab]').forEach((botao) => {
-      botao.classList.toggle('active', botao.dataset.deskopsTab === 'TODOS');
-    });
+  document.querySelector('#buscaChamados')?.addEventListener('input', () => {
     paginaChamados = 1;
     aplicarFiltrosChamados();
   });

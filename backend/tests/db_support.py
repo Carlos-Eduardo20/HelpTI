@@ -1,33 +1,30 @@
 import os
-import uuid
 from pathlib import Path
 from unittest.mock import patch
 
-from backend import app as _app  # noqa: F401  (carrega backend/.env com as credenciais do MySQL)
+from backend import app as _app  # noqa: F401
 from backend import database
 
 
-def _drop_database(name):
-    if database.database_settings()['type'] == 'sqlite':
-        Path(database.database_settings()['database']).unlink(missing_ok=True)
-        return
-    server = database._connect(with_database=False)
-    try:
-        cursor = server.cursor()
-        cursor.execute(f'DROP DATABASE IF EXISTS `{name}`')
-        cursor.close()
-    finally:
-        server.close()
+def _remove_database(path):
+    database_path = Path(path)
+    for candidate in (
+        database_path,
+        Path(f'{database_path}-wal'),
+        Path(f'{database_path}-shm'),
+    ):
+        candidate.unlink(missing_ok=True)
 
 
 def use_temp_database(test):
-    """Aponta o teste para um banco MySQL exclusivo, removido ao final."""
-    name = f'helpti_test_{uuid.uuid4().hex[:12]}'
-    overrides = {'DB_NAME': name}
-    if database.database_settings()['type'] == 'sqlite':
-        overrides['DB_SQLITE_PATH'] = str(database.INSTANCE_DIR / f'{name}.sqlite3')
+    """Aponta o teste para um arquivo SQLite isolado, removido ao final."""
+    path = database.INSTANCE_DIR / f'{test.id().replace(".", "_")}.sqlite3'
+    overrides = {
+        'DB_TYPE': 'sqlite',
+        'DB_SQLITE_PATH': str(path),
+    }
     env = patch.dict(os.environ, overrides)
     env.start()
     test.addCleanup(env.stop)
-    test.addCleanup(_drop_database, name)
-    return name
+    test.addCleanup(_remove_database, path)
+    return path

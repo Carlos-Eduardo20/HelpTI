@@ -1,6 +1,5 @@
 INSERT INTO usuario (nome, email, status, tipo_usuario)
 SELECT 'HelpTI', 'test@helpiti.com', 'ATIVO', 'WORKSPACE'
-FROM DUAL
 WHERE NOT EXISTS (
     SELECT 1 FROM usuario WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = 'test@helpiti.com'
 );

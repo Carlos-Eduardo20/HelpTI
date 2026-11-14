@@ -3,7 +3,7 @@
 Guia direto e prático para instalação, execução e testes do **HelpTI**.
 
 > 📖 **Documentação Completa da Arquitetura e Modelagem:**
-> Para consultar a documentação técnica integral — incluindo arquitetura de software, modelagem de banco de dados relacional (MySQL), justificativa do atributo `setor`, regras de negócio do Projeto 3 (DeskOps), métricas operacionais (MTTR) e catálogo completo da API REST —, consulte o arquivo [DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md).
+> Para consultar a documentação técnica integral — incluindo arquitetura de software, modelagem de dados SQLite, justificativa do atributo `setor`, regras de negócio do Projeto 3 (DeskOps), métricas operacionais (MTTR) e catálogo completo da API REST —, consulte o arquivo [DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md).
 
 ---
 
@@ -51,7 +51,7 @@ Execute o arquivo principal na raiz do projeto:
 ```bash
 python app.py
 ```
-> Para executar localmente, o HelpTI usa **SQLite** e cria automaticamente `instance/helpti.sqlite3`, sem precisar instalar ou configurar um servidor de banco. MySQL continua disponível configurando `DB_TYPE=mysql` e as variáveis correspondentes em `backend/.env` (veja [SETUP_MYSQL.md](SETUP_MYSQL.md)). O envio de códigos por e-mail pode usar o Zoho Mail (`smtp.zoho.com`, porta 587 ou 465).
+> Para executar localmente, o HelpTI usa somente **SQLite** e cria automaticamente `instance/helpti.sqlite3`, sem precisar instalar ou configurar um servidor de banco ([configuração](SETUP_SQLITE.md)). O envio de códigos por e-mail pode usar o Zoho Mail (`smtp.zoho.com`, porta 587 ou 465).
 
 ---
 
@@ -97,14 +97,15 @@ docker compose down
 
 O projeto não gerencia certificado SSL, domínio ou registros DNS. Configure o domínio e os registros DNS no Registro.br e associe o domínio personalizado ao serviço na Render, que fornecerá e renovará o certificado HTTPS.
 
-O sistema usa SQLite por padrão, mas o sistema de arquivos da Render é temporário. Para manter clientes, setores, equipe e chamados após reinicializações:
+O sistema usa SQLite e o sistema de arquivos da Render é temporário. Para manter clientes, setores, equipe e chamados após reinicializações:
 
 1. No serviço, abra **Disks** e adicione um disco persistente (disponível em serviços pagos), montado em `/var/data`.
-2. Configure `DB_TYPE=sqlite` e `DB_SQLITE_PATH=/var/data/helpti.sqlite3`.
+2. Configure `DB_SQLITE_PATH=/var/data/helpti.sqlite3`.
 3. Configure `HELPTI_DEMO_MODE=false` e `HELPTI_HTTPS_ONLY=true`.
-4. Mantenha uma única instância do serviço: um disco persistente da Render só pode ser usado por uma instância.
+4. Remova variáveis antigas `DB_TYPE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`.
+5. Mantenha uma única instância do serviço: um disco persistente da Render só pode ser usado por uma instância.
 
-O arquivo [render.yaml](render.yaml) já descreve essa configuração para novos serviços Render Blueprint. Para serviços existentes, configure o disco e as variáveis no Dashboard e faça um novo deploy. Se o disco for adicionado depois, os dados que já foram perdidos no armazenamento temporário não podem ser recuperados; exporte qualquer banco ainda disponível antes de trocar o caminho.
+O arquivo [render.yaml](render.yaml) já descreve essa configuração para novos serviços Render Blueprint. Para serviços existentes, configure o disco e as variáveis no Dashboard e faça um novo deploy. Dados que já foram perdidos no armazenamento temporário não podem ser recuperados. Se o serviço ainda usava MySQL, exporte seus dados antes de removê-lo: a aplicação não converte esse banco automaticamente.
 
 ---
 
@@ -116,7 +117,7 @@ Para rodar todos os testes automatizados do projeto:
 ```bash
 python -m unittest backend.tests.test_multitenancy backend.tests.test_deskops_project3 backend.tests.test_ticket_email backend.tests.test_admin_db backend.tests.test_pc_explorer
 ```
-Os testes exigem MySQL acessível com as credenciais de `backend/.env`; cada teste cria e remove um banco temporário.
+Os testes usam arquivos SQLite temporários isolados e os removem ao terminar.
 
 ---
 
@@ -251,7 +252,7 @@ Com a aplicação em execução na porta `5000`:
 
 Para consultar o detalhamento completo de:
 - Arquitetura de software e diagrama de componentes
-- Modelagem de dados relacional (entidades, atributos, integridade referencial e scripts MySQL)
+- Modelagem de dados relacional (entidades, atributos, integridade referencial e schema SQLite)
 - Justificativa técnica do atributo `setor` (sem tabela própria no modelo conceitual)
 - Regras de negócio DeskOps (MTTR médio, SLA, permissões de cliente vs. técnico, autor no histórico)
 - Catálogo exaustivo de endpoints da API REST

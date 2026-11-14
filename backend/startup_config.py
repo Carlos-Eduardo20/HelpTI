@@ -22,10 +22,10 @@ def configure_startup(input_fn=input, output_fn=print):
             output_fn('Resposta inválida. Digite S para sim ou N para não.')
 
     os.environ['HELPTI_DEMO_MODE'] = 'true' if use_demo else 'false'
-    os.environ.setdefault('DB_NAME', 'helpti_app')
+    os.environ.setdefault('DB_SQLITE_PATH', 'instance/helpti.sqlite3')
 
     return {
         'demo_mode': use_demo,
-        'database': os.environ['DB_NAME'],
+        'database': os.environ['DB_SQLITE_PATH'],
     }
 

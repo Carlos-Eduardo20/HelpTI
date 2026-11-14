@@ -82,14 +82,6 @@ let clientesEmMemoria = [];
 let chamadosEmMemoria = [];
 let filtroClientesSelecionado = 'todos';
 
-const PERMISSOES_POR_CARGO = {
-  'RH': ['dashboard', 'clientes', 'equipe'],
-  'Suporte': ['dashboard', 'chamados', 'clientes', 'educacao'],
-  'NOC': ['dashboard', 'chamados'],
-  'Técnico': ['dashboard', 'chamados', 'educacao'],
-  'Personalizado': ['dashboard']
-};
-
 const PAGINA_POR_PERMISSAO = {
   'dashboard.html': 'dashboard',
   'chamados.html': 'chamados',
@@ -102,13 +94,6 @@ const PAGINA_POR_PERMISSAO = {
   'educacao.html': 'educacao',
   'settings.html': 'configuracoes'
 };
-
-function aplicarPresetPermissoes(cargo) {
-  const permissoes = new Set(PERMISSOES_POR_CARGO[cargo] || PERMISSOES_POR_CARGO.Personalizado);
-  document.querySelectorAll('#form-nova-equipe [name="permissoes"]').forEach((checkbox) => {
-    checkbox.checked = permissoes.has(checkbox.value);
-  });
-}
 
 async function aplicarPermissoesNavegacao() {
   try {
@@ -406,7 +391,6 @@ function abrirNovoFuncionario(setorId, nivel) {
   const campoNivel = form?.elements.nivel;
   if (!setor || !form || !campoSetor || !campoNivel) return;
   form.reset();
-  aplicarPresetPermissoes(form.elements.cargo.value);
   campoSetor.value = setor.nome;
   const niveis = setor.niveis || [];
   campoNivel.required = niveis.length > 0;
@@ -610,13 +594,10 @@ async function salvarMembro(event) {
       await criarMembro({
         nome: form.elements.nome.value.trim(),
         email: form.elements.email.value.trim(),
-        cargo: form.elements.cargo.value,
-        permissoes: [...form.querySelectorAll('[name="permissoes"]:checked')].map((checkbox) => checkbox.value),
         telefone: formatBrazilianPhone(form.elements.telefone.value),
         valor_hora: form.elements.valor_hora.value,
         id_setor: setor.id_setor,
-        nivel: form.elements.nivel.value,
-        senha: form.elements.senha.value
+        nivel: form.elements.nivel.value
       });
       closeModal('modal-equipe'); form.reset(); await carregarSetores(); await carregarEquipe(); mostrarNotificacao('Membro cadastrado com sucesso.');
     } catch (error) { mostrarErro(`Não foi possível cadastrar: ${error.message}`); }
@@ -711,7 +692,6 @@ document.querySelector('a[href="login.html"]')?.addEventListener('click', encerr
 document.addEventListener('DOMContentLoaded', () => {
   mostrarPerfil();
   aplicarPermissoesNavegacao();
-  document.querySelector('#cargo-membro')?.addEventListener('change', (event) => aplicarPresetPermissoes(event.target.value));
   carregarClientes();
   carregarEquipe();
   carregarSetores();

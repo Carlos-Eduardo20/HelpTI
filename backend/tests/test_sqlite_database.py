@@ -11,6 +11,11 @@ from backend import database
 
 
 class SQLiteDatabaseTests(unittest.TestCase):
+    def test_mysql_configuration_is_rejected_instead_of_using_an_empty_database(self):
+        with patch.dict(os.environ, {'DB_TYPE': 'mysql'}):
+            with self.assertRaisesRegex(RuntimeError, 'somente SQLite'):
+                database.database_settings()
+
     def test_initialization_preserves_records_in_configured_database(self):
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / 'helpti.sqlite3'
@@ -73,6 +78,23 @@ class SQLiteDatabaseTests(unittest.TestCase):
                     'senha': 'HelpTI2026!',
                 })
                 self.assertEqual(response.status_code, 200, response.get_json())
+                member_response = client.post('/api/equipe', json={
+                    'nome': 'Tecnico SQLite',
+                    'email': 'tecnico@helpti.test',
+                })
+                self.assertEqual(member_response.status_code, 201, member_response.get_json())
+                connection = database.get_db_connection()
+                try:
+                    member_record = connection.execute(
+                        'SELECT cargo, senha, permissoes FROM grupo_solucionadores '
+                        'WHERE email = %s',
+                        ('tecnico@helpti.test',),
+                    ).fetchone()
+                    self.assertEqual(member_record['cargo'], 'Técnico')
+                    self.assertTrue(member_record['senha'])
+                    self.assertIn('"chamados"', member_record['permissoes'])
+                finally:
+                    connection.close()
                 stats = client.get('/api/admin/db/stats')
                 self.assertEqual(stats.status_code, 200, stats.get_json())
                 self.assertTrue(stats.get_json()['caminho'].startswith('sqlite:///'))

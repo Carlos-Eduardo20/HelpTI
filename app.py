@@ -37,7 +37,7 @@ if __name__ == '__main__':
         from backend.database import database_settings, demo_mode_enabled
     except ModuleNotFoundError as error:
         if error.name not in {
-            'flask', 'authlib', 'joserfc', 'requests', 'werkzeug', 'mysql',
+            'flask', 'authlib', 'joserfc', 'requests', 'werkzeug',
         }:
             raise
         raise SystemExit(dependency_setup_message(error.name, project_dir)) from error
@@ -47,13 +47,10 @@ if __name__ == '__main__':
     try:
         initialize_database()
     except Exception as error:
-        raise SystemExit(f'Não foi possível preparar o banco MySQL: {error}') from error
+        raise SystemExit(f'Não foi possível preparar o banco SQLite: {error}') from error
     demo_status = 'habilitada' if demo_mode_enabled() else 'desabilitada'
     config = database_settings()
-    if config['type'] == 'sqlite':
-        print(f"Banco SQLite ativo: {config['database']}")
-    else:
-        print(f"Banco MySQL ativo: {config['host']}:{config['port']}/{config['database']}")
+    print(f"Banco SQLite ativo: {config['database']}")
     print(f'Conta teste HelpTI: {demo_status}')
     host = os.environ.get('HELPTI_HOST', '127.0.0.1')
     debug_requested = os.environ.get('HELPTI_DEBUG', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
