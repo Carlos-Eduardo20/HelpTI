@@ -54,90 +54,11 @@ Conforme especificação explícita do projeto, **o setor não necessita de uma 
 - `grupo_solucionadores.setor`: Nome do setor/departamento onde o técnico atua.
 - `escalonamento.setor_destino`: Nome do setor para o qual o chamado foi transferido.
 
-Não existe uma tabela independente de setores. A rota `GET /api/setores` retorna os nomes distintos já cadastrados nos campos de texto da equipe e dos chamados.
+Não existe uma tabela independente de setores. A rota `GET /api/setores` retorna os nomes distintos de `grupo_solucionadores.setor`.
 
-### 3.2. Dicionário das Tabelas do Sistema (Conforme ERD)
+### 3.2. Modelo relacional atual
 
-#### 1. `cliente`
-Representa os clientes atendidos e seus contatos associados.
-- `id_cliente` (INTEGER, PK): Identificador único do contato/cliente.
-- `id_usuario` (INTEGER, FK -> `usuario.id_usuario`): Vínculo com a empresa/workspace.
-- `nome` (TEXT, NOT NULL): Nome do cliente ou funcionário de contato.
-- `email` (TEXT, NOT NULL): Endereço de e-mail do cliente.
-- `telefone` (TEXT, NOT NULL): Telefone de contato.
-- `contato` (TEXT): Nome da pessoa de contato principal.
-
-#### 2. `tipo_chamado`
-Classificação padrão de tipos de atendimento do helpdesk.
-- `id_tipo_chamado` (INTEGER, PK): Identificador único do tipo.
-- `nome` (TEXT, NOT NULL): Nome do tipo (ex: "Suporte Geral", "Hardware", "Software", "Redes").
-- `classificacao` (TEXT): Subcategoria ou classificação técnica.
-- `descricao` (TEXT): Descrição do escopo do tipo de chamado.
-
-#### 3. `grupo_solucionadores`
-Técnicos, analistas e membros das equipes de resolução de chamados.
-- `id_grupo_solucionadores` (INTEGER, PK): Identificador do solucionador.
-- `id_usuario` (INTEGER, FK -> `usuario.id_usuario`): Workspace ao qual o técnico pertence.
-- `nome` (TEXT): Nome completo do atendente.
-- `email` (TEXT): E-mail corporativo.
-- `cargo` (TEXT): Função/cargo na equipe.
-- `telefone` (TEXT): Telefone de contato.
-- `setor` (TEXT): **Atributo de setor/departamento** do atendente.
-- `nivel` (INTEGER): Nível de atendimento, quando aplicável.
-- `status` (TEXT): 'ATIVO' ou 'INATIVO'.
-- `permissoes` (TEXT): Permissões de acesso em formato JSON.
-
-#### 4. `chamado`
-Entidade central que armazena os tickets de atendimento.
-- `id_chamado` (INTEGER, PK): Identificador numérico único do ticket (#TK-XXXX).
-- `id_tipo_chamado` (INTEGER, FK -> `tipo_chamado.id_tipo_chamado`): Tipo do chamado.
-- `id_grupo_solucionadores` (INTEGER, FK opcional): Técnico atribuído.
-- `cliente` (TEXT, NOT NULL): Razão social ou nome da empresa cliente.
-- `email_cliente` (TEXT): E-mail da empresa solicitante.
-- `telefone_cliente` (TEXT): Telefone da empresa solicitante.
-- `contato_cliente` (TEXT): Nome do solicitante/funcionário específico.
-- `telefone_contato` (TEXT): Telefone do solicitante.
-- `setor` (TEXT): **Atributo de setor/departamento** do chamado.
-- `status` (TEXT, DEFAULT 'ABERTO'): Status operacional (`ABERTO`, `ANDAMENTO`, `AGUARDANDO`, `PAUSADO`, `RESOLVIDO`).
-- `descricao` (TEXT, NOT NULL): Relato do problema ou necessidade.
-- `descricao_final` (TEXT): Solução técnica aplicada ao encerrar o chamado.
-- `tempo_inicio` (TEXT): Timestamp do início do atendimento em andamento.
-- `tempo_decorrido_segundos` (INTEGER, DEFAULT 0): Segundos totais consumidos de atendimento.
-- `data_abertura` (TEXT, NOT NULL): Data e hora de abertura do chamado.
-- `data_fechamento` (TEXT): Data e hora de encerramento do chamado.
-- `data_agendada` (TEXT): Data programada para atendimento (quando aplicável).
-- `hora_agendada` (TEXT): Horário agendado.
-*(Nota: Conforme a modelagem conceitual do ERD original e requisitos de simplicidade do HelpTI, a gestão de tickets não impõe o atributo de prioridade, mantendo o fluxo ágil e desimpedido).*
-
-#### 5. `escalonamento`
-Registro de transferências de chamados para outros níveis ou técnicos.
-- `id_escalonamento` (INTEGER, PK): Identificador do escalonamento.
-- `id_chamado` (INTEGER, FK -> `chamado.id_chamado`): Chamado escalonado.
-- `id_grupo_destino` (INTEGER, FK opcional): Novo técnico responsável.
-- `setor_destino` (TEXT): **Atributo do nome do setor de destino**.
-- `motivo` (TEXT): Justificativa do escalonamento.
-- `nivel` (INTEGER): Novo nível técnico (ex: Nível 2 ou 3).
-- `data_escalonamento` (TEXT): Data e hora em que ocorreu a transferência.
-
-#### 6. `historico_chamado`
-Trilha de auditoria e linha do tempo de eventos do chamado.
-- `id_historico` (INTEGER, PK): Identificador do evento.
-- `id_chamado` (INTEGER, FK -> `chamado.id_chamado`): Chamado relacionado.
-- `evento` (TEXT, NOT NULL): Código do evento (`aberto`, `iniciado`, `pausado`, `escalonado`, `encerrado`, `agendado`, `status_alterado`).
-- `descricao` (TEXT, NOT NULL): Detalhamento do que aconteceu.
-- `autor` (TEXT, DEFAULT 'Sistema'): **Identificador de quem realizou a alteração** (atendente ou sistema).
-- `data_evento` (TEXT, NOT NULL): Data e hora do evento.
-
-#### 7. `documentacao` (Modelagem ERD & Base de Conhecimento)
-Repositório de documentação técnica, manuais de fornecedores e procedimentos.
-- `id_documentacao` (INTEGER, PK): Identificador do documento.
-- `id_usuario` (INTEGER, FK -> `usuario.id_usuario`): Empresa/workspace proprietário.
-- `id_grupo_solucionadores` (INTEGER, FK opcional): Técnico autor ou grupo responsável.
-- `fornecedor` (TEXT): Nome do fornecedor ou fabricante (ex: "Dell", "Microsoft", "Cisco").
-- `titulo` (TEXT, NOT NULL): Título do manual ou artigo técnico.
-- `conteudo` (TEXT, NOT NULL): Texto completo ou procedimentos de suporte.
-- `data_criacao` (TEXT, NOT NULL): Data de inclusão.
-- `data_atualizacao` (TEXT, NOT NULL): Data da última revisão.
+A modelagem completa e atualizada — com todas as tabelas, campos, cardinalidades, verbos nos relacionamentos e o diagrama editável — está na [seção 6 do README](README.md#6-modelagem-do-banco-sqlite). O arquivo `backend/schema.sql` é a fonte de verdade do esquema; esta documentação não mantém um dicionário paralelo para evitar divergências.
 
 ---
 
@@ -147,7 +68,7 @@ Repositório de documentação técnica, manuais de fornecedores e procedimentos
 - **Linguagem:** Python 3.10+
 - **Framework Web:** Flask com rotas modulares de API RESTful.
 - **Autenticação:** Sessão baseada em cookies assinados e `login_required`. Suporte a expiração de sessão e hashes criptográficos fortes via Werkzeug (`generate_password_hash` / `check_password_hash`).
-- **Migrações Automáticas:** O arquivo `backend/database.py` possui um motor interno de migração incremental (`SCHEMA_VERSION = 4`) que adiciona colunas e preserva tabelas existentes sem corromper ou apagar dados.
+- **Migrações Automáticas:** O arquivo `backend/database.py` possui um motor interno de migração incremental (`SCHEMA_VERSION = 7`) que adiciona colunas e preserva tabelas existentes sem corromper ou apagar dados.
 
 ### 4.2. Camada de Apresentação (Frontend)
 - **Estrutura:** HTML5 com navegação em abas superiores (Dashboard, Chamados, Clientes, Equipe, Relatórios, Educação).
@@ -230,8 +151,4 @@ Resultado validado: **34 testes executados e 100% aprovados**.
 
 ## 7. Schema SQLite
 
-O arquivo `backend/schema.sql` define as tabelas e índices do banco SQLite. O backend usa o arquivo `instance/helpti.sqlite3` por padrão; defina `DB_SQLITE_PATH` para alterar o local. Não há servidor de banco separado para instalar ou manter.
-- Tipos de dados específicos do Oracle (`NUMBER`, `VARCHAR2`, `TIMESTAMP`, `CLOB`).
-- Sequências automáticas e `IDENTITY COLUMNS` para chaves primárias.
-- Definição completa de `FOREIGN KEY` com integridade referencial.
-- Tabela `DOCUMENTACAO` com campos para fornecedor, conteúdo em `CLOB` e índices de busca.
+O arquivo `backend/schema.sql` define as tabelas e índices do banco SQLite. O backend usa o arquivo `instance/helpti.sqlite3` por padrão; defina `DB_SQLITE_PATH` para alterar o local. Não há servidor de banco separado para instalar ou manter. Os tipos, chaves primárias e estrangeiras seguem a sintaxe SQLite, e os setores são armazenados como texto, sem tabela própria.

@@ -2,8 +2,8 @@
 
 Guia direto e prático para instalação, execução e testes do **HelpTI**.
 
-> 📖 **Documentação Completa da Arquitetura e Modelagem:**
-> Para consultar a documentação técnica integral — incluindo arquitetura de software, modelagem de dados SQLite, justificativa do atributo `setor`, regras de negócio do Projeto 3 (DeskOps), métricas operacionais (MTTR) e catálogo completo da API REST —, consulte o arquivo [DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md).
+> 📖 **Documentação técnica:**
+> A modelagem atual do SQLite, com tabelas, relacionamentos e diagrama editável do draw.io, está na [seção 6 deste README](#6-modelagem-do-banco-sqlite). Para arquitetura da solução, regras de negócio e catálogo da API REST, consulte [DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md).
 
 ---
 
@@ -69,7 +69,7 @@ Deseja iniciar com a conta de teste HelpTI? [S/N]:
 - **Acesse no navegador:** [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
 - **Credenciais de Teste:**
   - **E-mail:** `test@helpiti.com`
-  - **Senha:** `HelpTI2026!`
+  - **Senha:** `HelpTI2026!!`
 
 ### Opção [N] — Novo Workspace / Empresa Própria
 - Responda **`N`** e pressione Enter.
@@ -121,108 +121,49 @@ Os testes usam arquivos SQLite temporários isolados e os removem ao terminar.
 
 ---
 
-## 7. Modelagem de Banco de Dados (ERD)
+## 6. Modelagem do banco SQLite
 
-A modelagem de dados do **HelpTI** foi desenvolvida de forma enxuta e focada na simplicidade de um sistema de Service Desk / Helpdesk, mantendo apenas as entidades e atributos essenciais sem sobrecarga de tabelas:
+O SQLite do HelpTI possui oito tabelas no schema atual. O diagrama abaixo usa os relacionamentos definidos em `backend/schema.sql`; linhas contínuas são chaves estrangeiras. O setor é armazenado como texto, sem tabela `setor`.
 
-```mermaid
-erDiagram
-    CLIENTE ||--o{ CHAMADO : "solicita"
-    TIPO_CHAMADO ||--o{ CHAMADO : "classifica"
-    GRUPO_SOLUCIONADORES ||--o{ CHAMADO : "atende"
-    CHAMADO ||--o{ ESCALONAMENTO : "possui"
-    CHAMADO ||--o{ HISTORICO_CHAMADO : "registra"
-    GRUPO_SOLUCIONADORES ||--o{ DOCUMENTACAO : "elabora"
+[![Diagrama ER do SQLite do HelpTI](docs/sqlite-model.svg)](docs/sqlite-model.svg)
 
-    CLIENTE {
-        int id_cliente PK
-        int id_usuario FK
-        string nome
-        string email
-        string telefone
-        string contato
-    }
+O arquivo [editável no draw.io](docs/sqlite-model.drawio) pode ser aberto em [app.diagrams.net](https://app.diagrams.net/) usando **File → Open From → Device**. Os campos do desenho são os principais identificadores; a lista completa está em [`backend/schema.sql`](backend/schema.sql).
 
-    TIPO_CHAMADO {
-        int id_tipo_chamado PK
-        string nome
-        string classificacao
-        string descricao
-    }
+### Tabelas
 
-    CHAMADO {
-        int id_chamado PK
-        int id_tipo_chamado FK
-        int id_grupo_solucionadores FK
-        string cliente
-        string email_cliente
-        string telefone_cliente
-        string contato_cliente
-        string telefone_contato
-        string setor "Atributo de setor (sem tabela obrigatoria)"
-        string status "ABERTO | ANDAMENTO | PAUSADO | RESOLVIDO"
-        string descricao
-        string descricao_final
-        int tempo_decorrido_segundos
-        string tempo_inicio
-        string data_abertura
-        string data_fechamento
-        string data_agendada
-        string hora_agendada
-    }
+| Tabela | Finalidade | Chaves e campos de destaque |
+| --- | --- | --- |
+| `usuario` | Workspaces e cadastros de empresas clientes | `id_usuario` (PK), `id_workspace` (FK opcional para `usuario`), `tipo_usuario`, `nome`, `email`, `status` |
+| `cliente` | Contatos vinculados a uma empresa cliente | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `id_workspace` (FK opcional para `usuario`), `nome`, `email`, `telefone` |
+| `tipo_chamado` | Categorias de chamados | `id_tipo_chamado` (PK), `nome`, `classificacao` |
+| `grupo_solucionadores` | Funcionários e administradores do workspace | `id_grupo_solucionadores` (PK), `id_usuario` (FK obrigatória), `nome`, `email`, `setor` (TEXT), `status` |
+| `chamado` | Chamados e seus dados de atendimento | `id_chamado` (PK), `id_tipo_chamado` (FK obrigatória), `id_grupo_solucionadores` e `id_usuario` (FKs opcionais), `cliente` (TEXT), `setor` (TEXT), `status`, `descricao` |
+| `historico_chamado` | Eventos e alterações de cada chamado | `id_historico` (PK), `id_chamado` (FK obrigatória), `evento`, `descricao`, `autor` |
+| `escalonamento` | Transferências de chamados | `id_escalonamento` (PK), `id_chamado` (FK obrigatória), `id_grupo_destino` (FK opcional), `motivo`, `setor_destino` (TEXT) |
+| `documentacao` | Artigos e procedimentos técnicos | `id_documentacao` (PK), `id_usuario` e `id_grupo_solucionadores` (FKs opcionais), `titulo`, `conteudo` |
 
-    GRUPO_SOLUCIONADORES {
-        int id_grupo_solucionadores PK
-        int id_usuario FK
-        string nome
-        string email
-        string cargo
-        string telefone
-        string setor "Atributo de setor"
-        int nivel
-        string status "ATIVO | INATIVO"
-        string permissoes
-    }
+### Relacionamentos e cardinalidades
 
-    ESCALONAMENTO {
-        int id_escalonamento PK
-        int id_chamado FK
-        int id_grupo_destino FK
-        string motivo
-        int nivel
-        string setor_destino "Atributo de setor destino"
-        string data_escalonamento
-    }
+O verbo no meio de cada relação descreve a ação entre as tabelas. A cardinalidade representa o schema SQLite, incluindo quando uma FK pode ser nula.
 
-    DOCUMENTACAO {
-        int id_documentacao PK
-        int id_grupo_solucionadores FK
-        string titulo
-        string fornecedor
-        string conteudo
-        string data_criacao
-        string data_atualizacao
-    }
+| Cardinalidade | Relação | Como é implementada |
+| --- | --- | --- |
+| 1:N | `usuario` **agrupa** `usuario` | `usuario.id_workspace` referencia o workspace pai; a FK é opcional. |
+| 1:N | `usuario` **mantém** `cliente` | `cliente.id_usuario` obrigatório aponta para a empresa cliente. |
+| 1:N | `usuario` **organiza por workspace** `cliente` | `cliente.id_workspace` é uma FK opcional para o workspace. |
+| 1:N | `usuario` **possui** `grupo_solucionadores` | `grupo_solucionadores.id_usuario` é obrigatório. |
+| 1:N | `tipo_chamado` **classifica** `chamado` | Cada chamado tem um tipo obrigatório. |
+| 1:N | `grupo_solucionadores` **atende** `chamado` | `chamado.id_grupo_solucionadores` é opcional: um chamado pode estar sem responsável. |
+| 1:N | `usuario` **registra** `chamado` | `chamado.id_usuario` é opcional. |
+| 1:N | `chamado` **registra** `historico_chamado` | Cada evento de histórico pertence a um chamado; excluir o chamado apaga seu histórico. |
+| 1:N | `chamado` **gera** `escalonamento` | Cada escalonamento pertence a um chamado. |
+| 1:N | `grupo_solucionadores` **recebe** `escalonamento` | `escalonamento.id_grupo_destino` é opcional. |
+| 1:N | `usuario` **organiza** `documentacao` | `documentacao.id_usuario` é opcional. |
+| 1:N | `grupo_solucionadores` **elabora** `documentacao` | `documentacao.id_grupo_solucionadores` é opcional. |
+| 1:1 | Nenhuma relação 1:1 garantida pelo schema atual | Nenhuma FK tem restrição `UNIQUE`; portanto, não há 1:1 assegurada pelo banco. |
+| N:N | `chamado` **é escalonado para** `grupo_solucionadores` | Relação lógica mediada por `escalonamento`, que registra o chamado, o destino e os dados da transferência. |
 
-    HISTORICO_CHAMADO {
-        int id_historico PK
-        int id_chamado FK
-        string evento
-        string descricao
-        string autor
-        string data_evento
-    }
-```
-
-### Entidades Essenciais e Relacionamentos
-- **`cliente`**: Cadastro das empresas clientes e solicitantes do suporte.
-- **`tipo_chamado`**: Classificação temática dos tipos de solicitação técnica.
-- **`chamado`**: Entidade central de tickets do helpdesk com atributos de contato, histórico de tempo decorrido, data de agendamento (agenda) e status de atendimento (sem prioridade, assegurando abertura rápida).
-- **`setor` (Atributo)**: Definido como atributo direto (`setor`) em `chamado` e `grupo_solucionadores`, eliminando a necessidade de tabelas desnecessárias no banco.
-- **`grupo_solucionadores`**: Técnicos e atendentes da equipe técnica responsáveis pela resolução dos chamados.
-- **`escalonamento`**: Rastreabilidade de transferências entre níveis e setores de suporte.
-- **`documentacao`**: Base de conhecimento com artigos e procedimentos técnicos por fornecedor e equipe.
-- **`historico_chamado`**: Linha do tempo auditável de cada evento do chamado com identificação do autor.
+**Limites importantes:** `chamado.cliente` guarda o nome do cliente como texto; não há FK de `chamado` para `cliente` ou `usuario`. Assim, o vínculo entre chamado e cliente não é validado pelo banco. Do mesmo modo, `setor` e `setor_destino` são campos de texto, não entidades relacionadas por FK.
 
 
 Para executar especificamente a suíte de testes do Projeto 3 (DeskOps):
@@ -250,11 +191,10 @@ Com a aplicação em execução na porta `5000`:
 
 ## 8. Documentação Completa do Projeto
 
-Para consultar o detalhamento completo de:
+Para consultar o detalhamento de:
 - Arquitetura de software e diagrama de componentes
-- Modelagem de dados relacional (entidades, atributos, integridade referencial e schema SQLite)
 - Justificativa técnica do atributo `setor` (sem tabela própria no modelo conceitual)
 - Regras de negócio DeskOps (MTTR médio, SLA, permissões de cliente vs. técnico, autor no histórico)
 - Catálogo exaustivo de endpoints da API REST
 
-Consulte o arquivo principal: **[DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md)**.
+A modelagem SQLite atual está na [seção 6 deste README](#6-modelagem-do-banco-sqlite). Para os demais tópicos, consulte **[DOCUMENTACAO_WRAPPER.md](DOCUMENTACAO_WRAPPER.md)**.

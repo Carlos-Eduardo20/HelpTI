@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160" role="img" aria-labelledby="title description">
+  <title id="title">Modelagem SQLite do HelpTI</title>
+  <desc id="description">Diagrama ER com as oito tabelas SQLite do HelpTI e relacionamentos rotulados com verbos e cardinalidades.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .entity { fill: #fff; stroke: #2563eb; stroke-width: 2; }
+      .domain { stroke: #0f766e; }
+      .header { fill: #eff6ff; }
+      .domain-header { fill: #f0fdfa; }
+      .title { fill: #0f172a; font: 700 16px Arial, sans-serif; }
+      .field { fill: #334155; font: 13px Arial, sans-serif; }
+      .key { fill: #1d4ed8; font: 700 12px Arial, sans-serif; }
+      .edge { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .optional { stroke: #64748b; stroke-dasharray: 7 5; }
+      .edge-label { fill: #fff; stroke: #cbd5e1; stroke-width: 1; }
+      .edge-text { fill: #1e293b; font: 12px Arial, sans-serif; text-anchor: middle; }
+      .note { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5; }
+      .note-title { fill: #0f172a; font: 700 14px Arial, sans-serif; }
+      .note-text { fill: #334155; font: 12px Arial, sans-serif; }
+    </style>
+  </defs>
+  <rect class="bg" width="1800" height="1160"/>
+
+  <g aria-label="Relacionamentos">
+    <path class="edge" d="M410 145 L490 145"/>
+    <path class="edge optional" d="M410 280 C445 300 455 235 490 225"/>
+    <path class="edge optional" d="M125 90 C125 35 355 35 355 90"/>
+    <path class="edge" d="M230 330 L230 530"/>
+    <path class="edge optional" d="M410 300 L500 455"/>
+    <path class="edge" d="M1080 270 C1060 335 900 350 850 420"/>
+    <path class="edge optional" d="M450 650 L500 650"/>
+    <path class="edge" d="M930 480 C975 460 980 310 1020 290"/>
+    <path class="edge" d="M930 700 L1020 700"/>
+    <path class="edge optional" d="M380 800 L380 900 L1190 900 L1190 840"/>
+    <path class="edge optional" d="M420 800 L420 1000 L1590 1000 L1590 670"/>
+    <path class="edge optional" d="M60 300 L20 300 L20 1080 L1680 1080 L1680 670"/>
+  </g>
+
+  <g transform="translate(60 90)">
+    <rect class="entity" width="350" height="240" rx="10"/>
+    <rect class="header" width="350" height="42" rx="10"/>
+    <path d="M0 42 H350" stroke="#2563eb" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">USUARIO</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_usuario</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_workspace (opcional, autorrelacao)</text>
+    <text class="field" x="16" y="122">nome, email, tipo_usuario, status</text>
+    <text class="field" x="16" y="146">workspace_name, support_email</text>
+    <text class="field" x="16" y="170">cnpj, telefone, endereco, plano</text>
+    <text class="field" x="16" y="194">contato, telefone_empresa, acoes</text>
+  </g>
+
+  <g transform="translate(490 90)">
+    <rect class="entity" width="350" height="210" rx="10"/>
+    <rect class="header" width="350" height="42" rx="10"/>
+    <path d="M0 42 H350" stroke="#2563eb" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">CLIENTE</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_cliente</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_usuario (obrigatorio)</text>
+    <text class="key" x="16" y="116">FK</text><text class="field" x="54" y="116">id_workspace (opcional)</text>
+    <text class="field" x="16" y="146">nome, contato, email, telefone</text>
+  </g>
+
+  <g transform="translate(930 90)">
+    <rect class="entity" width="330" height="180" rx="10"/>
+    <rect class="header" width="330" height="42" rx="10"/>
+    <path d="M0 42 H330" stroke="#2563eb" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">TIPO_CHAMADO</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_tipo_chamado</text>
+    <text class="field" x="16" y="98">nome, classificacao</text>
+    <text class="field" x="16" y="122">descricao</text>
+  </g>
+
+  <g transform="translate(60 530)">
+    <rect class="entity domain" width="390" height="270" rx="10"/>
+    <rect class="domain-header" width="390" height="42" rx="10"/>
+    <path d="M0 42 H390" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">GRUPO_SOLUCIONADORES</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_grupo_solucionadores</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_usuario (obrigatorio)</text>
+    <text class="field" x="16" y="122">nome, email, cargo, telefone</text>
+    <text class="field" x="16" y="146">setor TEXT, nivel, status</text>
+    <text class="field" x="16" y="170">senha, permissoes, foto_perfil</text>
+  </g>
+
+  <g transform="translate(500 420)">
+    <rect class="entity domain" width="430" height="390" rx="10"/>
+    <rect class="domain-header" width="430" height="42" rx="10"/>
+    <path d="M0 42 H430" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">CHAMADO</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_chamado</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_tipo_chamado (obrigatorio)</text>
+    <text class="key" x="16" y="116">FK</text><text class="field" x="54" y="116">id_grupo_solucionadores (opcional)</text>
+    <text class="key" x="16" y="140">FK</text><text class="field" x="54" y="140">id_usuario (opcional)</text>
+    <text class="field" x="16" y="170">cliente TEXT, setor TEXT, status</text>
+    <text class="field" x="16" y="194">descricao, descricao_final</text>
+    <text class="field" x="16" y="218">email_cliente, telefone_cliente</text>
+    <text class="field" x="16" y="242">contato_cliente, telefone_contato</text>
+    <text class="field" x="16" y="266">data_abertura, data_fechamento</text>
+    <text class="field" x="16" y="290">data_agendada, hora_agendada</text>
+    <text class="field" x="16" y="314">tempo_inicio, tempo_decorrido_segundos</text>
+  </g>
+
+  <g transform="translate(1020 170)">
+    <rect class="entity domain" width="320" height="220" rx="10"/>
+    <rect class="domain-header" width="320" height="42" rx="10"/>
+    <path d="M0 42 H320" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">HISTORICO_CHAMADO</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_historico</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_chamado (obrigatorio)</text>
+    <text class="field" x="16" y="122">evento, descricao, autor</text>
+    <text class="field" x="16" y="146">data_evento</text>
+  </g>
+
+  <g transform="translate(1020 610)">
+    <rect class="entity domain" width="350" height="230" rx="10"/>
+    <rect class="domain-header" width="350" height="42" rx="10"/>
+    <path d="M0 42 H350" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">ESCALONAMENTO</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_escalonamento</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_chamado (obrigatorio)</text>
+    <text class="key" x="16" y="116">FK</text><text class="field" x="54" y="116">id_grupo_destino (opcional)</text>
+    <text class="field" x="16" y="146">motivo, nivel, data_escalonamento</text>
+    <text class="field" x="16" y="170">setor_destino TEXT</text>
+  </g>
+
+  <g transform="translate(1450 420)">
+    <rect class="entity domain" width="300" height="250" rx="10"/>
+    <rect class="domain-header" width="300" height="42" rx="10"/>
+    <path d="M0 42 H300" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">DOCUMENTACAO</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_documentacao</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_usuario (opcional)</text>
+    <text class="key" x="16" y="116">FK</text><text class="field" x="54" y="116">id_grupo_solucionadores</text>
+    <text class="field" x="54" y="140">(opcional)</text>
+    <text class="field" x="16" y="170">titulo, fornecedor, conteudo</text>
+    <text class="field" x="16" y="194">data_criacao, data_atualizacao</text>
+  </g>
+
+  <g transform="translate(1450 80)">
+    <rect class="note" width="300" height="270" rx="10"/>
+    <text class="note-title" x="16" y="30">LEGENDA E NOTAS</text>
+    <text class="note-text" x="16" y="62">1:N: um para muitos</text>
+    <text class="note-text" x="16" y="84">N:N: mediado por escalonamento</text>
+    <text class="note-text" x="16" y="118">Sem FK UNIQUE: nao ha</text>
+    <text class="note-text" x="16" y="138">relacionamentos 1:1 no schema.</text>
+    <text class="note-text" x="16" y="172">Linhas tracejadas: FK opcional.</text>
+    <text class="note-text" x="16" y="206">Setor e texto, nao tabela.</text>
+    <text class="note-text" x="16" y="238">Cliente do chamado e texto;</text>
+    <text class="note-text" x="16" y="258">nao existe FK para CLIENTE.</text>
+  </g>
+
+  <g>
+    <rect class="edge-label" x="405" y="52" width="112" height="24" rx="5"/>
+    <text class="edge-text" x="461" y="68">mantem contatos 1:N</text>
+    <rect class="edge-label" x="415" y="312" width="150" height="24" rx="5"/>
+    <text class="edge-text" x="490" y="328">organiza workspace 1:N</text>
+    <rect class="edge-label" x="182" y="35" width="128" height="24" rx="5"/>
+    <text class="edge-text" x="246" y="51">agrupa workspaces 1:N</text>
+    <rect class="edge-label" x="235" y="410" width="100" height="24" rx="5"/>
+    <text class="edge-text" x="285" y="426">possui membros 1:N</text>
+    <rect class="edge-label" x="404" y="360" width="108" height="24" rx="5"/>
+    <text class="edge-text" x="458" y="376">registra 1:N opcional</text>
+    <rect class="edge-label" x="880" y="302" width="112" height="24" rx="5"/>
+    <text class="edge-text" x="936" y="318">classifica 1:N</text>
+    <rect class="edge-label" x="430" y="812" width="108" height="24" rx="5"/>
+    <text class="edge-text" x="484" y="828">atende 1:N opcional</text>
+    <rect class="edge-label" x="900" y="392" width="112" height="24" rx="5"/>
+    <text class="edge-text" x="956" y="408">registra eventos 1:N</text>
+    <rect class="edge-label" x="936" y="668" width="78" height="24" rx="5"/>
+    <text class="edge-text" x="975" y="684">gera 1:N</text>
+    <rect class="edge-label" x="765" y="880" width="112" height="24" rx="5"/>
+    <text class="edge-text" x="821" y="896">recebe destinos 1:N</text>
+    <rect class="edge-label" x="840" y="980" width="100" height="24" rx="5"/>
+    <text class="edge-text" x="890" y="996">elabora 1:N</text>
+    <rect class="edge-label" x="760" y="1058" width="145" height="24" rx="5"/>
+    <text class="edge-text" x="832" y="1074">organiza docs 1:N opcional</text>
+  </g>
+</svg>
