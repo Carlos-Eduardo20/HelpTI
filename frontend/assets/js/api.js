@@ -67,6 +67,25 @@ export async function excluirCliente(id) {
   return request(`/clientes/${id}`, { method: 'DELETE' });
 }
 
+export async function buscarEquipamentosCliente(id) {
+  return request(`/clientes/${id}/equipamentos`);
+}
+
+export async function criarEquipamentoCliente(id, dados) {
+  return request(`/clientes/${id}/equipamentos`, { method: 'POST', body: JSON.stringify(dados) });
+}
+
+export async function atualizarEquipamentoCliente(id, equipamentoId, dados) {
+  return request(`/clientes/${id}/equipamentos/${equipamentoId}`, {
+    method: 'PUT',
+    body: JSON.stringify(dados),
+  });
+}
+
+export async function excluirEquipamentoCliente(id, equipamentoId) {
+  return request(`/clientes/${id}/equipamentos/${equipamentoId}`, { method: 'DELETE' });
+}
+
 // ============ EQUIPE ============
 
 // Busca a lista de técnicos/equipe

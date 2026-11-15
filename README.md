@@ -123,7 +123,7 @@ Os testes usam arquivos SQLite temporários isolados e os removem ao terminar.
 
 ## 6. Modelagem do banco SQLite
 
-O SQLite do HelpTI possui oito tabelas no schema atual. O diagrama abaixo usa os relacionamentos definidos em `backend/schema.sql`; linhas contínuas são chaves estrangeiras. O setor é armazenado como texto, sem tabela `setor`.
+O SQLite do HelpTI possui nove tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). O diagrama abaixo usa os relacionamentos definidos em `backend/schema.sql`; linhas contínuas são chaves estrangeiras. O setor é armazenado como texto, sem tabela `setor`.
 
 [![Diagrama ER do SQLite do HelpTI](docs/sqlite-model.svg)](docs/sqlite-model.svg)
 
@@ -135,6 +135,7 @@ O arquivo [editável no draw.io](docs/sqlite-model.drawio) pode ser aberto em [a
 | --- | --- | --- |
 | `usuario` | Workspaces e cadastros de empresas clientes | `id_usuario` (PK), `id_workspace` (FK opcional para `usuario`), `tipo_usuario`, `nome`, `email`, `status` |
 | `cliente` | Contatos vinculados a uma empresa cliente | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `id_workspace` (FK opcional para `usuario`), `nome`, `email`, `telefone` |
+| `equipamento_cliente` | Equipamentos cadastrados na página de detalhes de cada cliente | `id_equipamento` (PK), `id_cliente` (FK obrigatória para `usuario.id_usuario`), `nome`, `quantidade` |
 | `tipo_chamado` | Categorias de chamados | `id_tipo_chamado` (PK), `nome`, `classificacao` |
 | `grupo_solucionadores` | Funcionários e administradores do workspace | `id_grupo_solucionadores` (PK), `id_usuario` (FK obrigatória), `nome`, `email`, `setor` (TEXT), `status` |
 | `chamado` | Chamados e seus dados de atendimento | `id_chamado` (PK), `id_tipo_chamado` (FK obrigatória), `id_grupo_solucionadores` e `id_usuario` (FKs opcionais), `cliente` (TEXT), `setor` (TEXT), `status`, `descricao` |
@@ -151,6 +152,7 @@ O verbo no meio de cada relação descreve a ação entre as tabelas. A cardinal
 | 1:N | `usuario` **agrupa** `usuario` | `usuario.id_workspace` referencia o workspace pai; a FK é opcional. |
 | 1:N | `usuario` **mantém** `cliente` | `cliente.id_usuario` obrigatório aponta para a empresa cliente. |
 | 1:N | `usuario` **organiza por workspace** `cliente` | `cliente.id_workspace` é uma FK opcional para o workspace. |
+| 1:N | `usuario` (cliente) **possui** `equipamento_cliente` | Cada equipamento aponta para um registro de cliente em `usuario`; o backend valida o workspace. |
 | 1:N | `usuario` **possui** `grupo_solucionadores` | `grupo_solucionadores.id_usuario` é obrigatório. |
 | 1:N | `tipo_chamado` **classifica** `chamado` | Cada chamado tem um tipo obrigatório. |
 | 1:N | `grupo_solucionadores` **atende** `chamado` | `chamado.id_grupo_solucionadores` é opcional: um chamado pode estar sem responsável. |

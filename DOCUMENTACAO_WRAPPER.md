@@ -68,7 +68,7 @@ A modelagem completa e atualizada — com todas as tabelas, campos, cardinalidad
 - **Linguagem:** Python 3.10+
 - **Framework Web:** Flask com rotas modulares de API RESTful.
 - **Autenticação:** Sessão baseada em cookies assinados e `login_required`. Suporte a expiração de sessão e hashes criptográficos fortes via Werkzeug (`generate_password_hash` / `check_password_hash`).
-- **Migrações Automáticas:** O arquivo `backend/database.py` possui um motor interno de migração incremental (`SCHEMA_VERSION = 7`) que adiciona colunas e preserva tabelas existentes sem corromper ou apagar dados.
+- **Migrações Automáticas:** O arquivo `backend/database.py` possui um motor interno de migração incremental (`SCHEMA_VERSION = 9`) que adiciona colunas e preserva tabelas existentes sem corromper ou apagar dados.
 
 ### 4.2. Camada de Apresentação (Frontend)
 - **Estrutura:** HTML5 com navegação em abas superiores (Dashboard, Chamados, Clientes, Equipe, Relatórios, Educação).

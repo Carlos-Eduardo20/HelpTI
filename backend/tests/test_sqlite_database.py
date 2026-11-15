@@ -12,6 +12,37 @@ from backend import database
 
 
 class SQLiteDatabaseTests(unittest.TestCase):
+    def test_ticket_ids_autoincrement_from_six_digits_and_continue_existing_sequence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'helpti.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                first = connection.execute(
+                    "INSERT INTO chamado (cliente, descricao) VALUES ('Cliente', 'Primeiro')"
+                ).lastrowid
+                connection.execute(
+                    "INSERT INTO chamado (id_chamado, cliente, descricao) "
+                    "VALUES (456789, 'Cliente antigo', 'Chamado existente')"
+                )
+                connection.commit()
+                connection.close()
+
+                database.initialize_database()
+                connection = database.get_db_connection()
+                next_id = connection.execute(
+                    "INSERT INTO chamado (cliente, descricao) VALUES ('Cliente', 'Próximo')"
+                ).lastrowid
+                connection.commit()
+                connection.close()
+
+        self.assertEqual(first, 100000)
+        self.assertEqual(next_id, 456790)
+
     def test_mysql_configuration_is_rejected_instead_of_using_an_empty_database(self):
         with patch.dict(os.environ, {'DB_TYPE': 'mysql'}):
             with self.assertRaisesRegex(RuntimeError, 'somente SQLite'):

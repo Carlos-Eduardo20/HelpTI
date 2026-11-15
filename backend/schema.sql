@@ -37,6 +37,17 @@ CREATE TABLE IF NOT EXISTS cliente (
 CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente (id_usuario);
 CREATE INDEX IF NOT EXISTS idx_cliente_workspace ON cliente (id_workspace);
 
+CREATE TABLE IF NOT EXISTS equipamento_cliente (
+    id_equipamento INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_cliente INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    quantidade INTEGER NOT NULL DEFAULT 1 CHECK (quantidade >= 0),
+    FOREIGN KEY (id_cliente) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_equipamento_cliente
+    ON equipamento_cliente (id_cliente);
+
 CREATE TABLE IF NOT EXISTS tipo_chamado (
     id_tipo_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
     nome TEXT NOT NULL,

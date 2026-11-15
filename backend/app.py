@@ -706,22 +706,24 @@ def create_chamado():
             conn.close()
             return jsonify({'erro': 'O técnico selecionado não pertence ao setor informado ou está inativo'}), 400
 
-        for _ in range(100):
-            novo_id = 100000 + secrets.randbelow(900000)
-            cursor.execute('SELECT id_chamado FROM chamado WHERE id_chamado = %s', (novo_id,))
-            if not cursor.fetchone():
-                break
-        else:
-            return jsonify({'erro': 'Não foi possível gerar um ID disponível para o chamado'}), 503
-        
+        cursor.execute('BEGIN IMMEDIATE')
+        cursor.execute("SELECT seq FROM sqlite_sequence WHERE name = 'chamado'")
+        sequencia = cursor.fetchone()
+        if sequencia and sequencia[0] >= 999999:
+            conn.rollback()
+            cursor.close()
+            conn.close()
+            return jsonify({'erro': 'A sequência de IDs de seis dígitos foi esgotada.'}), 503
+
         query = """
             INSERT INTO chamado
-                (id_chamado, id_tipo_chamado, setor, id_grupo_solucionadores, status, cliente, descricao,
+                (id_tipo_chamado, setor, id_grupo_solucionadores, status, cliente, descricao,
                  email_cliente, telefone_cliente, contato_cliente, telefone_contato, id_usuario)
-            VALUES (%s, %s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, 'ABERTO', %s, %s, %s, %s, %s, %s, %s);
         """
-        cursor.execute(query, (novo_id, id_tipo_chamado, setor_nome, id_grupo_solucionadores,
+        cursor.execute(query, (id_tipo_chamado, setor_nome, id_grupo_solucionadores,
                                cliente, descricao, email_cliente, telefone_cliente, contato_cliente, telefone_contato, _ws()))
+        novo_id = cursor.lastrowid
         
         autor_chamado = g.membro.get('nome') if (hasattr(g, 'membro') and g.membro) else 'Sistema'
         registrar_historico(cursor, novo_id, 'aberto', 'Chamado criado no sistema.', autor=autor_chamado)
@@ -734,9 +736,9 @@ def create_chamado():
         conn.close()
         email_enviado, aviso_email = enviar_email(
             email_cliente,
-            f'Chamado #{novo_id} recebido',
+            f'Chamado #TK-{novo_id:06d} recebido',
             f"Olá, {contato_cliente}.\n\n"
-            f"Recebemos seu chamado #{novo_id} para {cliente}.\n"
+            f"Recebemos seu chamado #TK-{novo_id:06d} para {cliente}.\n"
             f"Descrição: {descricao}\n\n"
             'A equipe de suporte dará continuidade ao atendimento.'
         )
@@ -1254,6 +1256,133 @@ def create_contato_cliente(id):
         cursor.close()
         conn.close()
 
+def _cliente_pertence_ao_workspace(cursor, id_cliente):
+    cursor.execute(
+        "SELECT 1 FROM usuario WHERE id_usuario = %s "
+        "AND tipo_usuario = 'CLIENTE' AND id_workspace = %s",
+        (id_cliente, _ws()),
+    )
+    return cursor.fetchone() is not None
+
+
+def _validar_equipamento(dados):
+    if not isinstance(dados, dict):
+        return None, 'Envie os dados do equipamento.'
+    nome = dados.get('nome')
+    quantidade = dados.get('quantidade')
+    if not isinstance(nome, str) or not nome.strip():
+        return None, 'O nome do equipamento é obrigatório.'
+    if isinstance(quantidade, bool) or not isinstance(quantidade, int) or quantidade < 0:
+        return None, 'A quantidade deve ser um número inteiro igual ou maior que zero.'
+    return {'nome': nome.strip(), 'quantidade': quantidade}, None
+
+
+@app.route('/api/clientes/<int:id>/equipamentos', methods=['GET'])
+def get_equipamentos_cliente(id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if not _cliente_pertence_ao_workspace(cursor, id):
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+        cursor.execute(
+            'SELECT id_equipamento, id_cliente, nome, quantidade '
+            'FROM equipamento_cliente WHERE id_cliente = %s ORDER BY id_equipamento',
+            (id,),
+        )
+        return jsonify(dict_fetchall(cursor)), 200
+    except Error as e:
+        return jsonify({'erro': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/clientes/<int:id>/equipamentos', methods=['POST'])
+def create_equipamento_cliente(id):
+    equipamento, erro = _validar_equipamento(request.get_json(silent=True))
+    if erro:
+        return jsonify({'erro': erro}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if not _cliente_pertence_ao_workspace(cursor, id):
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+        cursor.execute(
+            'INSERT INTO equipamento_cliente (id_cliente, nome, quantidade) '
+            'VALUES (%s, %s, %s)',
+            (id, equipamento['nome'], equipamento['quantidade']),
+        )
+        conn.commit()
+        novo_id = cursor.lastrowid
+        cursor.execute(
+            'SELECT id_equipamento, id_cliente, nome, quantidade '
+            'FROM equipamento_cliente WHERE id_equipamento = %s',
+            (novo_id,),
+        )
+        return jsonify(dict_fetchone(cursor)), 201
+    except Error as e:
+        conn.rollback()
+        return jsonify({'erro': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/clientes/<int:id>/equipamentos/<int:equipamento_id>', methods=['PUT'])
+def update_equipamento_cliente(id, equipamento_id):
+    equipamento, erro = _validar_equipamento(request.get_json(silent=True))
+    if erro:
+        return jsonify({'erro': erro}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if not _cliente_pertence_ao_workspace(cursor, id):
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+        cursor.execute(
+            'UPDATE equipamento_cliente SET nome = %s, quantidade = %s '
+            'WHERE id_equipamento = %s AND id_cliente = %s',
+            (equipamento['nome'], equipamento['quantidade'], equipamento_id, id),
+        )
+        if not cursor.rowcount:
+            return jsonify({'erro': 'Equipamento não encontrado'}), 404
+        conn.commit()
+        cursor.execute(
+            'SELECT id_equipamento, id_cliente, nome, quantidade '
+            'FROM equipamento_cliente WHERE id_equipamento = %s',
+            (equipamento_id,),
+        )
+        return jsonify(dict_fetchone(cursor)), 200
+    except Error as e:
+        conn.rollback()
+        return jsonify({'erro': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/api/clientes/<int:id>/equipamentos/<int:equipamento_id>', methods=['DELETE'])
+def delete_equipamento_cliente(id, equipamento_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if not _cliente_pertence_ao_workspace(cursor, id):
+            return jsonify({'erro': 'Cliente não encontrado'}), 404
+        cursor.execute(
+            'DELETE FROM equipamento_cliente '
+            'WHERE id_equipamento = %s AND id_cliente = %s',
+            (equipamento_id, id),
+        )
+        if not cursor.rowcount:
+            return jsonify({'erro': 'Equipamento não encontrado'}), 404
+        conn.commit()
+        return jsonify({'mensagem': 'Equipamento removido com sucesso.'}), 200
+    except Error as e:
+        conn.rollback()
+        return jsonify({'erro': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.route('/api/clientes/<int:id>', methods=['DELETE'])
 def delete_cliente(id):
     try:
@@ -1737,6 +1866,7 @@ _WS_TABELAS_BACKUP = (
     ('usuario', 'id_usuario = %s OR id_workspace = %s', 2),
     ('grupo_solucionadores', 'id_usuario = %s', 1),
     ('cliente', 'id_workspace = %s OR id_usuario IN (SELECT id_usuario FROM usuario WHERE id_workspace = %s)', 2),
+    ('equipamento_cliente', 'id_cliente IN (SELECT id_usuario FROM usuario WHERE id_workspace = %s)', 1),
     ('chamado', 'id_usuario = %s', 1),
     ('historico_chamado', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = %s)', 1),
     ('escalonamento', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = %s)', 1),
@@ -1765,6 +1895,10 @@ def _contagens_do_workspace(conn, ws):
     consultas = {
         'chamados': ('SELECT COUNT(*) FROM chamado WHERE id_usuario = %s', (ws,)),
         'clientes': ("SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE' AND id_workspace = %s", (ws,)),
+        'equipamentos': (
+            'SELECT COUNT(*) FROM equipamento_cliente WHERE id_cliente IN '
+            '(SELECT id_usuario FROM usuario WHERE id_workspace = %s)', (ws,)
+        ),
         'equipe': ('SELECT COUNT(*) FROM grupo_solucionadores WHERE id_usuario = %s', (ws,)),
         'historico': ('SELECT COUNT(*) FROM historico_chamado WHERE id_chamado IN '
                       '(SELECT id_chamado FROM chamado WHERE id_usuario = %s)', (ws,)),

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160" role="img" aria-labelledby="title description">
   <title id="title">Modelagem SQLite do HelpTI</title>
-  <desc id="description">Diagrama ER com as oito tabelas SQLite do HelpTI e relacionamentos rotulados com verbos e cardinalidades.</desc>
+  <desc id="description">Diagrama ER com as nove tabelas SQLite do HelpTI e relacionamentos rotulados com verbos e cardinalidades.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
@@ -38,6 +38,7 @@
     <path class="edge optional" d="M380 800 L380 900 L1190 900 L1190 840"/>
     <path class="edge optional" d="M420 800 L420 1000 L1590 1000 L1590 670"/>
     <path class="edge optional" d="M60 300 L20 300 L20 1080 L1680 1080 L1680 670"/>
+    <path class="edge" d="M60 240 L20 240 L20 1110 L1600 1110 L1600 950"/>
   </g>
 
   <g transform="translate(60 90)">
@@ -140,6 +141,16 @@
     <text class="field" x="16" y="194">data_criacao, data_atualizacao</text>
   </g>
 
+  <g transform="translate(1450 760)">
+    <rect class="entity domain" width="300" height="190" rx="10"/>
+    <rect class="domain-header" width="300" height="42" rx="10"/>
+    <path d="M0 42 H300" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">EQUIPAMENTO_CLIENTE</text>
+    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_equipamento</text>
+    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_cliente (usuario)</text>
+    <text class="field" x="16" y="122">nome, quantidade</text>
+  </g>
+
   <g transform="translate(1450 80)">
     <rect class="note" width="300" height="270" rx="10"/>
     <text class="note-title" x="16" y="30">LEGENDA E NOTAS</text>
@@ -178,5 +189,7 @@
     <text class="edge-text" x="890" y="996">elabora 1:N</text>
     <rect class="edge-label" x="760" y="1058" width="145" height="24" rx="5"/>
     <text class="edge-text" x="832" y="1074">organiza docs 1:N opcional</text>
+    <rect class="edge-label" x="900" y="1098" width="146" height="24" rx="5"/>
+    <text class="edge-text" x="973" y="1114">possui equipamentos 1:N</text>
   </g>
 </svg>

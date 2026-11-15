@@ -38,6 +38,52 @@ class MultiTenancyTests(unittest.TestCase):
                 'telefone_cliente': '1', 'contato_cliente': 'c', 'telefone_contato': '1',
                 'setor': setor, 'id_grupo_solucionadores': tecnico})
 
+    def test_client_equipment_is_persisted_and_scoped_to_workspace(self):
+        a = self._register('a@outlook.com', 'Empresa A')
+        b = self._register('b@outlook.com', 'Empresa B')
+        customer = a.post('/api/clientes', json={
+            'nome': 'Cliente A',
+            'contatos': [{
+                'nome': 'Contato A',
+                'email': 'contato.a@example.test',
+                'telefone': '11999999999',
+            }],
+        })
+        self.assertEqual(customer.status_code, 201, customer.get_json())
+        customer_id = customer.get_json()['id_usuario']
+
+        created = a.post(f'/api/clientes/{customer_id}/equipamentos', json={
+            'nome': 'Notebook',
+            'quantidade': 4,
+        })
+        self.assertEqual(created.status_code, 201, created.get_json())
+        equipment_id = created.get_json()['id_equipamento']
+        self.assertEqual(
+            a.get(f'/api/clientes/{customer_id}/equipamentos').get_json(),
+            [created.get_json()],
+        )
+
+        updated = a.put(
+            f'/api/clientes/{customer_id}/equipamentos/{equipment_id}',
+            json={'nome': 'Notebook', 'quantidade': 5},
+        )
+        self.assertEqual(updated.status_code, 200, updated.get_json())
+        self.assertEqual(updated.get_json()['quantidade'], 5)
+
+        self.assertEqual(b.get(f'/api/clientes/{customer_id}/equipamentos').status_code, 404)
+        self.assertEqual(a.post(
+            f'/api/clientes/{customer_id}/equipamentos',
+            json={'nome': 'Monitor', 'quantidade': -1},
+        ).status_code, 400)
+
+        deleted = a.delete(
+            f'/api/clientes/{customer_id}/equipamentos/{equipment_id}'
+        )
+        self.assertEqual(deleted.status_code, 200, deleted.get_json())
+        self.assertEqual(
+            a.get(f'/api/clientes/{customer_id}/equipamentos').get_json(), []
+        )
+
     def test_workspaces_are_isolated(self):
         a = self._register('a@outlook.com', 'Empresa A')
         b = self._register('b@outlook.com', 'Empresa B')

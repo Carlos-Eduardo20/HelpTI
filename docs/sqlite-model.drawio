@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" modified="2026-11-14T19:00:00.000Z" agent="Copilot" version="24.7.17" type="device">
   <diagram id="helpti-sqlite-erd" name="HelpTI - SQLite">
-    <mxGraphModel dx="1700" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1700" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1200" math="0" shadow="0">
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
@@ -30,6 +30,9 @@
         </mxCell>
         <mxCell id="legenda" value="&lt;b&gt;CARDINALIDADES&lt;/b&gt;&lt;br&gt;1:N = um para muitos&lt;br&gt;N:N = muitos para muitos via tabela associativa&lt;br&gt;&lt;br&gt;&lt;b&gt;OBSERVACOES&lt;/b&gt;&lt;br&gt;Nao ha relacao 1:1 imposta por UNIQUE.&lt;br&gt;N:N entre chamado e equipe e mediada por escalonamento.&lt;br&gt;Setor e texto, nao tabela." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#f1f5f9;strokeColor=#94a3b8;strokeWidth=1;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="1450" y="80" width="300" height="270" as="geometry"/>
+        </mxCell>
+        <mxCell id="equipamento_cliente" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;EQUIPAMENTO_CLIENTE&lt;/div&gt;&lt;br&gt;PK id_equipamento&lt;br&gt;FK id_cliente (usuario)&lt;br&gt;nome, quantidade" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="810" width="300" height="170" as="geometry"/>
         </mxCell>
 
         <mxCell id="r_usuario_cliente" value="mantem contatos | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=1.5;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="cliente">
@@ -90,6 +93,15 @@
               <mxPoint x="20" y="410"/>
               <mxPoint x="20" y="1040"/>
               <mxPoint x="1590" y="1040"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r_usuario_equipamento" value="cliente possui equipamentos | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0f766e;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="equipamento_cliente">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20" y="300"/>
+              <mxPoint x="20" y="1100"/>
+              <mxPoint x="1570" y="1100"/>
             </Array>
           </mxGeometry>
         </mxCell>

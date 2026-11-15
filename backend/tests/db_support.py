@@ -18,6 +18,7 @@ def _remove_database(path):
 
 def use_temp_database(test):
     """Aponta o teste para um arquivo SQLite isolado, removido ao final."""
+    _app._LOGIN_RATE_LIMIT.clear()
     path = database.INSTANCE_DIR / f'{test.id().replace(".", "_")}.sqlite3'
     overrides = {
         'DB_TYPE': 'sqlite',

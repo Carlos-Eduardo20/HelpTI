@@ -1,6 +1,6 @@
 # Data Architecture & Persistence Layer
 
-O HelpTI usa um banco SQLite com oito tabelas relacionais e SQL executado diretamente pela aplicação, sem ORM. `backend/schema.sql` é a fonte do schema e `backend/database.py` executa inicialização, versionamento e migrações compatíveis.
+O HelpTI usa um banco SQLite com nove tabelas relacionais e SQL executado diretamente pela aplicação, sem ORM. `backend/schema.sql` é a fonte do schema e `backend/database.py` executa inicialização, versionamento e migrações compatíveis.
 
 ## Database Configuration
 
@@ -14,7 +14,7 @@ O banco não usa servidor separado nem pool externo. A aplicação executa o sch
 
 | Service | Tables Owned | ORM Framework | Caching | Notes |
 | --- | --- | --- | --- | --- |
-| Flask application and SQLite database | `usuario`, `cliente`, `tipo_chamado`, `grupo_solucionadores`, `chamado`, `historico_chamado`, `escalonamento`, `documentacao` | None; direct SQL through a small `sqlite3` connection wrapper | None identified | One SQLite database; workspace ownership is represented by user and workspace foreign keys |
+| Flask application and SQLite database | `usuario`, `cliente`, `equipamento_cliente`, `tipo_chamado`, `grupo_solucionadores`, `chamado`, `historico_chamado`, `escalonamento`, `documentacao` | None; direct SQL through a small `sqlite3` connection wrapper | None identified | One SQLite database; workspace ownership is represented by user and workspace foreign keys |
 
 ## Entity Model
 
@@ -26,6 +26,7 @@ erDiagram
     USUARIO o|--o{ USUARIO : "organizes workspace accounts"
     USUARIO ||--o{ CLIENTE : "owns contact rows"
     USUARIO o|--o{ CLIENTE : "scopes contacts by workspace"
+    USUARIO ||--o{ EQUIPAMENTO_CLIENTE : "stores customer equipment"
     USUARIO ||--o{ GRUPO_SOLUCIONADORES : "owns team members"
     USUARIO o|--o{ CHAMADO : "records tickets"
     USUARIO o|--o{ DOCUMENTACAO : "owns documentation"
@@ -52,6 +53,13 @@ erDiagram
         string nome
         string email
         string telefone
+    }
+
+    EQUIPAMENTO_CLIENTE {
+        int id_equipamento PK
+        int id_cliente FK "customer record in USUARIO"
+        string nome
+        int quantidade
     }
 
     TIPO_CHAMADO {
@@ -111,6 +119,8 @@ erDiagram
 
 `CHAMADO` and `GRUPO_SOLUCIONADORES` have a logical N:N relationship over time through `ESCALONAMENTO`: a ticket can have multiple escalation records and a team member can be a destination in multiple records. The intermediary table also stores the reason, level, sector text and date. It is not a direct N:N foreign key.
 
+`EQUIPAMENTO_CLIENTE` stores the inventory shown on each customer detail page. Its required `id_cliente` foreign key targets the corresponding customer row in `usuario`; the API additionally validates that the customer belongs to the authenticated workspace.
+
 `setor` is stored as text in `grupo_solucionadores` and `chamado`; the transfer destination is text in `escalonamento.setor_destino`. No `setor` table exists. The customer name and contact details copied into a ticket are text fields and are not constrained to match a customer record.
 
 ## Key Repository Methods
@@ -122,6 +132,7 @@ The project has no repository classes. Database reads and writes are SQL stateme
 | Flask application | `backend/app.py` | `get_equipe()` | Lists team rows filtered to the current workspace |
 | Flask application | `backend/app.py` | `get_setores()` | Reads distinct non-empty sector text values from team rows |
 | Flask application | `backend/app.py` | `create_cliente()` | Creates a customer company and its contact rows in SQLite |
+| Flask application | `backend/app.py` | Customer equipment handlers | Lists, creates, updates and deletes equipment scoped to a customer in the active workspace |
 | Flask application | `backend/app.py` | `create_equipe()` | Creates a team member as a workspace-owned record |
 | Flask application | `backend/app.py` | Ticket and escalation handlers | Persist tickets, their history and escalation records using explicit SQL transactions |
 
@@ -131,7 +142,7 @@ No application-level or database query cache was identified. SQLite reads use di
 
 ## Data Ownership Boundaries
 
-All eight tables are held in one SQLite file owned by the Flask application. Workspace isolation is implemented by filtering rows using workspace ownership fields. Foreign keys maintain references within the database, but the schema does not use composite foreign keys to prove that every linked row belongs to the same workspace. Several ownership fields are nullable, so the application also supplies part of the tenant boundary.
+All nine tables are held in one SQLite file owned by the Flask application. Workspace isolation is implemented by filtering rows using workspace ownership fields. Foreign keys maintain references within the database, but the schema does not use composite foreign keys to prove that every linked row belongs to the same workspace. Several ownership fields are nullable, so the application also supplies part of the tenant boundary.
 
 ### Data Classification & Sensitivity
 
@@ -139,6 +150,7 @@ All eight tables are held in one SQLite file owned by the Flask application. Wor
 | --- | --- | --- | --- |
 | `usuario` | Names, email, phone, address, CNPJ | PII and business identifiers | Workspace-level application filtering; no field-level encryption or masking is defined in the schema |
 | `cliente` | Contact name, email and phone | PII | Workspace-level application filtering; no field-level encryption or masking is defined in the schema |
+| `equipamento_cliente` | Equipment names and inventory counts | Operational data | Access is scoped through the owning customer and workspace; no field-level encryption or masking is defined in the schema |
 | `grupo_solucionadores` | Employee name, email, phone and password hash | PII and authentication data | Password is stored as a hash; no field-level encryption or masking is defined in the schema |
 | `chamado` | Requester name, email, phone and free-text description | PII | Workspace-level application filtering; no field-level encryption or masking is defined in the schema |
 | `historico_chamado` | Event author and free-text description | Potential PII | Stored with the related ticket; no field-level encryption or masking is defined in the schema |

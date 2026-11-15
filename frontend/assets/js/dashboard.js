@@ -117,7 +117,7 @@ function linhaChamado(chamado) {
   const status = statuses.includes(statusInformado) ? statusInformado : 'ABERTO';
   const slaRestante = segundosSlaRestantes(chamado);
   const id = escaparHtml(chamado.id_chamado);
-  const ticketFormatado = `#TK-${String(id).padStart(4, '0')}`;
+  const ticketFormatado = `#TK-${String(id).padStart(6, '0')}`;
   const setorTexto = escaparHtml(chamado.setor || 'Geral');
   const contatoTexto = chamado.contato_cliente ? `<br><small style="color: var(--text-secondary); font-size: 11px;">Solicitante: ${escaparHtml(chamado.contato_cliente)}</small>` : '';
 
@@ -153,7 +153,7 @@ function aplicarFiltrosChamados() {
   const busca = document.querySelector('#buscaChamados')?.value.trim().toLowerCase() || '';
 
   const chamadosFiltrados = chamadosEmMemoria.filter((chamado) => {
-    const ticketFormatado = `#tk-${String(chamado.id_chamado).padStart(4, '0')}`;
+    const ticketFormatado = `#tk-${String(chamado.id_chamado).padStart(6, '0')}`;
     const correspondeBusca = !busca || [
       chamado.id_chamado,
       ticketFormatado,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 9
 DEMO_EMAIL = 'test@helpiti.com'
 Error = sqlite3.Error
 
@@ -139,6 +139,26 @@ def demo_mode_enabled():
 
 def create_database_if_missing():
     Path(database_settings()['database']).parent.mkdir(parents=True, exist_ok=True)
+
+
+def _seed_ticket_id_sequence(connection):
+    max_id = connection.execute(
+        'SELECT COALESCE(MAX(id_chamado), 0) FROM chamado'
+    ).fetchone()[0]
+    sequence = connection.execute(
+        "SELECT seq FROM sqlite_sequence WHERE name = 'chamado'"
+    ).fetchone()
+    next_floor = max(99999, int(max_id or 0), int(sequence[0]) if sequence else 0)
+    if sequence:
+        connection.execute(
+            "UPDATE sqlite_sequence SET seq = %s WHERE name = 'chamado'",
+            (next_floor,),
+        )
+    else:
+        connection.execute(
+            "INSERT INTO sqlite_sequence (name, seq) VALUES ('chamado', %s)",
+            (next_floor,),
+        )
 
 
 def _ensure_compatible_schema(connection):
@@ -429,6 +449,7 @@ def initialize_database():
         _migrate_profile_and_settings(connection)
         connection.commit()
         _migrate_sector_and_auth_tables(connection)
+        _seed_ticket_id_sequence(connection)
         if demo_mode_enabled():
             connection.executescript(
                 Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8')

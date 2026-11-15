@@ -59,6 +59,8 @@ class DeskOpsProject3Tests(unittest.TestCase):
         self.assertEqual(resp.status_code, 201)
         dados = resp.get_json()
         self.assertEqual(dados['setor'], 'Suporte N1')
+        self.assertGreaterEqual(dados['id_chamado'], 100000)
+        self.assertLessEqual(dados['id_chamado'], 999999)
 
         # Buscar detalhes e verificar histórico com autor
         detalhe_resp = admin.get(f'/api/chamados/{dados["id_chamado"]}')
@@ -84,6 +86,7 @@ class DeskOpsProject3Tests(unittest.TestCase):
             })
         
         id2 = r2.get_json()['id_chamado']
+        self.assertEqual(id2, r1.get_json()['id_chamado'] + 1)
         # Iniciar e encerrar chamado 2
         admin.put(f'/api/chamados/{id2}', json={'acao': 'iniciar'})
         with patch.object(app_module.smtplib, 'SMTP'):

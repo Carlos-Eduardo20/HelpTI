@@ -1,4 +1,4 @@
-import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro, criarDocumentacao } from './api.js';
+import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro, criarDocumentacao, buscarEquipamentosCliente, criarEquipamentoCliente, atualizarEquipamentoCliente, excluirEquipamentoCliente } from './api.js';
 import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
@@ -346,68 +346,72 @@ async function carregarEquipe() {
   } catch (error) { tabela.innerHTML = `<tr><td colspan="4">${detailEscape(error.message)}</td></tr>`; }
 }
 
-function equipamentosDoCliente(id) {
-  const chave = `helpti-equipamentos-${id}`;
-  const salvos = JSON.parse(localStorage.getItem(chave) || 'null');
-  if (Array.isArray(salvos)) return salvos;
-  localStorage.setItem(chave, JSON.stringify([]));
-  return [];
-}
-
-function limparEquipamentosLegados() {
-  const chaveMigracao = 'helpti-migracao-equipamentos-mapa-vazio-v1';
-  if (localStorage.getItem(chaveMigracao) === 'concluida') return;
-
-  const chavesDeEquipamentos = [];
-  for (let indice = 0; indice < localStorage.length; indice += 1) {
-    const chave = localStorage.key(indice);
-    if (chave?.startsWith('helpti-equipamentos-')) chavesDeEquipamentos.push(chave);
-  }
-  chavesDeEquipamentos.forEach((chave) => localStorage.removeItem(chave));
-  localStorage.setItem(chaveMigracao, 'concluida');
-}
-
-function renderizarEquipamentos(id) {
+async function renderizarEquipamentos(id) {
   const lista = document.querySelector('#mapa-equipamentos');
   if (!lista) return;
-  const equipamentos = equipamentosDoCliente(id);
-  lista.innerHTML = equipamentos.length
-    ? equipamentos.map((equipamento, indice) => `<div class="asset-item"><span class="asset-name">${detailEscape(equipamento.nome)}</span><strong class="asset-count">${Number(equipamento.quantidade) || 0} un</strong><div class="asset-actions"><button type="button" data-editar-equipamento="${indice}" aria-label="Editar ${detailEscape(equipamento.nome)}">Editar</button><button type="button" data-apagar-equipamento="${indice}" aria-label="Apagar ${detailEscape(equipamento.nome)}">Apagar</button></div></div>`).join('')
-    : '<p class="assets-empty">Nenhum equipamento cadastrado. Use o botão + para adicionar.</p>';
-  const total = equipamentos.reduce((soma, equipamento) => soma + (Number(equipamento.quantidade) || 0), 0);
-  document.querySelector('#equipamentos-total').textContent = `Total: ${total} equipamento(s) cadastrado(s)`;
+  lista.innerHTML = '<p class="assets-empty">Carregando equipamentos...</p>';
+  try {
+    const equipamentos = await buscarEquipamentosCliente(id);
+    lista.innerHTML = equipamentos.length
+      ? equipamentos.map((equipamento) => `<div class="asset-item"><span class="asset-name">${detailEscape(equipamento.nome)}</span><strong class="asset-count">${Number(equipamento.quantidade) || 0} un</strong><div class="asset-actions"><button type="button" data-editar-equipamento="${equipamento.id_equipamento}" aria-label="Editar ${detailEscape(equipamento.nome)}">Editar</button><button type="button" data-apagar-equipamento="${equipamento.id_equipamento}" aria-label="Apagar ${detailEscape(equipamento.nome)}">Apagar</button></div></div>`).join('')
+      : '<p class="assets-empty">Nenhum equipamento cadastrado. Use o botão + para adicionar.</p>';
+    const total = equipamentos.reduce((soma, equipamento) => soma + (Number(equipamento.quantidade) || 0), 0);
+    document.querySelector('#equipamentos-total').textContent = `Total: ${total} equipamento(s) cadastrado(s)`;
+  } catch (error) {
+    lista.innerHTML = `<p class="assets-empty">Não foi possível carregar os equipamentos.</p>`;
+    mostrarErro(`Não foi possível carregar os equipamentos: ${error.message}`);
+  }
 }
 
-function salvarEquipamento(id, indice = null) {
-  const equipamentos = equipamentosDoCliente(id);
-  const atual = indice === null ? { nome: '', quantidade: 1 } : equipamentos[indice];
-  const nome = window.prompt('Nome do equipamento:', atual.nome);
+async function salvarEquipamento(id, atual = null) {
+  const indiceEdicao = atual !== null;
+  const equipamentoAtual = atual || { nome: '', quantidade: 1 };
+  const nome = window.prompt('Nome do equipamento:', equipamentoAtual.nome);
   if (nome === null || !nome.trim()) return;
-  const quantidade = window.prompt('Número de equipamentos:', atual.quantidade);
+  const quantidade = window.prompt('Número de equipamentos:', equipamentoAtual.quantidade);
   if (quantidade === null || !/^\d+$/.test(quantidade) || Number(quantidade) < 0) return mostrarErro('Informe uma quantidade inteira válida.');
   const equipamento = { nome: nome.trim(), quantidade: Number(quantidade) };
-  if (indice === null) equipamentos.push(equipamento); else equipamentos[indice] = equipamento;
-  localStorage.setItem(`helpti-equipamentos-${id}`, JSON.stringify(equipamentos));
-  renderizarEquipamentos(id);
-  mostrarNotificacao(indice === null ? 'Equipamento cadastrado com sucesso.' : 'Equipamento atualizado com sucesso.');
+  try {
+    if (indiceEdicao) {
+      await atualizarEquipamentoCliente(id, atual.id_equipamento, equipamento);
+    } else {
+      await criarEquipamentoCliente(id, equipamento);
+    }
+    await renderizarEquipamentos(id);
+    mostrarNotificacao(indiceEdicao ? 'Equipamento atualizado com sucesso.' : 'Equipamento cadastrado com sucesso.');
+  } catch (error) {
+    mostrarErro(`Não foi possível salvar o equipamento: ${error.message}`);
+  }
 }
 
-function configurarEquipamentos(id) {
-  limparEquipamentosLegados();
-  renderizarEquipamentos(id);
+async function configurarEquipamentos(id) {
+  await renderizarEquipamentos(id);
   document.querySelector('#adicionar-equipamento')?.addEventListener('click', () => salvarEquipamento(id));
   document.querySelector('#editar-equipamentos')?.addEventListener('click', () => {
     document.querySelector('#mapa-equipamentos')?.classList.toggle('is-editing');
   });
-  document.querySelector('#mapa-equipamentos')?.addEventListener('click', (event) => {
+  document.querySelector('#mapa-equipamentos')?.addEventListener('click', async (event) => {
     const editar = event.target.closest('[data-editar-equipamento]');
     const apagar = event.target.closest('[data-apagar-equipamento]');
-    if (editar) salvarEquipamento(id, Number(editar.dataset.editarEquipamento));
+    if (editar) {
+      const equipamentoId = Number(editar.dataset.editarEquipamento);
+      try {
+        const equipamentos = await buscarEquipamentosCliente(id);
+        const equipamento = equipamentos.find((item) => item.id_equipamento === equipamentoId);
+        if (!equipamento) throw new Error('Equipamento não encontrado.');
+        await salvarEquipamento(id, equipamento);
+      } catch (error) {
+        mostrarErro(`Não foi possível editar o equipamento: ${error.message}`);
+      }
+    }
     if (apagar && window.confirm('Apagar este equipamento?')) {
-      const equipamentos = equipamentosDoCliente(id);
-      equipamentos.splice(Number(apagar.dataset.apagarEquipamento), 1);
-      localStorage.setItem(`helpti-equipamentos-${id}`, JSON.stringify(equipamentos));
-      renderizarEquipamentos(id);
+      try {
+        await excluirEquipamentoCliente(id, Number(apagar.dataset.apagarEquipamento));
+        await renderizarEquipamentos(id);
+        mostrarNotificacao('Equipamento removido com sucesso.');
+      } catch (error) {
+        mostrarErro(`Não foi possível remover o equipamento: ${error.message}`);
+      }
     }
   });
 }
@@ -1011,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (campoTituloArtigo) campoTituloArtigo.hidden = true;
             if (publicarArtigo) {
               try {
-                const ticket = `#TK-${String(chamado.id_chamado || id).padStart(4, '0')}`;
+                const ticket = `#TK-${String(chamado.id_chamado || id).padStart(6, '0')}`;
                 const grupoId = Number(localStorage.getItem('grupoId') || sessionStorage.getItem('grupoId')) || null;
                 await criarDocumentacao({
                   titulo: tituloInformado || `Solução do chamado ${ticket}`,
@@ -1110,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }, 'Salvando...');
       });
-      configurarEquipamentos(id);
+      await configurarEquipamentos(id);
       const botaoStatusCliente = document.querySelector('#desativarCliente');
       const atualizarStatusCliente = () => {
         const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';

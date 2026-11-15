@@ -260,7 +260,10 @@ class TicketEmailTests(unittest.TestCase):
             self.assertTrue(ticket['email_enviado'])
             first_message = smtp_server.send_message.call_args.args[0]
             self.assertEqual(first_message['To'], 'solicitante@example.test')
-            self.assertEqual(first_message['Subject'], f"Chamado #{ticket['id_chamado']} recebido")
+            self.assertEqual(
+                first_message['Subject'],
+                f"Chamado #TK-{ticket['id_chamado']:06d} recebido",
+            )
 
             started = self.client.put(
                 f"/api/chamados/{ticket['id_chamado']}", json={'acao': 'iniciar'}
