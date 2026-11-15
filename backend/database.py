@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from datetime import date, datetime
@@ -6,9 +7,174 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 15
 DEMO_EMAIL = 'test@helpiti.com'
+LEGACY_USER_COLUMNS = (
+    'contato',
+    'telefone',
+    'telefone_empresa',
+    'endereco',
+    'cnpj',
+    'plano',
+    'acoes',
+    'senha_hash',
+)
 Error = sqlite3.Error
+
+SCHEMA_SQL = '''
+CREATE TABLE IF NOT EXISTS usuario (
+    id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    email TEXT,
+    status TEXT NOT NULL DEFAULT 'ATIVO',
+    tipo_usuario TEXT NOT NULL DEFAULT 'WORKSPACE',
+    workspace_name TEXT,
+    support_email TEXT,
+    id_workspace INTEGER,
+    CONSTRAINT fk_usuario_workspace FOREIGN KEY (id_workspace)
+        REFERENCES usuario(id_usuario) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_usuario_workspace_cliente
+    ON usuario (id_workspace, tipo_usuario);
+
+CREATE TABLE IF NOT EXISTS cliente (
+    id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    cnpj TEXT,
+    telefone_empresa TEXT,
+    endereco TEXT,
+    status TEXT NOT NULL DEFAULT 'ATIVO',
+    contatos TEXT NOT NULL DEFAULT '[]',
+    id_usuario INTEGER NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente (id_usuario);
+
+CREATE TABLE IF NOT EXISTS tipo_chamado (
+    id_tipo_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    classificacao TEXT,
+    descricao TEXT
+);
+
+CREATE TABLE IF NOT EXISTS grupo_solucionadores (
+    id_grupo_solucionadores INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_inicio TEXT,
+    data_fim TEXT,
+    nome TEXT NOT NULL,
+    email TEXT,
+    cargo TEXT,
+    senha TEXT NOT NULL DEFAULT '',
+    telefone TEXT NOT NULL DEFAULT '',
+    setor TEXT,
+    status TEXT NOT NULL DEFAULT 'ATIVO',
+    id_usuario INTEGER NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor
+    ON grupo_solucionadores (setor);
+CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario
+    ON grupo_solucionadores (id_usuario);
+CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_email
+    ON grupo_solucionadores (email);
+
+CREATE TABLE IF NOT EXISTS credencial_solucionador (
+    id_grupo_solucionadores INTEGER PRIMARY KEY,
+    permissoes TEXT NOT NULL DEFAULT '[]',
+    foto_perfil TEXT,
+    FOREIGN KEY (id_grupo_solucionadores)
+        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS chamado (
+    id_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_tipo_chamado INTEGER NOT NULL DEFAULT 1,
+    setor TEXT,
+    id_grupo_solucionadores INTEGER,
+    status TEXT NOT NULL DEFAULT 'ABERTO',
+    cliente TEXT NOT NULL,
+    assunto TEXT,
+    descricao TEXT,
+    email_cliente TEXT,
+    telefone_cliente TEXT,
+    contato_cliente TEXT,
+    telefone_contato TEXT,
+    descricao_final TEXT,
+    documentacao TEXT,
+    tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0,
+    tempo_inicio TEXT,
+    data_abertura TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_fechamento TEXT,
+    data_agendada TEXT,
+    hora_agendada TEXT,
+    classificacao TEXT,
+    id_usuario INTEGER,
+    id_cliente INTEGER,
+    FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
+    FOREIGN KEY (id_grupo_solucionadores)
+        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado (status, data_abertura);
+CREATE INDEX IF NOT EXISTS idx_chamado_setor ON chamado (setor);
+CREATE INDEX IF NOT EXISTS idx_chamado_workspace ON chamado (id_usuario, id_chamado);
+
+CREATE TABLE IF NOT EXISTS historico_chamado (
+    id_historico INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_chamado INTEGER NOT NULL,
+    evento TEXT NOT NULL,
+    descricao TEXT NOT NULL,
+    autor TEXT NOT NULL DEFAULT 'Sistema',
+    data_evento TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_historico_chamado_data
+    ON historico_chamado (id_chamado, data_evento);
+
+CREATE TABLE IF NOT EXISTS escalonamento (
+    id_escalonamento INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_chamado INTEGER NOT NULL,
+    motivo TEXT,
+    nivel INTEGER,
+    setor_destino TEXT,
+    id_grupo_destino INTEGER,
+    data_escalonamento TEXT,
+    FOREIGN KEY (id_chamado) REFERENCES chamado(id_chamado) ON DELETE CASCADE,
+    FOREIGN KEY (id_grupo_destino)
+        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_escalonamento_chamado
+    ON escalonamento (id_chamado);
+
+CREATE TABLE IF NOT EXISTS documentacao (
+    id_documentacao INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_grupo_solucionadores INTEGER,
+    titulo TEXT NOT NULL,
+    conteudo TEXT NOT NULL,
+    data_criacao TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_usuario INTEGER,
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_grupo_solucionadores)
+        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_documentacao_workspace ON documentacao (id_usuario);
+CREATE INDEX IF NOT EXISTS idx_documentacao_grupo ON documentacao (id_grupo_solucionadores);
+
+INSERT OR IGNORE INTO tipo_chamado (id_tipo_chamado, nome, classificacao, descricao) VALUES
+(1, 'Suporte Geral', 'Suporte', 'Chamados gerais de suporte'),
+(2, 'Hardware', 'Técnico', 'Problemas com hardware'),
+(3, 'Software', 'Técnico', 'Problemas com software'),
+(4, 'Rede', 'Infraestrutura', 'Problemas de rede');
+'''
 
 
 def database_settings():
@@ -127,9 +293,86 @@ def get_db_connection():
 
 
 def apply_demo_seed(connection):
-    """Reaplica o seed idempotente da conta de demonstração."""
-    connection.executescript(Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8'))
-    connection.commit()
+    """Cria ou repara a conta de teste diretamente no SQLite."""
+    email = DEMO_EMAIL
+    senha = (
+        'pbkdf2:sha256:600000$sLjTP06hGqfycvJO$'
+        'e6d4f2b0f4d774ede113b380829767a281fd46c91b5353560c7c66181519960a'
+    )
+    permissoes = json.dumps([
+        'dashboard', 'chamados', 'clientes', 'equipe', 'relatorios',
+        'educacao', 'configuracoes', 'gerenciar_equipe',
+    ])
+
+    connection.execute('BEGIN IMMEDIATE')
+    try:
+        workspace = connection.execute(
+            "SELECT id_usuario FROM usuario "
+            "WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = %s LIMIT 1",
+            (email,),
+        ).fetchone()
+        if not workspace:
+            connection.execute(
+                "INSERT INTO usuario "
+                "(nome, email, status, tipo_usuario, workspace_name, support_email) "
+                "VALUES ('HelpTI', %s, 'ATIVO', 'WORKSPACE', 'HelpTI', %s)",
+                (email, email),
+            )
+            workspace = connection.execute(
+                "SELECT id_usuario FROM usuario "
+                "WHERE tipo_usuario = 'WORKSPACE' AND LOWER(email) = %s LIMIT 1",
+                (email,),
+            ).fetchone()
+        if not workspace:
+            raise RuntimeError('Não foi possível criar o workspace da conta de teste.')
+
+        connection.execute(
+            "UPDATE usuario SET nome = 'HelpTI', status = 'ATIVO', "
+            "workspace_name = COALESCE(workspace_name, 'HelpTI'), "
+            "support_email = COALESCE(support_email, %s) WHERE id_usuario = %s",
+            (email, workspace['id_usuario']),
+        )
+
+        member = connection.execute(
+            'SELECT id_grupo_solucionadores, senha FROM grupo_solucionadores '
+            'WHERE LOWER(email) = %s LIMIT 1',
+            (email,),
+        ).fetchone()
+        if member:
+            connection.execute(
+                "UPDATE grupo_solucionadores SET "
+                "nome = 'Conta teste HelpTI', cargo = 'Administrador', "
+                "setor = COALESCE(NULLIF(TRIM(setor), ''), 'Suporte'), "
+                "status = 'ATIVO', telefone = COALESCE(NULLIF(TRIM(telefone), ''), %s), "
+                "senha = %s, id_usuario = %s "
+                "WHERE id_grupo_solucionadores = %s",
+                (
+                    '(11) 99999-9999', senha, workspace['id_usuario'],
+                    member['id_grupo_solucionadores'],
+                ),
+            )
+            member_id = member['id_grupo_solucionadores']
+        else:
+            connection.execute(
+                "INSERT INTO grupo_solucionadores "
+                "(nome, email, cargo, setor, status, senha, telefone, id_usuario) "
+                "VALUES ('Conta teste HelpTI', %s, 'Administrador', "
+                "'Suporte', 'ATIVO', %s, '(11) 99999-9999', %s)",
+                (email, senha, workspace['id_usuario']),
+            )
+            member_id = connection.execute(
+                'SELECT last_insert_rowid()'
+            ).fetchone()[0]
+        connection.execute('''
+            INSERT INTO credencial_solucionador (id_grupo_solucionadores, permissoes)
+            VALUES (%s, %s)
+            ON CONFLICT(id_grupo_solucionadores) DO UPDATE SET
+                permissoes = excluded.permissoes
+        ''', (member_id, permissoes))
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
 
 
 def demo_mode_enabled():
@@ -215,9 +458,21 @@ def _migrate_customer_entities(connection):
         row[1] for row in connection.execute('PRAGMA table_info(chamado)').fetchall()
     }
     has_legacy_contacts = 'cliente_contatos_legados' in tables
+    has_contact_table = 'contato_cliente' in tables
     has_legacy_companies = connection.execute(
         "SELECT 1 FROM usuario WHERE UPPER(tipo_usuario) = 'CLIENTE' LIMIT 1"
     ).fetchone() is not None
+    user_columns = {
+        row[1] for row in connection.execute('PRAGMA table_info(usuario)').fetchall()
+    }
+
+    customer_columns = {
+        row[1] for row in connection.execute('PRAGMA table_info(cliente)').fetchall()
+    }
+    if 'contatos' not in customer_columns:
+        connection.execute(
+            "ALTER TABLE cliente ADD COLUMN contatos TEXT NOT NULL DEFAULT '[]'"
+        )
 
     if 'id_cliente' not in called_columns:
         connection.execute(
@@ -228,21 +483,27 @@ def _migrate_customer_entities(connection):
         'CREATE INDEX IF NOT EXISTS idx_chamado_cliente ON chamado (id_cliente)'
     )
 
-    if has_legacy_contacts or has_legacy_companies:
+    if has_legacy_contacts or has_contact_table or has_legacy_companies:
         connection.execute('BEGIN IMMEDIATE')
         try:
+            legacy_company_fields = (
+                'id_usuario', 'nome', 'contato', 'email', 'telefone', 'cnpj',
+                'telefone_empresa', 'endereco', 'status', 'id_workspace',
+            )
+            legacy_company_select = ', '.join(
+                field if field in user_columns else f'NULL AS {field}'
+                for field in legacy_company_fields
+            )
             companies = connection.execute(
-                "SELECT id_usuario, nome, contato, email, telefone, cnpj, "
-                "telefone_empresa, endereco, status, plano, acoes, id_workspace "
-                "FROM usuario WHERE UPPER(tipo_usuario) = 'CLIENTE' "
-                "ORDER BY id_usuario"
+                f"SELECT {legacy_company_select} FROM usuario "
+                "WHERE UPPER(tipo_usuario) = 'CLIENTE' ORDER BY id_usuario"
             ).fetchall()
             company_ids = set()
 
             for company in companies:
                 (
                     old_id, name, primary_name, primary_email, primary_phone,
-                    cnpj, company_phone, address, status, plan, actions, owner_id,
+                    cnpj, company_phone, address, status, owner_id,
                 ) = company
                 owner = connection.execute(
                     'SELECT 1 FROM usuario WHERE id_usuario = %s', (owner_id,)
@@ -267,11 +528,11 @@ def _migrate_customer_entities(connection):
                     connection.execute('''
                         INSERT INTO cliente (
                             id_cliente, nome, cnpj, telefone_empresa, endereco,
-                            status, plano, acoes, id_usuario
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            status, id_usuario
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ''', (
                         old_id, name or 'Cliente', cnpj, company_phone, address,
-                        status or 'ATIVO', plan, actions, owner_id,
+                        status or 'ATIVO', owner_id,
                     ))
                 company_ids.add(old_id)
 
@@ -289,25 +550,56 @@ def _migrate_customer_entities(connection):
                     (primary_phone or '').strip(),
                 )
                 if all(primary):
-                    connection.execute(
-                        'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
-                        'VALUES (%s, %s, %s, %s)',
-                        (old_id, *primary),
-                    )
+                    contacts = [{
+                        'nome': primary[0], 'email': primary[1], 'telefone': primary[2]
+                    }]
                     legacy_contacts = legacy_contacts[1:]
                 elif legacy_contacts:
                     first = legacy_contacts.pop(0)
+                    contacts = [{
+                        'nome': first[0], 'email': first[1], 'telefone': first[2]
+                    }]
+                else:
+                    contacts = []
+                contacts.extend(
+                    {'nome': item[0], 'email': item[1], 'telefone': item[2]}
+                    for item in legacy_contacts
+                )
+                if contacts:
+                    existing_contacts = connection.execute(
+                        'SELECT contatos FROM cliente WHERE id_cliente = %s',
+                        (old_id,),
+                    ).fetchone()[0]
+                    saved_contacts = json.loads(existing_contacts or '[]')
+                    saved_contacts.extend(contacts)
                     connection.execute(
-                        'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
-                        'VALUES (%s, %s, %s, %s)',
-                        (old_id, first[0], first[1], first[2]),
+                        'UPDATE cliente SET contatos = %s WHERE id_cliente = %s',
+                        (json.dumps(saved_contacts, ensure_ascii=False), old_id),
                     )
 
-                for contact in legacy_contacts:
+            if has_contact_table:
+                contact_rows = connection.execute(
+                    'SELECT id_cliente, nome, email, telefone FROM contato_cliente '
+                    'ORDER BY id_cliente, id_contato_cliente'
+                ).fetchall()
+                for customer_id, contact_name, email, phone in contact_rows:
+                    customer = connection.execute(
+                        'SELECT contatos FROM cliente WHERE id_cliente = %s',
+                        (customer_id,),
+                    ).fetchone()
+                    if not customer:
+                        raise RuntimeError(
+                            f'O contato legado referencia o cliente inexistente {customer_id}.'
+                        )
+                    contacts = json.loads(customer[0] or '[]')
+                    contacts.append({
+                        'nome': contact_name,
+                        'email': email,
+                        'telefone': phone,
+                    })
                     connection.execute(
-                        'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
-                        'VALUES (%s, %s, %s, %s)',
-                        (old_id, contact[0], contact[1], contact[2]),
+                        'UPDATE cliente SET contatos = %s WHERE id_cliente = %s',
+                        (json.dumps(contacts, ensure_ascii=False), customer_id),
                     )
 
             if has_legacy_contacts:
@@ -344,20 +636,20 @@ def _migrate_customer_entities(connection):
                 elif len(candidates) > 1:
                     matches = []
                     for candidate in candidates:
-                        contact_rows = connection.execute(
-                            'SELECT nome, email, telefone FROM contato_cliente '
-                            'WHERE id_cliente = %s',
+                        customer_contacts = connection.execute(
+                            'SELECT contatos FROM cliente WHERE id_cliente = %s',
                             (candidate[0],),
-                        ).fetchall()
+                        ).fetchone()
+                        contact_rows = json.loads(customer_contacts[0] or '[]')
                         score = 0
                         for contact in contact_rows:
-                            if email and (contact[1] or '').strip().lower() == email.strip().lower():
+                            if email and (contact.get('email') or '').strip().lower() == email.strip().lower():
                                 score += 1
-                            if contact_name and (contact[0] or '').strip().lower() == contact_name.strip().lower():
+                            if contact_name and (contact.get('nome') or '').strip().lower() == contact_name.strip().lower():
                                 score += 1
-                            if contact_phone and (contact[2] or '').strip() == contact_phone.strip():
+                            if contact_phone and (contact.get('telefone') or '').strip() == contact_phone.strip():
                                 score += 1
-                            if company_phone and (contact[2] or '').strip() == company_phone.strip():
+                            if company_phone and (contact.get('telefone') or '').strip() == company_phone.strip():
                                 score += 1
                         matches.append((score, candidate[0]))
                     highest = max((score for score, _ in matches), default=0)
@@ -374,6 +666,8 @@ def _migrate_customer_entities(connection):
 
             if has_legacy_contacts:
                 connection.execute('DROP TABLE cliente_contatos_legados')
+            if has_contact_table:
+                connection.execute('DROP TABLE contato_cliente')
             if company_ids:
                 placeholders = ', '.join(['%s'] * len(company_ids))
                 connection.execute(
@@ -409,11 +703,28 @@ def _migrate_customer_entities(connection):
     connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
 
 
+def _remove_legacy_user_columns(connection):
+    columns = {
+        row[1] for row in connection.execute('PRAGMA table_info(usuario)').fetchall()
+    }
+    columns_to_remove = [column for column in LEGACY_USER_COLUMNS if column in columns]
+    if not columns_to_remove:
+        return
+
+    connection.execute('BEGIN IMMEDIATE')
+    try:
+        for column in columns_to_remove:
+            connection.execute(f'ALTER TABLE usuario DROP COLUMN {column}')
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+
 def _migrate_profile_and_settings(connection):
     for table, column, sql_type in (
         ('usuario', 'workspace_name', 'VARCHAR(255)'),
         ('usuario', 'support_email', 'VARCHAR(255)'),
-        ('grupo_solucionadores', 'foto_perfil', 'TEXT'),
     ):
         existing = {
             row[1] for row in connection.execute(f'PRAGMA table_info({table})').fetchall()
@@ -434,6 +745,167 @@ def _migrate_profile_and_settings(connection):
                 (row[1], row[2], row[0]),
             )
         connection.execute('DROP TABLE configuracao')
+
+
+def _migrate_group_solucionadores(connection):
+    columns = {
+        row[1]: row for row in connection.execute(
+            'PRAGMA table_info(grupo_solucionadores)'
+        ).fetchall()
+    }
+    credential_columns = {
+        row[1] for row in connection.execute(
+            'PRAGMA table_info(credencial_solucionador)'
+        ).fetchall()
+    }
+    columns_to_remove = {
+        'descricao', 'nivel', 'valor_hora', 'permissoes', 'foto_perfil'
+    }
+    rebuild = bool(columns_to_remove & columns.keys())
+    rebuild = rebuild or not columns.get('nome') or not columns['nome'][3]
+    rebuild = rebuild or not columns.get('telefone') or not columns['telefone'][3]
+    rebuild = rebuild or 'senha' not in columns
+    if not rebuild:
+        connection.execute('''
+            INSERT OR IGNORE INTO credencial_solucionador (id_grupo_solucionadores)
+            SELECT id_grupo_solucionadores FROM grupo_solucionadores
+        ''')
+        if 'senha' in credential_columns:
+            connection.execute('''
+                UPDATE grupo_solucionadores
+                SET senha = (
+                    SELECT credencial_solucionador.senha
+                    FROM credencial_solucionador
+                    WHERE credencial_solucionador.id_grupo_solucionadores =
+                        grupo_solucionadores.id_grupo_solucionadores
+                )
+                WHERE senha = ''
+                  AND EXISTS (
+                      SELECT 1 FROM credencial_solucionador
+                      WHERE credencial_solucionador.id_grupo_solucionadores =
+                          grupo_solucionadores.id_grupo_solucionadores
+                        AND credencial_solucionador.senha <> ''
+                  )
+            ''')
+            connection.execute('ALTER TABLE credencial_solucionador DROP COLUMN senha')
+        return
+
+    def value(column, fallback='NULL'):
+        return f'legado.{column}' if column in columns else fallback
+
+    if 'nome' in columns and 'descricao' in columns:
+        nome = (
+            "COALESCE(NULLIF(TRIM(legado.nome), ''), "
+            "NULLIF(TRIM(legado.descricao), ''), 'Funcionário')"
+        )
+    elif 'nome' in columns:
+        nome = "COALESCE(NULLIF(TRIM(legado.nome), ''), 'Funcionário')"
+    elif 'descricao' in columns:
+        nome = "COALESCE(NULLIF(TRIM(legado.descricao), ''), 'Funcionário')"
+    else:
+        nome = "'Funcionário'"
+
+    connection.commit()
+    connection.execute('PRAGMA foreign_keys = OFF')
+    try:
+        connection.execute('BEGIN IMMEDIATE')
+        if {'permissoes', 'foto_perfil'} & columns.keys():
+            permissoes = value('permissoes', "'[]'")
+            foto_perfil = value('foto_perfil')
+            connection.execute(f'''
+                INSERT INTO credencial_solucionador (
+                    id_grupo_solucionadores, permissoes, foto_perfil
+                )
+                SELECT legado.id_grupo_solucionadores,
+                       COALESCE({permissoes}, '[]'),
+                       {foto_perfil}
+                FROM grupo_solucionadores AS legado
+                WHERE 1
+                ON CONFLICT(id_grupo_solucionadores) DO UPDATE SET
+                    permissoes = excluded.permissoes,
+                    foto_perfil = excluded.foto_perfil
+            ''')
+        if 'senha' in columns and 'senha' in credential_columns:
+            senha = "COALESCE(NULLIF(legado.senha, ''), credencial.senha, '')"
+        elif 'senha' in columns:
+            senha = "COALESCE(legado.senha, '')"
+        elif 'senha' in credential_columns:
+            senha = "COALESCE(credencial.senha, '')"
+        else:
+            senha = "''"
+        connection.execute('''
+            CREATE TABLE grupo_solucionadores_novo (
+                id_grupo_solucionadores INTEGER PRIMARY KEY AUTOINCREMENT,
+                data_inicio TEXT,
+                data_fim TEXT,
+                nome TEXT NOT NULL,
+                email TEXT,
+                cargo TEXT,
+                senha TEXT NOT NULL DEFAULT '',
+                telefone TEXT NOT NULL DEFAULT '',
+                setor TEXT,
+                status TEXT NOT NULL DEFAULT 'ATIVO',
+                id_usuario INTEGER NOT NULL,
+                FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+            )
+        ''')
+        connection.execute(f'''
+            INSERT INTO grupo_solucionadores_novo (
+                id_grupo_solucionadores, data_inicio, data_fim, nome, email,
+                cargo, senha, telefone, setor, status, id_usuario
+            )
+            SELECT legado.id_grupo_solucionadores, {value('data_inicio')},
+                   {value('data_fim')}, {nome}, {value('email')},
+                   {value('cargo')}, {senha}, COALESCE({value('telefone', "''")}, ''),
+                   {value('setor')}, COALESCE({value('status', "'ATIVO'")}, 'ATIVO'),
+                   {value('id_usuario')}
+            FROM grupo_solucionadores AS legado
+            LEFT JOIN credencial_solucionador AS credencial
+                ON credencial.id_grupo_solucionadores = legado.id_grupo_solucionadores
+        ''')
+        connection.execute('DROP TABLE grupo_solucionadores')
+        connection.execute(
+            'ALTER TABLE grupo_solucionadores_novo RENAME TO grupo_solucionadores'
+        )
+        connection.execute('''
+            INSERT OR IGNORE INTO credencial_solucionador (id_grupo_solucionadores)
+            SELECT id_grupo_solucionadores FROM grupo_solucionadores
+        ''')
+        if 'senha' in credential_columns:
+            connection.execute('ALTER TABLE credencial_solucionador DROP COLUMN senha')
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor '
+            'ON grupo_solucionadores (setor)'
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario '
+            'ON grupo_solucionadores (id_usuario)'
+        )
+        connection.execute(
+            'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_email '
+            'ON grupo_solucionadores (email)'
+        )
+        connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.execute('PRAGMA foreign_keys = ON')
+
+
+def _remove_legacy_business_columns(connection):
+    for table, removed_columns in (
+        ('cliente', ('plano', 'acoes')),
+        ('documentacao', ('fornecedor',)),
+    ):
+        existing = {
+            row[1] for row in connection.execute(f'PRAGMA table_info({table})').fetchall()
+        }
+        for column in removed_columns:
+            if column in existing:
+                connection.execute(f'ALTER TABLE {table} DROP COLUMN {column}')
+                existing.remove(column)
 
 
 def _migrate_sector_and_auth_tables(connection):
@@ -682,16 +1154,18 @@ def initialize_database():
         _ensure_compatible_schema(connection)
         _migrate_sector_and_auth_tables(connection)
         _prepare_customer_migration(connection)
-        connection.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
+        connection.executescript(SCHEMA_SQL)
         _migrate_profile_and_settings(connection)
         connection.commit()
         _migrate_sector_and_auth_tables(connection)
         _migrate_customer_entities(connection)
+        _remove_legacy_user_columns(connection)
+        _migrate_group_solucionadores(connection)
+        _remove_legacy_business_columns(connection)
         _seed_ticket_id_sequence(connection)
         if demo_mode_enabled():
-            connection.executescript(
-                Path(__file__).with_name('demo_seed.sql').read_text(encoding='utf-8')
-            )
+            connection.commit()
+            apply_demo_seed(connection)
         connection.execute('''
             INSERT INTO historico_chamado (id_chamado, evento, descricao, data_evento)
             SELECT chamado.id_chamado, 'aberto', 'Chamado criado no sistema.', chamado.data_abertura

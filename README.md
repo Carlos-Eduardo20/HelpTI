@@ -55,26 +55,22 @@ python app.py
 
 ---
 
-## 3. Modos de Inicialização (Demonstração vs. Novo Workspace)
+## 3. Conta de Teste e Novo Workspace
 
-Ao executar `python app.py`, o sistema apresentará uma pergunta interativa no terminal:
-
-```text
-Deseja iniciar com a conta de teste HelpTI? [S/N]:
-```
-
-### Opção [S] — Modo de Teste / Demonstração (Recomendado)
-- Responda **`S`** e pressione Enter.
-- O sistema iniciará utilizando o banco local (SQLite por padrão), pré-configurado com a conta administradora **HelpTI**, tipos de chamado e setor de suporte padrão.
+Por padrão, `python app.py` cria no SQLite local a conta de teste e os dados básicos de demonstração. O schema e a conta são criados pelo Python; não é necessário um arquivo `.sql`.
 - **Acesse no navegador:** [http://127.0.0.1:5000/](http://127.0.0.1:5000/)
 - **Credenciais de Teste:**
   - **E-mail:** `test@helpiti.com`
   - **Senha:** `HelpTI2026!!`
 
-### Opção [N] — Novo Workspace / Empresa Própria
-- Responda **`N`** e pressione Enter.
-- O sistema iniciará com uma base limpa para criar a empresa e a conta administradora principal.
-- **Acesse a tela de cadastro:** [http://127.0.0.1:5000/frontend/pages/account.html](http://127.0.0.1:5000/frontend/pages/account.html)
+Para iniciar sem a conta de demonstração e cadastrar um workspace próprio, defina `HELPTI_DEMO_MODE=false` antes de executar. No PowerShell:
+
+```powershell
+$env:HELPTI_DEMO_MODE = "false"
+python app.py
+```
+
+**Tela de cadastro:** [http://127.0.0.1:5000/frontend/pages/account.html](http://127.0.0.1:5000/frontend/pages/account.html)
 
 ---
 
@@ -101,11 +97,11 @@ O sistema usa SQLite e o sistema de arquivos da Render é temporário. Para mant
 
 1. No serviço, abra **Disks** e adicione um disco persistente (disponível em serviços pagos), montado em `/var/data`.
 2. Configure `DB_SQLITE_PATH=/var/data/helpti.sqlite3`.
-3. Configure `HELPTI_DEMO_MODE=false` e `HELPTI_HTTPS_ONLY=true`.
+3. Configure `HELPTI_DEMO_MODE=true` para habilitar a conta teste e `HELPTI_HTTPS_ONLY=true`.
 4. Remova variáveis antigas `DB_TYPE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`.
 5. Mantenha uma única instância do serviço: um disco persistente da Render só pode ser usado por uma instância.
 
-O arquivo [render.yaml](render.yaml) já descreve essa configuração para novos serviços Render Blueprint. Para serviços existentes, configure o disco e as variáveis no Dashboard e faça um novo deploy. Dados que já foram perdidos no armazenamento temporário não podem ser recuperados. Se o serviço ainda usava MySQL, exporte seus dados antes de removê-lo: a aplicação não converte esse banco automaticamente.
+O arquivo [render.yaml](render.yaml) já descreve essa configuração para novos serviços Render Blueprint. Para serviços existentes, configure o disco e as variáveis no Dashboard e faça um novo deploy. A conta teste é criada pelo Python durante a inicialização. Sem disco persistente (indisponível no plano gratuito), o login teste pode voltar a funcionar após um reinício, mas os outros dados gravados no SQLite serão perdidos. Dados que já foram perdidos no armazenamento temporário não podem ser recuperados. Se o serviço ainda usava MySQL, exporte seus dados antes de removê-lo: a aplicação não converte esse banco automaticamente.
 
 ---
 
@@ -123,19 +119,18 @@ Os testes usam arquivos SQLite temporários isolados e os removem ao terminar.
 
 ## 6. Modelagem do banco SQLite
 
-O SQLite do HelpTI possui nove tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). `usuario` armazena contas/workspaces; empresas e contatos são entidades próprias. A relação 1:N usa `cliente.id_usuario` como chave estrangeira do proprietário: a tabela `cliente` não possui `id_workspace`. O setor é armazenado como texto, sem tabela `setor`.
+O SQLite do HelpTI possui oito tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). `usuario` armazena contas/workspaces e `cliente` armazena empresas e sua lista de contatos em JSON na coluna `contatos`. A relação de propriedade usa `cliente.id_usuario` como chave estrangeira: a tabela `cliente` não possui `id_workspace`. O setor é armazenado como texto, sem tabela `setor`.
 
 [![Diagrama ER do SQLite do HelpTI](docs/sqlite-model.svg)](docs/sqlite-model.svg)
 
-O arquivo [editável no draw.io](docs/sqlite-model.drawio) pode ser aberto em [app.diagrams.net](https://app.diagrams.net/) usando **File → Open From → Device**. Os campos do desenho são os principais identificadores; a lista completa está em [`backend/schema.sql`](backend/schema.sql).
+O arquivo [editável no draw.io](docs/sqlite-model.drawio) pode ser aberto em [app.diagrams.net](https://app.diagrams.net/) usando **File → Open From → Device**. Os campos do desenho são os principais identificadores; a criação e as migrações do schema ficam em [`backend/database.py`](backend/database.py).
 
 ### Tabelas
 
 | Tabela | Finalidade | Chaves e campos de destaque |
 | --- | --- | --- |
-| `usuario` | Contas e workspaces de acesso; não armazena empresas clientes | `id_usuario` (PK), `id_workspace` (FK opcional para `usuario`), `tipo_usuario`, `nome`, `email` (único), `senha_hash`, `status` |
-| `cliente` | Empresas clientes atendidas por uma conta/workspace | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `nome`, `cnpj`, `telefone_empresa`, `endereco`, `status` |
-| `contato_cliente` | Pessoas de contato associadas a uma empresa cliente | `id_contato_cliente` (PK), `id_cliente` (FK obrigatória para `cliente`), `nome`, `email`, `telefone` |
+| `usuario` | Contas e workspaces de acesso; não armazena empresas clientes | `id_usuario` (PK), `id_workspace` (FK opcional para `usuario`), `tipo_usuario`, `nome`, `email` (único), `status`, `workspace_name`, `support_email` |
+| `cliente` | Empresas clientes atendidas por uma conta/workspace e sua lista de contatos | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `nome`, `cnpj`, `telefone_empresa`, `contatos` (JSON com nome, e-mail e telefone), `endereco`, `status` |
 | `tipo_chamado` | Categorias de chamados | `id_tipo_chamado` (PK), `nome`, `classificacao` |
 | `grupo_solucionadores` | Funcionários e administradores do workspace | `id_grupo_solucionadores` (PK), `id_usuario` (FK obrigatória), `nome`, `email`, `setor` (TEXT), `status` |
 | `chamado` | Chamados e seus dados de atendimento | `id_chamado` (PK), `id_tipo_chamado` (FK obrigatória), `id_cliente` (FK para `cliente`), `id_grupo_solucionadores` e `id_usuario` (FKs opcionais), `cliente` (snapshot TEXT), `setor` (TEXT), `status`, `descricao` |
@@ -151,7 +146,6 @@ O verbo no meio de cada relação descreve a ação entre as tabelas. A cardinal
 | --- | --- | --- |
 | 1:N | `usuario` **agrupa** `usuario` | `usuario.id_workspace` referencia o workspace pai; a FK é opcional. |
 | 1:N | `usuario` **atende** `cliente` | `cliente.id_usuario` obrigatório aponta para a conta/workspace proprietário; `cliente` não tem `id_workspace`. |
-| 1:N | `cliente` **mantém** `contato_cliente` | Cada contato pertence a uma empresa; a exclusão da empresa remove seus contatos. |
 | 1:N | `usuario` **possui** `grupo_solucionadores` | `grupo_solucionadores.id_usuario` é obrigatório. |
 | 1:N | `tipo_chamado` **classifica** `chamado` | Cada chamado tem um tipo obrigatório. |
 | 1:N | `cliente` **recebe** `chamado` | `chamado.id_cliente` vincula a empresa sem depender do nome; pode ficar nulo em chamados históricos sem associação segura. |

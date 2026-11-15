@@ -579,6 +579,60 @@ body {
   margin-top: 24px;
 }
 
+.confirmation-dialog {
+  width: min(390px, calc(100vw - 32px));
+  margin: auto;
+  padding: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-shadow: 0 20px 45px var(--palette-rgba-0-0-0-0-4);
+}
+
+.confirmation-dialog::backdrop {
+  background: var(--palette-rgba-0-0-0-0-4);
+  backdrop-filter: blur(3px);
+}
+
+.confirmation-dialog__content p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.confirmation-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.confirmation-dialog__delete {
+  min-height: 38px;
+  padding: 8px 16px;
+  border: 1px solid var(--red-main);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--red-main);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirmation-dialog__delete:hover {
+  border-color: var(--red-dark);
+  background: var(--red-dark);
+}
+
+.confirmation-dialog__delete:focus-visible,
+.confirmation-dialog__actions .button--secondary:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
 @media (max-width: 560px) {
   .card-header {
     align-items: flex-start;

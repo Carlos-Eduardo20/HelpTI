@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160" role="img" aria-labelledby="title description">
   <title id="title">Modelagem SQLite do HelpTI</title>
-  <desc id="description">Diagrama ER com as nove tabelas SQLite do HelpTI, incluindo empresas clientes, contatos e chamados vinculados por chave estrangeira.</desc>
+  <desc id="description">Diagrama ER com as nove tabelas SQLite do HelpTI; os contatos ficam em uma coluna JSON da tabela cliente.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
@@ -29,6 +29,7 @@
     <path class="edge" d="M410 145 L490 145"/>
     <path class="edge optional" d="M125 90 C125 35 355 35 355 90"/>
     <path class="edge" d="M230 330 L230 530"/>
+    <path class="edge" d="M255 800 L255 850"/>
     <path class="edge optional" d="M410 300 L500 455"/>
     <path class="edge" d="M700 300 L700 420"/>
     <path class="edge" d="M930 190 C880 220 880 380 850 420"/>
@@ -38,7 +39,6 @@
     <path class="edge optional" d="M380 800 L380 900 L1190 900 L1190 840"/>
     <path class="edge optional" d="M420 800 L420 1000 L1590 1000 L1590 670"/>
     <path class="edge optional" d="M60 300 L20 300 L20 1080 L1680 1080 L1680 670"/>
-    <path class="edge" d="M490 240 L465 260 L465 840 L235 840 L235 850"/>
   </g>
 
   <g transform="translate(60 90)">
@@ -48,14 +48,14 @@
     <text class="title" x="16" y="27">USUARIO</text>
     <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_usuario</text>
     <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_workspace (opcional, autorrelacao)</text>
-    <text class="field" x="16" y="122">nome, email UNIQUE, senha_hash</text>
+    <text class="field" x="16" y="122">nome, email UNIQUE</text>
     <text class="field" x="16" y="146">tipo_usuario, status</text>
     <text class="field" x="16" y="170">workspace_name, support_email</text>
     <text class="field" x="16" y="194">Conta/workspace, nao empresa cliente</text>
   </g>
 
   <g transform="translate(490 90)">
-    <rect class="entity" width="350" height="210" rx="10"/>
+    <rect class="entity" width="350" height="250" rx="10"/>
     <rect class="header" width="350" height="42" rx="10"/>
     <path d="M0 42 H350" stroke="#2563eb" stroke-width="1.5"/>
     <text class="title" x="16" y="27">CLIENTE</text>
@@ -63,16 +63,7 @@
     <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_usuario (owner/workspace)</text>
     <text class="field" x="16" y="122">nome, CNPJ, endereco</text>
     <text class="field" x="16" y="146">telefone_empresa, status</text>
-  </g>
-
-  <g transform="translate(60 850)">
-    <rect class="entity" width="350" height="180" rx="10"/>
-    <rect class="header" width="350" height="42" rx="10"/>
-    <path d="M0 42 H350" stroke="#2563eb" stroke-width="1.5"/>
-    <text class="title" x="16" y="27">CONTATO_CLIENTE</text>
-    <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_contato_cliente</text>
-    <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_cliente (obrigatorio)</text>
-    <text class="field" x="16" y="122">nome, email, telefone</text>
+    <text class="field" x="16" y="170">contatos JSON: nome, email, telefone</text>
   </g>
 
   <g transform="translate(930 90)">
@@ -93,8 +84,17 @@
     <text class="key" x="16" y="68">PK</text><text class="field" x="54" y="68">id_grupo_solucionadores</text>
     <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_usuario (obrigatorio)</text>
     <text class="field" x="16" y="122">nome, email, cargo, telefone</text>
-    <text class="field" x="16" y="146">setor TEXT, nivel, status</text>
-    <text class="field" x="16" y="170">senha, permissoes, foto_perfil</text>
+    <text class="field" x="16" y="146">setor TEXT, status</text>
+    <text class="field" x="16" y="170">senha (hash)</text>
+  </g>
+
+  <g transform="translate(60 850)">
+    <rect class="entity domain" width="390" height="140" rx="10"/>
+    <rect class="domain-header" width="390" height="42" rx="10"/>
+    <path d="M0 42 H390" stroke="#0f766e" stroke-width="1.5"/>
+    <text class="title" x="16" y="27">CREDENCIAL_SOLUCIONADOR</text>
+    <text class="key" x="16" y="68">PK/FK</text><text class="field" x="70" y="68">id_grupo_solucionadores</text>
+    <text class="field" x="16" y="98">permissoes, foto_perfil</text>
   </g>
 
   <g transform="translate(500 420)">
@@ -148,8 +148,9 @@
     <text class="key" x="16" y="92">FK</text><text class="field" x="54" y="92">id_usuario (opcional)</text>
     <text class="key" x="16" y="116">FK</text><text class="field" x="54" y="116">id_grupo_solucionadores</text>
     <text class="field" x="54" y="140">(opcional)</text>
-    <text class="field" x="16" y="170">titulo, fornecedor, conteudo</text>
-    <text class="field" x="16" y="194">data_criacao, data_atualizacao</text>
+    <text class="field" x="16" y="170">titulo, conteudo</text>
+    <text class="field" x="16" y="194">nome do funcionario via vinculo</text>
+    <text class="field" x="16" y="218">data_criacao, data_atualizacao</text>
   </g>
 
   <g transform="translate(1450 80)">
@@ -168,8 +169,6 @@
   <g>
     <rect class="edge-label" x="405" y="52" width="112" height="24" rx="5"/>
     <text class="edge-text" x="461" y="68">atende empresas 1:N</text>
-    <rect class="edge-label" x="330" y="810" width="112" height="24" rx="5"/>
-    <text class="edge-text" x="386" y="826">mantem contatos 1:N</text>
     <rect class="edge-label" x="182" y="35" width="128" height="24" rx="5"/>
     <text class="edge-text" x="246" y="51">agrupa workspaces 1:N</text>
     <rect class="edge-label" x="235" y="410" width="100" height="24" rx="5"/>

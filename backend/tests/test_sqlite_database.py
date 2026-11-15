@@ -1,4 +1,5 @@
 import os
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -137,14 +138,35 @@ class SQLiteDatabaseTests(unittest.TestCase):
                 'HELPTI_DEMO_MODE': 'true',
             }):
                 database.initialize_database()
+                database.initialize_database()
                 connection = database.get_db_connection()
                 try:
                     account = connection.execute(
-                        'SELECT senha FROM grupo_solucionadores WHERE email = %s',
+                        'SELECT id_grupo_solucionadores, id_usuario '
+                        'FROM grupo_solucionadores WHERE email = %s',
                         (database.DEMO_EMAIL,),
                     ).fetchone()
                     self.assertIsNotNone(account)
-                    self.assertTrue(check_password_hash(account['senha'], 'HelpTI2026!!'))
+                    credentials = connection.execute(
+                        'SELECT senha FROM grupo_solucionadores '
+                        'WHERE id_grupo_solucionadores = %s',
+                        (account['id_grupo_solucionadores'],),
+                    ).fetchone()
+                    self.assertTrue(check_password_hash(credentials['senha'], 'HelpTI2026!!'))
+                    workspace = connection.execute(
+                        "SELECT id_usuario FROM usuario WHERE email = %s "
+                        "AND tipo_usuario = 'WORKSPACE'",
+                        (database.DEMO_EMAIL,),
+                    ).fetchone()
+                    self.assertIsNotNone(workspace)
+                    self.assertEqual(account['id_usuario'], workspace['id_usuario'])
+                    self.assertEqual(
+                        connection.execute(
+                            "SELECT COUNT(*) FROM grupo_solucionadores WHERE email = %s",
+                            (database.DEMO_EMAIL,),
+                        ).fetchone()[0],
+                        1,
+                    )
                     self.assertEqual(
                         connection.execute('SELECT COUNT(*) FROM tipo_chamado').fetchone()[0],
                         4,
@@ -162,14 +184,18 @@ class SQLiteDatabaseTests(unittest.TestCase):
                 member_response = client.post('/api/equipe', json={
                     'nome': 'Tecnico SQLite',
                     'email': 'tecnico@helpti.test',
+                    'telefone': '(11) 99999-9999',
                     'setor': 'Suporte',
                 })
                 self.assertEqual(member_response.status_code, 201, member_response.get_json())
                 connection = database.get_db_connection()
                 try:
                     member_record = connection.execute(
-                        'SELECT cargo, senha, permissoes, setor FROM grupo_solucionadores '
-                        'WHERE email = %s',
+                        'SELECT membro.cargo, membro.setor, membro.senha, '
+                        'credencial.permissoes FROM grupo_solucionadores AS membro '
+                        'JOIN credencial_solucionador AS credencial '
+                        'ON credencial.id_grupo_solucionadores = membro.id_grupo_solucionadores '
+                        'WHERE membro.email = %s',
                         ('tecnico@helpti.test',),
                     ).fetchone()
                     self.assertEqual(member_record['cargo'], 'Técnico')
@@ -209,13 +235,14 @@ class SQLiteDatabaseTests(unittest.TestCase):
                     }
                     self.assertNotIn('equipamento_cliente', tables)
                     self.assertNotIn('setor', tables)
-                    self.assertIn('contato_cliente', tables)
+                    self.assertNotIn('contato_cliente', tables)
                     self.assertTrue({
                         'codigo_recuperacao_senha',
                         'identidade_microsoft',
                         'login_rate_limit',
                         'verificacao_cadastro_email',
                     }.isdisjoint(tables))
+                    self.assertIn('credencial_solucionador', tables)
                     group_columns = {
                         row[1] for row in connection.execute(
                             'PRAGMA table_info(grupo_solucionadores)'
@@ -223,6 +250,25 @@ class SQLiteDatabaseTests(unittest.TestCase):
                     }
                     self.assertIn('setor', group_columns)
                     self.assertNotIn('id_setor', group_columns)
+                    self.assertTrue({
+                        'valor_hora', 'permissoes', 'foto_perfil', 'nivel', 'descricao',
+                    }.isdisjoint(group_columns))
+                    self.assertIn('senha', group_columns)
+                    credential_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(credencial_solucionador)'
+                        ).fetchall()
+                    }
+                    self.assertIn('permissoes', credential_columns)
+                    self.assertIn('foto_perfil', credential_columns)
+                    self.assertNotIn('senha', credential_columns)
+                    group_info = {
+                        row[1]: row for row in connection.execute(
+                            'PRAGMA table_info(grupo_solucionadores)'
+                        ).fetchall()
+                    }
+                    self.assertTrue(group_info['nome'][3])
+                    self.assertTrue(group_info['telefone'][3])
                     customer_columns = {
                         row[1] for row in connection.execute(
                             'PRAGMA table_info(cliente)'
@@ -234,8 +280,171 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         ).fetchall()
                     }
                     self.assertIn('id_usuario', customer_columns)
+                    self.assertIn('contatos', customer_columns)
                     self.assertNotIn('id_workspace', customer_columns)
+                    self.assertTrue({'plano', 'acoes'}.isdisjoint(customer_columns))
                     self.assertIn('id_cliente', ticket_columns)
+                    user_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(usuario)'
+                        ).fetchall()
+                    }
+                    self.assertTrue(set(database.LEGACY_USER_COLUMNS).isdisjoint(user_columns))
+                finally:
+                    connection.close()
+
+    def test_legacy_group_credentials_are_migrated_and_retired_fields_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'legacy-group.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    connection.execute(
+                        'INSERT INTO usuario (nome, email, tipo_usuario) '
+                        'VALUES (%s, %s, %s)',
+                        ('Workspace', 'workspace@example.test', 'WORKSPACE'),
+                    )
+                    workspace_id = connection.execute(
+                        'SELECT last_insert_rowid()'
+                    ).fetchone()[0]
+                    connection.execute(
+                        'INSERT INTO grupo_solucionadores '
+                        '(nome, email, telefone, setor, id_usuario) '
+                        'VALUES (%s, %s, %s, %s, %s)',
+                        ('Tecnica', 'tecnica@example.test', '11999990000', 'Suporte', workspace_id),
+                    )
+                    member_id = connection.execute('SELECT last_insert_rowid()').fetchone()[0]
+                    for column, sql_type in (
+                        ('permissoes', 'TEXT'),
+                        ('foto_perfil', 'TEXT'),
+                        ('valor_hora', 'NUMERIC'),
+                        ('nivel', 'TEXT'),
+                        ('descricao', 'TEXT'),
+                    ):
+                        connection.execute(
+                            f'ALTER TABLE grupo_solucionadores ADD COLUMN {column} {sql_type}'
+                        )
+                    connection.execute(
+                        'UPDATE grupo_solucionadores SET senha = %s '
+                        'WHERE id_grupo_solucionadores = %s',
+                        ('hash-legado', member_id),
+                    )
+                    connection.execute(
+                        'UPDATE grupo_solucionadores SET permissoes = %s, '
+                        'foto_perfil = %s WHERE id_grupo_solucionadores = %s',
+                        ('["chamados"]', 'foto-legada.png', member_id),
+                    )
+                    connection.execute('ALTER TABLE cliente ADD COLUMN plano TEXT')
+                    connection.execute('ALTER TABLE cliente ADD COLUMN acoes TEXT')
+                    connection.execute('ALTER TABLE documentacao ADD COLUMN fornecedor TEXT')
+                    connection.commit()
+                finally:
+                    connection.close()
+
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    member_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(grupo_solucionadores)'
+                        ).fetchall()
+                    }
+                    self.assertTrue({
+                        'permissoes', 'foto_perfil', 'valor_hora',
+                        'nivel', 'descricao',
+                    }.isdisjoint(member_columns))
+                    self.assertIn('senha', member_columns)
+                    password = connection.execute(
+                        'SELECT senha FROM grupo_solucionadores '
+                        'WHERE id_grupo_solucionadores = %s',
+                        (member_id,),
+                    ).fetchone()
+                    self.assertEqual(password['senha'], 'hash-legado')
+                    credentials = connection.execute(
+                        'SELECT permissoes, foto_perfil '
+                        'FROM credencial_solucionador WHERE id_grupo_solucionadores = %s',
+                        (member_id,),
+                    ).fetchone()
+                    self.assertEqual(credentials['permissoes'], '["chamados"]')
+                    self.assertEqual(credentials['foto_perfil'], 'foto-legada.png')
+                    customer_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(cliente)'
+                        ).fetchall()
+                    }
+                    documentation_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(documentacao)'
+                        ).fetchall()
+                    }
+                    self.assertTrue({'plano', 'acoes'}.isdisjoint(customer_columns))
+                    self.assertNotIn('fornecedor', documentation_columns)
+                    self.assertEqual(connection.execute('PRAGMA foreign_key_check').fetchall(), [])
+                finally:
+                    connection.close()
+
+    def test_password_is_restored_to_group_when_migrating_intermediate_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'intermediate-group.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    connection.execute(
+                        'INSERT INTO usuario (nome, email, tipo_usuario) '
+                        'VALUES (%s, %s, %s)',
+                        ('Workspace', 'workspace@example.test', 'WORKSPACE'),
+                    )
+                    workspace_id = connection.execute(
+                        'SELECT last_insert_rowid()'
+                    ).fetchone()[0]
+                    connection.execute(
+                        'INSERT INTO grupo_solucionadores '
+                        '(nome, email, senha, telefone, id_usuario) '
+                        'VALUES (%s, %s, %s, %s, %s)',
+                        ('Tecnica', 'tecnica@example.test', 'old-hash', '11999990000', workspace_id),
+                    )
+                    member_id = connection.execute('SELECT last_insert_rowid()').fetchone()[0]
+                    connection.execute(
+                        'INSERT INTO credencial_solucionador (id_grupo_solucionadores) '
+                        'VALUES (%s)',
+                        (member_id,),
+                    )
+                    connection.execute(
+                        'ALTER TABLE credencial_solucionador '
+                        "ADD COLUMN senha TEXT NOT NULL DEFAULT ''"
+                    )
+                    connection.execute(
+                        'UPDATE credencial_solucionador SET senha = %s '
+                        'WHERE id_grupo_solucionadores = %s',
+                        ('saved-hash', member_id),
+                    )
+                    connection.execute('ALTER TABLE grupo_solucionadores DROP COLUMN senha')
+                    connection.commit()
+
+                    database._migrate_group_solucionadores(connection)
+
+                    row = connection.execute(
+                        'SELECT senha FROM grupo_solucionadores '
+                        'WHERE id_grupo_solucionadores = %s',
+                        (member_id,),
+                    ).fetchone()
+                    self.assertEqual(row['senha'], 'saved-hash')
+                    credential_columns = {
+                        item[1] for item in connection.execute(
+                            'PRAGMA table_info(credencial_solucionador)'
+                        ).fetchall()
+                    }
+                    self.assertNotIn('senha', credential_columns)
                 finally:
                     connection.close()
 
@@ -262,6 +471,71 @@ class SQLiteDatabaseTests(unittest.TestCase):
                             'VALUES (%s, %s, %s)',
                             ('Workspace duplicado', ' Owner@Example.Test ', 'WORKSPACE'),
                         )
+                finally:
+                    connection.close()
+
+    def test_existing_contact_table_is_migrated_into_customer_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'legacy-contacts.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                connection.execute(
+                    "INSERT INTO usuario (nome, email, tipo_usuario) "
+                    "VALUES ('Workspace', 'owner@example.test', 'WORKSPACE')"
+                )
+                owner_id = connection.execute(
+                    "SELECT id_usuario FROM usuario WHERE email = 'owner@example.test'"
+                ).fetchone()['id_usuario']
+                connection.execute(
+                    'INSERT INTO cliente (nome, id_usuario) VALUES (%s, %s)',
+                    ('Empresa', owner_id),
+                )
+                customer_id = connection.execute(
+                    'SELECT id_cliente FROM cliente WHERE nome = %s', ('Empresa',)
+                ).fetchone()['id_cliente']
+                connection.executescript('''
+                    CREATE TABLE contato_cliente (
+                        id_contato_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_cliente INTEGER NOT NULL,
+                        nome TEXT NOT NULL,
+                        email TEXT NOT NULL,
+                        telefone TEXT NOT NULL,
+                        FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
+                    );
+                ''')
+                connection.cursor().executemany(
+                    'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
+                    'VALUES (%s, %s, %s, %s)',
+                    [
+                        (customer_id, 'Contato A', 'a@example.test', '111'),
+                        (customer_id, 'Contato B', 'b@example.test', '222'),
+                    ],
+                )
+                connection.commit()
+                connection.close()
+
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    stored = connection.execute(
+                        'SELECT contatos FROM cliente WHERE id_cliente = %s',
+                        (customer_id,),
+                    ).fetchone()['contatos']
+                    self.assertEqual(json.loads(stored), [
+                        {'nome': 'Contato A', 'email': 'a@example.test', 'telefone': '111'},
+                        {'nome': 'Contato B', 'email': 'b@example.test', 'telefone': '222'},
+                    ])
+                    tables = {
+                        row[0] for row in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        ).fetchall()
+                    }
+                    self.assertNotIn('contato_cliente', tables)
                 finally:
                     connection.close()
 
@@ -384,13 +658,21 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         ).fetchall()
                     }
                     self.assertNotIn('id_workspace', customer_columns)
-                    self.assertEqual(
-                        connection.execute(
-                            'SELECT nome FROM contato_cliente WHERE id_cliente = 2 '
-                            'ORDER BY id_contato_cliente'
-                        ).fetchall(),
-                        [('Ana Atualizada',), ('Maria',)],
-                    )
+                    contacts = connection.execute(
+                        'SELECT contatos FROM cliente WHERE id_cliente = 2'
+                    ).fetchone()['contatos']
+                    self.assertEqual(json.loads(contacts), [
+                        {
+                            'nome': 'Ana Atualizada',
+                            'email': 'ana@example.test',
+                            'telefone': '11999990000',
+                        },
+                        {
+                            'nome': 'Maria',
+                            'email': 'maria@example.test',
+                            'telefone': '11777777777',
+                        },
+                    ])
                     self.assertEqual(
                         connection.execute(
                             'SELECT id_cliente FROM chamado WHERE id_chamado = 123456'
@@ -410,6 +692,12 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         connection.execute('PRAGMA foreign_key_check').fetchall(),
                         [],
                     )
+                    user_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(usuario)'
+                        ).fetchall()
+                    }
+                    self.assertTrue(set(database.LEGACY_USER_COLUMNS).isdisjoint(user_columns))
                 finally:
                     connection.close()
 

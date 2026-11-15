@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     from backend.startup_config import configure_startup
 
-    os.environ['HELPTI_DEMO_MODE'] = 'prompt'
+    os.environ.setdefault('HELPTI_DEMO_MODE', 'true')
     startup = configure_startup()
 
     try:

@@ -2,6 +2,7 @@ import { buscarChamados, buscarMetricasDeskops, criarChamado, atualizarChamado, 
 import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianPhone } from './phone.js';
+import { confirmarExclusao } from './confirmation-dialog.js';
 
 function escaparHtml(texto) {
   if (texto === null || texto === undefined) return '';
@@ -495,7 +496,7 @@ function renderizarOpcoesTecnicos(setorNome = '') {
   busca.value = '';
   busca.disabled = !setorNome || !tecnicos.length;
   lista.innerHTML = setorNome && tecnicos.length
-    ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
+    ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
     : `<li class="select-empty">${setorNome ? 'Nenhum técnico disponível' : 'Selecione primeiro o setor'}</li>`;
 }
 
@@ -514,9 +515,9 @@ function filtrarOpcoesTecnicos(termo = '') {
   const setorNome = document.querySelector('#setorChamado')?.value || '';
   if (!lista) return;
   const busca = normalizarBusca(termo);
-  const tecnicos = equipeDoChamado.filter((membro) => normalizarBusca(membro.setor) === normalizarBusca(setorNome) && (membro.status || 'ATIVO') === 'ATIVO' && normalizarBusca(`${membro.nome || ''} ${membro.descricao || ''} ${membro.cargo || ''} ${membro.email || ''}`).includes(busca));
+  const tecnicos = equipeDoChamado.filter((membro) => normalizarBusca(membro.setor) === normalizarBusca(setorNome) && (membro.status || 'ATIVO') === 'ATIVO' && normalizarBusca(`${membro.nome || ''} ${membro.cargo || ''} ${membro.email || ''}`).includes(busca));
   lista.innerHTML = tecnicos.length
-    ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || membro.descricao || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
+    ? tecnicos.map((membro) => `<li data-tecnico-id="${escaparHtml(membro.id_grupo_solucionadores)}"><strong>${escaparHtml(membro.nome || 'Técnico')}</strong><span>${escaparHtml(membro.cargo || membro.email || 'Técnico disponível')}</span></li>`).join('')
     : '<li class="select-empty">Nenhum técnico encontrado.</li>';
 }
 
@@ -553,7 +554,7 @@ function configurarBuscaResponsaveis() {
     if (!opcao) return;
     const tecnico = equipeDoChamado.find((item) => String(item.id_grupo_solucionadores) === opcao.dataset.tecnicoId);
     if (!tecnico) return;
-    buscaTecnico.value = tecnico.nome || tecnico.descricao || 'Técnico';
+    buscaTecnico.value = tecnico.nome || 'Técnico';
     campoTecnico.value = tecnico.id_grupo_solucionadores;
     listaTecnico.classList.add('hidden');
   });
@@ -649,8 +650,18 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.id_cliente.value || !campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.contato_cliente.value.trim() || !campos.telefone_contato.value.trim() || !campos.setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
-    form.reportValidity();
+  const camposDeSelecao = [
+    { value: campos.id_cliente.value, input: '#clienteSearchInput', message: 'Selecione um cliente da lista.' },
+    { value: campos.setor.value, input: '#setorSearchInput', message: 'Selecione um setor da lista.' },
+    { value: campos.id_grupo_solucionadores.value, input: '#tecnicoSearchInput', message: 'Selecione um técnico da lista.' },
+  ];
+  const selecaoInvalida = camposDeSelecao.find(({ value }) => !value);
+  if (selecaoInvalida) {
+    mostrarErro(selecaoInvalida.message);
+    document.querySelector(selecaoInvalida.input)?.focus();
+    return;
+  }
+  if (!form.reportValidity()) {
     return;
   }
   const botao = form.querySelector('[type="submit"]');
@@ -724,7 +735,7 @@ document.addEventListener('click', async (event) => {
   if (botaoExcluir) {
     event.preventDefault();
     event.stopPropagation();
-    if (!window.confirm('Tem certeza que deseja excluir este chamado?')) return;
+    if (!await confirmarExclusao('esse Chamado')) return;
     try {
       await excluirChamado(botaoExcluir.dataset.excluirChamado);
       await carregarChamados();
@@ -800,9 +811,6 @@ function inicializarDashboard() {
   formNovoChamado?.addEventListener('submit', salvarChamado);
   document.querySelectorAll('#modalChamado .btn-close, #modalChamado .btn-cancel').forEach((botao) => {
     botao.addEventListener('click', fecharModalChamado);
-  });
-  document.querySelector('#modalChamado')?.addEventListener('click', (event) => {
-    if (event.target.id === 'modalChamado') fecharModalChamado();
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') fecharModalChamado();

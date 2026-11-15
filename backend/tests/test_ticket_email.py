@@ -35,6 +35,7 @@ class TicketEmailTests(unittest.TestCase):
             'nome': 'Ana Teste',
             'empresa': 'Empresa Teste',
             'email': 'admin@outlook.com',
+            'telefone': '(11) 99999-9999',
             'senha': 'senha-segura-123',
         }
         response = self.client.post('/api/contas', json=cadastro)
@@ -136,6 +137,7 @@ class TicketEmailTests(unittest.TestCase):
                 'nome': 'Admin',
                 'empresa': 'Empresa',
                 'email': email,
+                'telefone': '(11) 99999-9999',
                 'senha': 'senha-segura-123',
             })
             self.assertEqual(response.status_code, 400)
@@ -145,6 +147,7 @@ class TicketEmailTests(unittest.TestCase):
             'nome': 'Admin',
             'empresa': 'Empresa',
             'email': 'admin@outlook.com',
+            'telefone': '(11) 99999-9999',
             'senha': 'senha-segura-123',
         })
         self.assertEqual(account.status_code, 201, account.get_json())
@@ -173,7 +176,8 @@ class TicketEmailTests(unittest.TestCase):
             connection = database.get_db_connection()
             try:
                 row = connection.execute(
-                    "SELECT senha FROM grupo_solucionadores WHERE email = 'test@helpiti.com'"
+                    "SELECT senha FROM grupo_solucionadores "
+                    "WHERE email = 'test@helpiti.com'"
                 ).fetchone()
                 self.assertIsNotNone(row)
                 self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!!'))
@@ -250,7 +254,8 @@ class TicketEmailTests(unittest.TestCase):
             connection = database.get_db_connection()
             try:
                 connection.execute(
-                    "UPDATE grupo_solucionadores SET senha = %s WHERE email = 'test@helpiti.com'",
+                    "UPDATE grupo_solucionadores SET senha = %s "
+                    "WHERE email = 'test@helpiti.com'",
                     (legacy_hash,)
                 )
                 connection.commit()
@@ -262,7 +267,8 @@ class TicketEmailTests(unittest.TestCase):
         connection = database.get_db_connection()
         try:
             row = connection.execute(
-                "SELECT senha FROM grupo_solucionadores WHERE email = 'test@helpiti.com'"
+                "SELECT senha FROM grupo_solucionadores "
+                "WHERE email = 'test@helpiti.com'"
             ).fetchone()
             self.assertTrue(check_password_hash(row['senha'], 'HelpTI2026!!'))
         finally:

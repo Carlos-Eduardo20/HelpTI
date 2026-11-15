@@ -24,7 +24,7 @@ class DeskOpsProject3Tests(unittest.TestCase):
     def _register(self, email, empresa):
         client = app_module.app.test_client()
         cadastro = {'nome': empresa, 'empresa': empresa, 'email': email,
-                    'senha': 'senha-segura-123'}
+                    'telefone': '(11) 99999-9999', 'senha': 'senha-segura-123'}
         r = client.post('/api/contas', json=cadastro)
         self.assertEqual(r.status_code, 201, r.get_json())
         r = client.post('/api/login', json={'email': email, 'senha': cadastro['senha']})
@@ -37,6 +37,7 @@ class DeskOpsProject3Tests(unittest.TestCase):
         tecnico_resp = admin.post('/api/equipe', json={
             'nome': 'Carlos Silva',
             'email': 'carlos@helpti.test',
+            'telefone': '(11) 99999-9999',
             'setor': 'Suporte N1',
         })
         tecnico_id = tecnico_resp.get_json()['id_grupo_solucionadores']
@@ -121,7 +122,6 @@ class DeskOpsProject3Tests(unittest.TestCase):
 
         # Criar documentação
         create_resp = admin.post('/api/documentacoes', json={
-            'fornecedor': 'Dell EMC',
             'id_grupo_solucionadores': tecnico_id,
             'titulo': 'Manual Servidor PowerEdge R740',
             'conteudo': 'Procedimentos para troca de discos em RAID 5.'
@@ -129,7 +129,7 @@ class DeskOpsProject3Tests(unittest.TestCase):
         self.assertEqual(create_resp.status_code, 201)
         doc = create_resp.get_json()
         doc_id = doc['id_documentacao']
-        self.assertEqual(doc['fornecedor'], 'Dell EMC')
+        self.assertEqual(doc['funcionario_nome'], 'Carlos Silva')
 
         # Listar documentações
         list_resp = admin.get('/api/documentacoes?busca=PowerEdge')
@@ -140,12 +140,11 @@ class DeskOpsProject3Tests(unittest.TestCase):
 
         # Atualizar
         update_resp = admin.put(f'/api/documentacoes/{doc_id}', json={
-            'fornecedor': 'Dell Technologies',
             'titulo': 'Manual Servidor PowerEdge R740 v2',
             'conteudo': 'Atualizado com novas controladoras PERC.'
         })
         self.assertEqual(update_resp.status_code, 200)
-        self.assertEqual(update_resp.get_json()['fornecedor'], 'Dell Technologies')
+        self.assertEqual(update_resp.get_json()['funcionario_nome'], 'Carlos Silva')
 
         # Deletar
         del_resp = admin.delete(f'/api/documentacoes/{doc_id}')

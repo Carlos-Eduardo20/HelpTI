@@ -2,6 +2,7 @@ import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMem
 import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
+import { confirmarExclusao } from './confirmation-dialog.js';
 
 initializePhoneInputs();
 initializeCnpjInputs();
@@ -189,7 +190,7 @@ function filtrarClientes() {
       const possuiChamado = chamadosEmMemoria.some((chamado) => chamado.id_cliente === cliente.id_cliente && chamado.status === statusChamado);
       if (!possuiChamado) return false;
     }
-    const dadosBusca = [cliente.nome, cliente.cnpj, cliente.contato, cliente.email, cliente.telefone_empresa, cliente.telefone, cliente.endereco, cliente.plano, ...(cliente.contatos || []).flatMap((contato) => [contato.nome, contato.email, contato.telefone])];
+    const dadosBusca = [cliente.nome, cliente.cnpj, cliente.contato, cliente.email, cliente.telefone_empresa, cliente.telefone, cliente.endereco, ...(cliente.contatos || []).flatMap((contato) => [contato.nome, contato.email, contato.telefone])];
     return !termo || dadosBusca.some((valor) => normalizarTexto(valor).includes(normalizarTexto(termo)));
   });
   renderizarClientes(clientesFiltrados);
@@ -301,13 +302,12 @@ async function carregarEquipe() {
     const { buscarEquipe } = await import('./api.js');
     const equipe = await buscarEquipe();
     tabela.innerHTML = equipe.map((membro) => {
-      const nome = membro.nome || membro.descricao || 'Funcionário';
+      const nome = membro.nome || 'Funcionário';
       const detalhesId = `dados-funcionario-${membro.id_grupo_solucionadores}`;
       const detalhes = [
         ['E-mail', membro.email || 'Não informado'],
         ['Telefone', membro.telefone || 'Não informado'],
         ['Data de início', detailDate(membro.data_inicio)],
-        ['Nível', membro.nivel ? `Nível ${membro.nivel}` : 'Não informado'],
       ];
       return `
         <tr class="team-member-row">
@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (remover) {
       event.preventDefault();
       event.stopPropagation();
-      if (!window.confirm('Tem certeza que deseja excluir este funcionário?')) return;
+      if (!await confirmarExclusao('esse Funcionário')) return;
       try {
         const { excluirMembro } = await import('./api.js');
         await excluirMembro(remover.dataset.removeMember);
@@ -481,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     event.preventDefault();
     event.stopPropagation();
-    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
+    if (!await confirmarExclusao('esse Cliente')) return;
     try {
       const { excluirCliente } = await import('./api.js');
       await excluirCliente(botao.dataset.excluirCliente);
@@ -529,8 +529,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('cli-nome').textContent = cliente.nome;
       document.getElementById('cli-email').textContent = cliente.email;
       document.getElementById('cli-telefone').textContent = cliente.telefone || '-';
-      document.getElementById('cli-plano').textContent = cliente.plano || '-';
-      document.getElementById('cli-acoes').textContent = cliente.acoes || '-';
       document.getElementById('cli-data').textContent = cliente.criado_em ? new Date(cliente.criado_em).toLocaleDateString('pt-BR') : '-';
       const tabelaChamados = document.querySelector('#tabela-chamados-cliente tbody');
       const chamadosCliente = chamados.filter((chamado) => chamado.id_cliente === cliente.id_cliente);
@@ -695,7 +693,6 @@ function iniciarEdicaoDetalhe(scope, registro) {
       if (event.key !== 'Enter') return;
       event.preventDefault();
       const dados = { [input.dataset.editField]: input.dataset.editField === 'cnpj' ? formatBrazilianCnpj(input.value) : input.value.trim() };
-      if (input.dataset.editField === 'valor_hora') dados.valor_hora = input.value.replace(/[^\d,.]/g, '').replace(',', '.') || null;
       if (input.dataset.editField === 'data_inicio') dados.data_inicio = input.value;
       try {
         const atualizado = scope === 'cliente' ? await atualizarCliente(registro.id_cliente, dados) : await atualizarMembro(registro.id_grupo_solucionadores, dados);
@@ -924,7 +921,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const atualizarTecnicosDestino = () => {
           const setor = normalizarTexto(setorSelect.value);
           const tecnicos = equipe.filter((membro) => normalizarTexto(membro.setor) === setor && (membro.status || 'ATIVO') === 'ATIVO');
-          tecnicoSelect.innerHTML = tecnicos.map((membro) => `<option value="${detailEscape(membro.id_grupo_solucionadores)}">${detailEscape(membro.nome || membro.descricao || 'Técnico')}</option>`).join('');
+          tecnicoSelect.innerHTML = tecnicos.map((membro) => `<option value="${detailEscape(membro.id_grupo_solucionadores)}">${detailEscape(membro.nome || 'Técnico')}</option>`).join('');
           tecnicoSelect.disabled = tecnicos.length === 0;
         };
         setorSelect.addEventListener('change', atualizarTecnicosDestino);
@@ -1024,8 +1021,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       setDetailText('cli-email', cliente.email);
       setDetailText('cli-telefone', cliente.telefone_empresa || cliente.telefone);
       setDetailText('cli-endereco', cliente.endereco);
-      setDetailText('cli-fatura', cliente.plano);
-      setDetailText('cli-contrato', cliente.acoes);
       const contatos = cliente.contatos?.length ? cliente.contatos : [{ nome: cliente.contato, email: cliente.email, telefone: cliente.telefone }];
       const listaContatos = document.querySelector('#cli-contatos');
       if (listaContatos) {

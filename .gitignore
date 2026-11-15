@@ -62,7 +62,6 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
 .webassets-cache
 
 # Scrapy stuff:
@@ -217,18 +216,20 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# HelpTI local data and generated files
-instance/
+# HelpTI local SQLite data (ignored by Git, but kept on disk) and generated files
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
+*.sqlite3-journal
 *.log
 logs/
 node_modules/
 *.dump
+# Ignore SQL scripts and generated dumps; runtime schema and seed are managed by Python.
+*.sql
 *.sql.gz
 *_dump.sql
 *_backup.sql

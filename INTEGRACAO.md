@@ -153,7 +153,7 @@ Com SMTP configurado, também é enviado um aviso ao abrir um chamado. A recuper
 
 ### Erro de tabela ou coluna no SQLite
 - Confirme que o usuário do processo pode gravar no diretório indicado por `DB_SQLITE_PATH`.
-- Confira se o schema em `backend/schema.sql` contém a tabela/coluna esperada.
+- Confira a definição e as migrações da tabela/coluna em `backend/database.py`.
 - Faça backup antes de apagar ou recriar o banco: ele contém os dados da aplicação.
 
 ## Teste rápido

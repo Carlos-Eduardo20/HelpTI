@@ -31,9 +31,15 @@ class AdminDatabaseTests(_mt.MultiTenancyTests):
             response = client.post('/api/equipe', json={
                 'nome': nome,
                 'email': email,
+                'telefone': '(11) 99999-9999',
                 'setor': nome,
             })
             self.assertEqual(response.status_code, 201, response.get_json())
+            self.assertNotIn('senha', response.get_json())
+
+        listed_team = a.get('/api/equipe')
+        self.assertEqual(listed_team.status_code, 200, listed_team.get_json())
+        self.assertTrue(all('senha' not in member for member in listed_team.get_json()))
 
         stats = a.get('/api/admin/db/stats')
         self.assertEqual(stats.status_code, 200)

@@ -136,6 +136,10 @@ body, html {
   padding-right: 44px;
 }
 
+.password-input-wrapper input::-ms-reveal {
+  display: none;
+}
+
 .toggle-password {
   position: absolute;
   top: 50%;

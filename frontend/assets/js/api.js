@@ -115,10 +115,10 @@ export async function salvarConfiguracoes(dados) {
 
 // ============ DOCUMENTAÇÃO TÉCNICA (MODELAGEM ERD) ============
 
-export async function buscarDocumentacoes(busca = '', fornecedor = '', grupoId = '') {
+export async function buscarDocumentacoes(busca = '', funcionario = '', grupoId = '') {
   const params = new URLSearchParams();
   if (busca) params.append('busca', busca);
-  if (fornecedor) params.append('fornecedor', fornecedor);
+  if (funcionario) params.append('funcionario', funcionario);
   if (grupoId) params.append('id_grupo_solucionadores', grupoId);
   const qs = params.toString() ? `?${params.toString()}` : '';
   return request(`/documentacoes${qs}`);

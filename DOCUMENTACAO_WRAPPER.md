@@ -10,7 +10,7 @@ O **HelpTI** é uma plataforma moderna e completa de gerenciamento de chamados e
 O projeto foi projetado com uma arquitetura desacoplada e leve:
 - **Frontend:** Interface rica, responsiva e dinâmica construída em HTML5, CSS3 moderno (com suporte a variáveis de design e temas Claro/Escuro) e JavaScript ES Modules nativo.
 - **Backend:** Servidor em Python com microframework Flask, estruturado para expor uma API RESTful completa, segura e de alta performance.
-- **Persistência de Dados:** Banco de dados relacional **SQLite**, com criação automática do esquema (`backend/schema.sql`) e armazenamento local no backend.
+- **Persistência de Dados:** Banco de dados relacional **SQLite**, com criação e migração automática das tabelas pelo backend (`backend/database.py`) e armazenamento local.
 
 ---
 
@@ -58,7 +58,7 @@ Não existe uma tabela independente de setores. A rota `GET /api/setores` retorn
 
 ### 3.2. Modelo relacional atual
 
-A modelagem completa e atualizada — com todas as tabelas, campos, cardinalidades, verbos nos relacionamentos e o diagrama editável — está na [seção 6 do README](README.md#6-modelagem-do-banco-sqlite). O arquivo `backend/schema.sql` é a fonte de verdade do esquema; esta documentação não mantém um dicionário paralelo para evitar divergências.
+A modelagem completa e atualizada — com todas as tabelas, campos, cardinalidades, verbos nos relacionamentos e o diagrama editável — está na [seção 6 do README](README.md#6-modelagem-do-banco-sqlite). A criação e as migrações do esquema SQLite são feitas pelo código em `backend/database.py`.
 
 ---
 
@@ -151,4 +151,4 @@ Resultado validado: **34 testes executados e 100% aprovados**.
 
 ## 7. Schema SQLite
 
-O arquivo `backend/schema.sql` define as tabelas e índices do banco SQLite. O backend usa o arquivo `instance/helpti.sqlite3` por padrão; defina `DB_SQLITE_PATH` para alterar o local. Não há servidor de banco separado para instalar ou manter. Os tipos, chaves primárias e estrangeiras seguem a sintaxe SQLite, e os setores são armazenados como texto, sem tabela própria.
+O código em `backend/database.py` cria as tabelas e índices do banco SQLite. O backend usa o arquivo `instance/helpti.sqlite3` por padrão; defina `DB_SQLITE_PATH` para alterar o local. Não há servidor de banco separado para instalar ou manter. Os tipos, chaves primárias e estrangeiras seguem a sintaxe SQLite, e os setores são armazenados como texto, sem tabela própria.

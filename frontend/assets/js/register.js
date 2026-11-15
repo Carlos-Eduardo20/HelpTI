@@ -1,6 +1,8 @@
 import { mostrarNotificacaoNaProximaPagina, comCarregamento } from './notifications.js';
+import { formatBrazilianPhone, initializePhoneInputs } from './phone.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+  initializePhoneInputs();
   if (window.lucide) lucide.createIcons();
 
   const form = document.getElementById('formRegister');
@@ -22,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
           nome: document.getElementById('nome').value.trim(),
           empresa: document.getElementById('empresa').value.trim(),
           email: document.getElementById('email').value.trim().toLowerCase(),
+          telefone: formatBrazilianPhone(document.getElementById('telefone').value),
           senha
         };
         const response = await fetch(`${window.location.origin}/api/contas`, {

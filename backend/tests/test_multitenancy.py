@@ -1,4 +1,5 @@
 import os
+import json
 import unittest
 from unittest.mock import patch
 
@@ -24,7 +25,7 @@ class MultiTenancyTests(unittest.TestCase):
     def _register(self, email, empresa):
         client = app_module.app.test_client()
         cadastro = {'nome': empresa, 'empresa': empresa, 'email': email,
-                    'senha': 'senha-segura-123'}
+                    'telefone': '(11) 99999-9999', 'senha': 'senha-segura-123'}
         r = client.post('/api/contas', json=cadastro)
         self.assertEqual(r.status_code, 201, r.get_json())
         r = client.post('/api/login', json={'email': email, 'senha': cadastro['senha']})
@@ -51,7 +52,7 @@ class MultiTenancyTests(unittest.TestCase):
                 'telefone_cliente': '1', 'contato_cliente': 'c', 'telefone_contato': '1',
                 'setor': setor, 'id_grupo_solucionadores': tecnico})
 
-    def test_delete_client_removes_client_and_contact_records(self):
+    def test_delete_client_removes_embedded_contacts_and_preserves_ticket_snapshot(self):
         client = self._register('owner@outlook.com', 'Empresa')
         created = client.post('/api/clientes', json={
             'nome': 'Cliente A',
@@ -64,7 +65,8 @@ class MultiTenancyTests(unittest.TestCase):
         self.assertEqual(created.status_code, 201, created.get_json())
         customer_id = created.get_json()['id_cliente']
         member = client.post('/api/equipe', json={
-            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test', 'setor': 'Suporte'
+            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test',
+            'telefone': '(11) 99999-9999', 'setor': 'Suporte'
         })
         self.assertEqual(member.status_code, 201, member.get_json())
         ticket = self._ticket(
@@ -80,9 +82,11 @@ class MultiTenancyTests(unittest.TestCase):
             self.assertIsNone(connection.execute(
                 'SELECT 1 FROM cliente WHERE id_cliente = %s', (customer_id,)
             ).fetchone())
-            self.assertEqual(connection.execute(
-                'SELECT COUNT(*) FROM contato_cliente WHERE id_cliente = %s', (customer_id,)
-            ).fetchone()[0], 0)
+            self.assertNotIn('contato_cliente', {
+                row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            })
             preserved_ticket = connection.execute(
                 'SELECT cliente, id_cliente FROM chamado WHERE id_chamado = %s',
                 (ticket.get_json()['id_chamado'],),
@@ -136,6 +140,11 @@ class MultiTenancyTests(unittest.TestCase):
             }
             self.assertEqual(relation['id_usuario'], owner_id)
             self.assertNotIn('id_workspace', customer_columns)
+            self.assertIn('contatos', customer_columns)
+            stored_contacts = connection.execute(
+                'SELECT contatos FROM cliente WHERE id_cliente = %s', (customer_id,)
+            ).fetchone()['contatos']
+            self.assertEqual(json.loads(stored_contacts), updated.get_json()['contatos'])
             self.assertEqual(
                 connection.execute(
                     "SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE'"
@@ -145,10 +154,48 @@ class MultiTenancyTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_customer_can_keep_many_contacts_in_its_json_column(self):
+        client = self._register('owner@outlook.com', 'Empresa')
+        contacts = [
+            {
+                'nome': f'Contato {index}',
+                'email': f'contato{index}@example.test',
+                'telefone': str(index),
+            }
+            for index in range(120)
+        ]
+
+        created = client.post('/api/clientes', json={
+            'nome': 'Cliente com muitos contatos',
+            'contatos': contacts,
+        })
+
+        self.assertEqual(created.status_code, 201, created.get_json())
+        customer_id = created.get_json()['id_cliente']
+        self.assertEqual(len(created.get_json()['contatos']), len(contacts))
+        appended = client.post(f'/api/clientes/{customer_id}/contatos', json={
+            'nome': 'Contato adicional',
+            'email': 'adicional@example.test',
+            'telefone': '999',
+        })
+        self.assertEqual(appended.status_code, 201, appended.get_json())
+        self.assertEqual(len(appended.get_json()['contatos']), len(contacts) + 1)
+
+        connection = database.get_db_connection()
+        try:
+            stored = connection.execute(
+                'SELECT contatos FROM cliente WHERE id_cliente = %s',
+                (customer_id,),
+            ).fetchone()['contatos']
+            self.assertEqual(json.loads(stored), appended.get_json()['contatos'])
+        finally:
+            connection.close()
+
     def test_delete_team_member_removes_record_and_unassigns_tickets(self):
         client = self._register('owner@outlook.com', 'Empresa')
         created = client.post('/api/equipe', json={
-            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test', 'setor': 'Suporte'
+            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test',
+            'telefone': '(11) 99999-9999', 'setor': 'Suporte'
         })
         self.assertEqual(created.status_code, 201, created.get_json())
         member_id = created.get_json()['id_grupo_solucionadores']
@@ -175,7 +222,8 @@ class MultiTenancyTests(unittest.TestCase):
     def test_delete_ticket_removes_history_and_escalations(self):
         client = self._register('owner@outlook.com', 'Empresa')
         member = client.post('/api/equipe', json={
-            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test', 'setor': 'Suporte'
+            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test',
+            'telefone': '(11) 99999-9999', 'setor': 'Suporte'
         })
         self.assertEqual(member.status_code, 201, member.get_json())
         ticket = self._ticket(
@@ -216,10 +264,12 @@ class MultiTenancyTests(unittest.TestCase):
         b = self._register('b@outlook.com', 'Empresa B')
 
         tecnico_a = a.post('/api/equipe', json={
-            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test', 'setor': 'Apoio A'
+            'nome': 'Tecnica A', 'email': 'tecnica.a@helpti.test',
+            'telefone': '(11) 99999-9999', 'setor': 'Apoio A'
         })
         tecnico_b = b.post('/api/equipe', json={
-            'nome': 'Tecnico B', 'email': 'tecnico.b@helpti.test', 'setor': 'Apoio B'
+            'nome': 'Tecnico B', 'email': 'tecnico.b@helpti.test',
+            'telefone': '(11) 99999-9999', 'setor': 'Apoio B'
         })
         self.assertEqual(tecnico_a.status_code, 201, tecnico_a.get_json())
         self.assertEqual(tecnico_b.status_code, 201, tecnico_b.get_json())
