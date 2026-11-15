@@ -1,4 +1,4 @@
-import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro, criarDocumentacao, buscarEquipamentosCliente, criarEquipamentoCliente, atualizarEquipamentoCliente, excluirEquipamentoCliente } from './api.js';
+import { API_URL, buscarChamados, buscarClientes, atualizarCliente, atualizarMembro, criarDocumentacao } from './api.js';
 import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarNotificacaoNaProximaPagina, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianCnpj, formatBrazilianPhone, initializeCnpjInputs, initializePhoneInputs } from './phone.js';
@@ -174,7 +174,7 @@ function renderizarClientes(clientes) {
   if (!tabela) return;
   tabela.innerHTML = clientes.map((cliente) => {
     const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
-    return `<tr onclick="window.location.href='cliente-detalhe.html?id=${detailEscape(cliente.id_usuario)}'" style="cursor: pointer;"><td><strong>${detailEscape(cliente.nome)}</strong></td><td>${detailEscape(formatBrazilianCnpj(cliente.cnpj) || '-')}</td><td>${detailEscape(cliente.contato)}</td><td>${detailEscape(cliente.telefone_empresa || cliente.telefone)}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${detailEscape(cliente.id_usuario)}" aria-label="Excluir cliente ${detailEscape(cliente.nome || '')}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
+    return `<tr class="client-row" data-cliente-id="${detailEscape(cliente.id_cliente)}"><td><strong>${detailEscape(cliente.nome)}</strong></td><td>${detailEscape(formatBrazilianCnpj(cliente.cnpj) || '-')}</td><td>${detailEscape(cliente.contato)}</td><td>${detailEscape(cliente.telefone_empresa || cliente.telefone)}</td><td><div class="client-row-actions"><span class="client-status-badge ${ativo ? 'is-active' : 'is-inactive'}">${ativo ? 'Ativo' : 'Desativado'}</span><button type="button" class="client-delete-button" data-excluir-cliente="${detailEscape(cliente.id_cliente)}" aria-label="Excluir cliente ${detailEscape(cliente.nome || '')}" title="Excluir cliente"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button></div></td></tr>`;
   }).join('') || '<tr><td colspan="5">Nenhum cliente encontrado.</td></tr>';
 }
 
@@ -186,7 +186,7 @@ function filtrarClientes() {
     if (filtroClientesSelecionado === 'cliente:INATIVO' && !['INATIVO', 'DESATIVADO'].includes(statusCliente)) return false;
     if (filtroClientesSelecionado.startsWith('chamado:')) {
       const statusChamado = filtroClientesSelecionado.split(':')[1];
-      const possuiChamado = chamadosEmMemoria.some((chamado) => chamado.cliente === cliente.nome && chamado.status === statusChamado);
+      const possuiChamado = chamadosEmMemoria.some((chamado) => chamado.id_cliente === cliente.id_cliente && chamado.status === statusChamado);
       if (!possuiChamado) return false;
     }
     const dadosBusca = [cliente.nome, cliente.cnpj, cliente.contato, cliente.email, cliente.telefone_empresa, cliente.telefone, cliente.endereco, cliente.plano, ...(cliente.contatos || []).flatMap((contato) => [contato.nome, contato.email, contato.telefone])];
@@ -329,9 +329,12 @@ async function carregarEquipe() {
           <td>${detailEscape(membro.cargo || 'Técnico')}</td>
           <td>${detailEscape(membro.setor || 'Sem setor')}</td>
           <td><span class="status-badge status-info">${detailEscape(membro.status || 'ATIVO')}</span></td>
+          <td><button class="danger-icon-button" type="button" data-remove-member="${detailEscape(membro.id_grupo_solucionadores)}" aria-label="Excluir funcionário ${detailEscape(nome)}" title="Excluir funcionário">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
+          </button></td>
         </tr>
         <tr id="${detailEscape(detalhesId)}" class="team-member-details-row" hidden>
-          <td colspan="4">
+          <td colspan="5">
             <div class="team-member-details">
               ${detalhes.map(([rotulo, valor]) => `
                 <div class="team-member-detail">
@@ -342,78 +345,8 @@ async function carregarEquipe() {
             </div>
           </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="4">Nenhum funcionário cadastrado.</td></tr>';
-  } catch (error) { tabela.innerHTML = `<tr><td colspan="4">${detailEscape(error.message)}</td></tr>`; }
-}
-
-async function renderizarEquipamentos(id) {
-  const lista = document.querySelector('#mapa-equipamentos');
-  if (!lista) return;
-  lista.innerHTML = '<p class="assets-empty">Carregando equipamentos...</p>';
-  try {
-    const equipamentos = await buscarEquipamentosCliente(id);
-    lista.innerHTML = equipamentos.length
-      ? equipamentos.map((equipamento) => `<div class="asset-item"><span class="asset-name">${detailEscape(equipamento.nome)}</span><strong class="asset-count">${Number(equipamento.quantidade) || 0} un</strong><div class="asset-actions"><button type="button" data-editar-equipamento="${equipamento.id_equipamento}" aria-label="Editar ${detailEscape(equipamento.nome)}">Editar</button><button type="button" data-apagar-equipamento="${equipamento.id_equipamento}" aria-label="Apagar ${detailEscape(equipamento.nome)}">Apagar</button></div></div>`).join('')
-      : '<p class="assets-empty">Nenhum equipamento cadastrado. Use o botão + para adicionar.</p>';
-    const total = equipamentos.reduce((soma, equipamento) => soma + (Number(equipamento.quantidade) || 0), 0);
-    document.querySelector('#equipamentos-total').textContent = `Total: ${total} equipamento(s) cadastrado(s)`;
-  } catch (error) {
-    lista.innerHTML = `<p class="assets-empty">Não foi possível carregar os equipamentos.</p>`;
-    mostrarErro(`Não foi possível carregar os equipamentos: ${error.message}`);
-  }
-}
-
-async function salvarEquipamento(id, atual = null) {
-  const indiceEdicao = atual !== null;
-  const equipamentoAtual = atual || { nome: '', quantidade: 1 };
-  const nome = window.prompt('Nome do equipamento:', equipamentoAtual.nome);
-  if (nome === null || !nome.trim()) return;
-  const quantidade = window.prompt('Número de equipamentos:', equipamentoAtual.quantidade);
-  if (quantidade === null || !/^\d+$/.test(quantidade) || Number(quantidade) < 0) return mostrarErro('Informe uma quantidade inteira válida.');
-  const equipamento = { nome: nome.trim(), quantidade: Number(quantidade) };
-  try {
-    if (indiceEdicao) {
-      await atualizarEquipamentoCliente(id, atual.id_equipamento, equipamento);
-    } else {
-      await criarEquipamentoCliente(id, equipamento);
-    }
-    await renderizarEquipamentos(id);
-    mostrarNotificacao(indiceEdicao ? 'Equipamento atualizado com sucesso.' : 'Equipamento cadastrado com sucesso.');
-  } catch (error) {
-    mostrarErro(`Não foi possível salvar o equipamento: ${error.message}`);
-  }
-}
-
-async function configurarEquipamentos(id) {
-  await renderizarEquipamentos(id);
-  document.querySelector('#adicionar-equipamento')?.addEventListener('click', () => salvarEquipamento(id));
-  document.querySelector('#editar-equipamentos')?.addEventListener('click', () => {
-    document.querySelector('#mapa-equipamentos')?.classList.toggle('is-editing');
-  });
-  document.querySelector('#mapa-equipamentos')?.addEventListener('click', async (event) => {
-    const editar = event.target.closest('[data-editar-equipamento]');
-    const apagar = event.target.closest('[data-apagar-equipamento]');
-    if (editar) {
-      const equipamentoId = Number(editar.dataset.editarEquipamento);
-      try {
-        const equipamentos = await buscarEquipamentosCliente(id);
-        const equipamento = equipamentos.find((item) => item.id_equipamento === equipamentoId);
-        if (!equipamento) throw new Error('Equipamento não encontrado.');
-        await salvarEquipamento(id, equipamento);
-      } catch (error) {
-        mostrarErro(`Não foi possível editar o equipamento: ${error.message}`);
-      }
-    }
-    if (apagar && window.confirm('Apagar este equipamento?')) {
-      try {
-        await excluirEquipamentoCliente(id, Number(apagar.dataset.apagarEquipamento));
-        await renderizarEquipamentos(id);
-        mostrarNotificacao('Equipamento removido com sucesso.');
-      } catch (error) {
-        mostrarErro(`Não foi possível remover o equipamento: ${error.message}`);
-      }
-    }
-  });
+    }).join('') || '<tr><td colspan="5">Nenhum funcionário cadastrado.</td></tr>';
+  } catch (error) { tabela.innerHTML = `<tr><td colspan="5">${detailEscape(error.message)}</td></tr>`; }
 }
 
 async function salvarMembro(event) {
@@ -506,7 +439,23 @@ document.addEventListener('DOMContentLoaded', () => {
   aplicarPermissoesNavegacao();
   carregarClientes();
   carregarEquipe();
-  document.querySelector('#tabelaEquipe')?.addEventListener('click', (event) => {
+  document.querySelector('#tabelaEquipe')?.addEventListener('click', async (event) => {
+    const remover = event.target.closest('[data-remove-member]');
+    if (remover) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!window.confirm('Tem certeza que deseja excluir este funcionário?')) return;
+      try {
+        const { excluirMembro } = await import('./api.js');
+        await excluirMembro(remover.dataset.removeMember);
+        await carregarEquipe();
+        mostrarNotificacao('Funcionário excluído com sucesso.');
+      } catch (error) {
+        mostrarErro(`Não foi possível excluir o funcionário: ${error.message}`);
+      }
+      return;
+    }
+
     const botao = event.target.closest('[data-toggle-member]');
     if (!botao) return;
     const detalhes = document.getElementById(botao.getAttribute('aria-controls'));
@@ -523,14 +472,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#buscaClientes')?.addEventListener('input', filtrarClientes);
   document.querySelector('#tabelaClientes')?.addEventListener('click', async (event) => {
     const botao = event.target.closest('[data-excluir-cliente]');
-    if (!botao) return;
+    if (!botao) {
+      const linha = event.target.closest('tr[data-cliente-id]');
+      if (linha) {
+        window.location.href = `cliente-detalhe.html?id=${encodeURIComponent(linha.dataset.clienteId)}`;
+      }
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
-    if (!window.confirm('Você tem certeza que quer apagar o cliente.')) return;
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
     try {
       const { excluirCliente } = await import('./api.js');
       await excluirCliente(botao.dataset.excluirCliente);
       await carregarClientes();
+      mostrarNotificacao('Cliente excluído com sucesso.');
     } catch (error) {
       mostrarErro(`Não foi possível excluir o cliente: ${error.message}`);
     }
@@ -568,7 +524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (false && path.includes('cliente-detalhe.html') && idSelecionado) {
     const { buscarClientes, buscarChamados } = await import('./api.js');
     const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
-    const cliente = clientes.find((item) => item.id_usuario == idSelecionado);
+    const cliente = clientes.find((item) => item.id_cliente == idSelecionado);
     if (cliente) {
       document.getElementById('cli-nome').textContent = cliente.nome;
       document.getElementById('cli-email').textContent = cliente.email;
@@ -577,7 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('cli-acoes').textContent = cliente.acoes || '-';
       document.getElementById('cli-data').textContent = cliente.criado_em ? new Date(cliente.criado_em).toLocaleDateString('pt-BR') : '-';
       const tabelaChamados = document.querySelector('#tabela-chamados-cliente tbody');
-      const chamadosCliente = chamados.filter((chamado) => chamado.cliente === cliente.nome);
+      const chamadosCliente = chamados.filter((chamado) => chamado.id_cliente === cliente.id_cliente);
       tabelaChamados.innerHTML = chamadosCliente.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td>#${detailEscape(chamado.id_chamado)}</td><td>${detailEscape(chamado.status)}</td></tr>`).join('') || '<tr><td colspan="3">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
   }
@@ -742,7 +698,7 @@ function iniciarEdicaoDetalhe(scope, registro) {
       if (input.dataset.editField === 'valor_hora') dados.valor_hora = input.value.replace(/[^\d,.]/g, '').replace(',', '.') || null;
       if (input.dataset.editField === 'data_inicio') dados.data_inicio = input.value;
       try {
-        const atualizado = scope === 'cliente' ? await atualizarCliente(registro.id_usuario, dados) : await atualizarMembro(registro.id_grupo_solucionadores, dados);
+        const atualizado = scope === 'cliente' ? await atualizarCliente(registro.id_cliente, dados) : await atualizarMembro(registro.id_grupo_solucionadores, dados);
         registro = atualizado;
         const span = document.createElement('span');
         span.className = 'info-value';
@@ -772,7 +728,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (path.includes('chamados-detalhe.html')) {
       const { buscarChamadoPorId, buscarClientes, buscarEquipe, buscarSetores, atualizarChamado } = await import('./api.js');
       let [chamado, clientes, equipe, setores] = await Promise.all([buscarChamadoPorId(id), buscarClientes(), buscarEquipe(), buscarSetores()]);
-      const cliente = clientes.find((item) => item.nome === chamado.cliente);
+      const cliente = clientes.find((item) => item.id_cliente === chamado.id_cliente);
       const setorSelect = document.querySelector('#setorDestino');
       const tecnicoSelect = document.querySelector('#tecnicoDestino');
       const modalEscalonar = document.querySelector('#modalEscalonar');
@@ -1059,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (path.includes('cliente-detalhe.html')) {
       const { buscarClientes, buscarChamados, criarContatoCliente } = await import('./api.js');
       const [clientes, chamados] = await Promise.all([buscarClientes(), buscarChamados()]);
-      let cliente = clientes.find((item) => item.id_usuario == id);
+      let cliente = clientes.find((item) => item.id_cliente == id);
       if (!cliente) throw new Error('Cliente não encontrado.');
       setDetailText('cli-nome', cliente.nome);
       setDetailText('cli-breadcrumb', cliente.nome);
@@ -1102,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await comCarregamento(formularioContato.querySelector('[type="submit"]'), async () => {
           try {
             dados.telefone = formatBrazilianPhone(dados.telefone);
-            const resultado = await criarContatoCliente(cliente.id_usuario, dados);
+            const resultado = await criarContatoCliente(cliente.id_cliente, dados);
             cliente.contatos = resultado.contatos;
             renderizarContatosCliente();
             modalContato?.close();
@@ -1114,7 +1070,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }, 'Salvando...');
       });
-      await configurarEquipamentos(id);
       const botaoStatusCliente = document.querySelector('#desativarCliente');
       const atualizarStatusCliente = () => {
         const ativo = (cliente.status || 'ATIVO').toUpperCase() === 'ATIVO';
@@ -1135,13 +1090,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const novoStatus = ativo ? 'INATIVO' : 'ATIVO';
         if (!window.confirm(`Deseja ${ativo ? 'desativar' : 'ativar'} este cliente?`)) return;
         try {
-          cliente = await atualizarCliente(cliente.id_usuario, { status: novoStatus });
+          cliente = await atualizarCliente(cliente.id_cliente, { status: novoStatus });
           atualizarStatusCliente();
           mostrarNotificacao(`Cliente ${novoStatus === 'ATIVO' ? 'ativado' : 'desativado'} com sucesso.`);
         } catch (error) { mostrarErro(`Não foi possível atualizar o status: ${error.message}`); }
       });
       const table = document.querySelector('#tabela-chamados-cliente tbody');
-      const tickets = chamados.filter((chamado) => chamado.cliente === cliente.nome);
+      const tickets = chamados.filter((chamado) => chamado.id_cliente === cliente.id_cliente);
       if (table) table.innerHTML = tickets.map((chamado) => `<tr onclick="window.location.href='chamados-detalhe.html?id=${encodeURIComponent(chamado.id_chamado)}'" style="cursor: pointer;"><td><strong>#${detailEscape(chamado.id_chamado)}</strong></td><td>${detailEscape(chamado.status)}</td><td>${detailEscape(detailDate(chamado.data_agendada))}</td><td>${detailEscape(chamado.classificacao)}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum chamado encontrado para este cliente.</td></tr>';
     }
 

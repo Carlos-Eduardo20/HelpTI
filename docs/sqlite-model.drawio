@@ -4,11 +4,14 @@
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="usuario" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;USUARIO&lt;/div&gt;&lt;br&gt;PK id_usuario&lt;br&gt;FK id_workspace (opcional, autorrelacao)&lt;br&gt;nome, email, tipo_usuario, status&lt;br&gt;workspace_name, support_email" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="usuario" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;USUARIO&lt;/div&gt;&lt;br&gt;PK id_usuario&lt;br&gt;FK id_workspace (opcional, autorrelacao)&lt;br&gt;email UNIQUE, senha_hash, status&lt;br&gt;workspace_name, support_email&lt;br&gt;Conta/workspace, separado das empresas clientes" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="60" y="80" width="350" height="270" as="geometry"/>
         </mxCell>
-        <mxCell id="cliente" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CLIENTE&lt;/div&gt;&lt;br&gt;PK id_cliente&lt;br&gt;FK id_usuario (obrigatorio)&lt;br&gt;FK id_workspace (opcional)&lt;br&gt;nome, contato, email, telefone" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="cliente" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CLIENTE&lt;/div&gt;&lt;br&gt;PK id_cliente&lt;br&gt;FK id_usuario (owner/workspace)&lt;br&gt;nome, CNPJ, endereco&lt;br&gt;telefone_empresa, status&lt;br&gt;Nao possui id_workspace" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="480" y="80" width="350" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="contato_cliente" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CONTATO_CLIENTE&lt;/div&gt;&lt;br&gt;PK id_contato_cliente&lt;br&gt;FK id_cliente (obrigatorio)&lt;br&gt;nome, email, telefone" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="850" width="350" height="190" as="geometry"/>
         </mxCell>
         <mxCell id="tipo_chamado" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;TIPO_CHAMADO&lt;/div&gt;&lt;br&gt;PK id_tipo_chamado&lt;br&gt;nome, classificacao, descricao" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#2563eb;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="930" y="80" width="330" height="180" as="geometry"/>
@@ -16,7 +19,7 @@
         <mxCell id="grupo" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;GRUPO_SOLUCIONADORES&lt;/div&gt;&lt;br&gt;PK id_grupo_solucionadores&lt;br&gt;FK id_usuario (obrigatorio)&lt;br&gt;nome, email, cargo, telefone&lt;br&gt;setor TEXT, nivel, status" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="60" y="530" width="390" height="280" as="geometry"/>
         </mxCell>
-        <mxCell id="chamado" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CHAMADO&lt;/div&gt;&lt;br&gt;PK id_chamado&lt;br&gt;FK id_tipo_chamado (obrigatorio)&lt;br&gt;FK id_grupo_solucionadores (opcional)&lt;br&gt;FK id_usuario (opcional)&lt;br&gt;cliente TEXT, setor TEXT, status&lt;br&gt;descricao, descricao_final, datas" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="chamado" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CHAMADO&lt;/div&gt;&lt;br&gt;PK id_chamado&lt;br&gt;FK id_tipo_chamado (obrigatorio)&lt;br&gt;FK id_cliente (empresa atendida)&lt;br&gt;FK id_grupo_solucionadores (opcional)&lt;br&gt;FK id_usuario (workspace)&lt;br&gt;cliente TEXT (snapshot), setor TEXT, status&lt;br&gt;descricao, descricao_final, datas" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="500" y="420" width="430" height="390" as="geometry"/>
         </mxCell>
         <mxCell id="historico" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;HISTORICO_CHAMADO&lt;/div&gt;&lt;br&gt;PK id_historico&lt;br&gt;FK id_chamado (obrigatorio)&lt;br&gt;evento, descricao, autor&lt;br&gt;data_evento" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
@@ -28,14 +31,10 @@
         <mxCell id="documentacao" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;DOCUMENTACAO&lt;/div&gt;&lt;br&gt;PK id_documentacao&lt;br&gt;FK id_usuario (opcional)&lt;br&gt;FK id_grupo_solucionadores (opcional)&lt;br&gt;titulo, fornecedor, conteudo" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="1450" y="420" width="300" height="250" as="geometry"/>
         </mxCell>
-        <mxCell id="legenda" value="&lt;b&gt;CARDINALIDADES&lt;/b&gt;&lt;br&gt;1:N = um para muitos&lt;br&gt;N:N = muitos para muitos via tabela associativa&lt;br&gt;&lt;br&gt;&lt;b&gt;OBSERVACOES&lt;/b&gt;&lt;br&gt;Nao ha relacao 1:1 imposta por UNIQUE.&lt;br&gt;N:N entre chamado e equipe e mediada por escalonamento.&lt;br&gt;Setor e texto, nao tabela." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#f1f5f9;strokeColor=#94a3b8;strokeWidth=1;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="legenda" value="&lt;b&gt;CARDINALIDADES&lt;/b&gt;&lt;br&gt;1:N = um para muitos&lt;br&gt;N:N = muitos para muitos via tabela associativa&lt;br&gt;&lt;br&gt;&lt;b&gt;OBSERVACOES&lt;/b&gt;&lt;br&gt;Nao ha relacao 1:1 imposta por UNIQUE.&lt;br&gt;Usuario atende empresas por id_usuario.&lt;br&gt;Chamado referencia cliente por id_cliente.&lt;br&gt;Setor e texto, nao tabela." style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#f1f5f9;strokeColor=#94a3b8;strokeWidth=1;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="1450" y="80" width="300" height="270" as="geometry"/>
         </mxCell>
-        <mxCell id="equipamento_cliente" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;EQUIPAMENTO_CLIENTE&lt;/div&gt;&lt;br&gt;PK id_equipamento&lt;br&gt;FK id_cliente (usuario)&lt;br&gt;nome, quantidade" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="1420" y="810" width="300" height="170" as="geometry"/>
-        </mxCell>
-
-        <mxCell id="r_usuario_cliente" value="mantem contatos | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=1.5;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="cliente">
+        <mxCell id="r_usuario_cliente" value="atende empresas | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=1.5;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="cliente">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="r_workspace_self" value="agrupa workspaces | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="usuario">
@@ -46,10 +45,11 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="r_usuario_cliente_workspace" value="isola contatos | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748b;dashed=1;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="cliente">
+        <mxCell id="r_cliente_contatos" value="mantem contatos | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="cliente" target="contato_cliente">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="440" y="280"/>
+              <mxPoint x="440" y="320"/>
+              <mxPoint x="440" y="940"/>
             </Array>
           </mxGeometry>
         </mxCell>
@@ -60,6 +60,9 @@
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="r_tipo_chamado" value="classifica | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="tipo_chamado" target="chamado">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="r_cliente_chamado" value="recebe chamados | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="cliente" target="chamado">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="r_grupo_chamado" value="atende | 1:N (atribuicao opcional)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0f766e;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="grupo" target="chamado">
@@ -93,15 +96,6 @@
               <mxPoint x="20" y="410"/>
               <mxPoint x="20" y="1040"/>
               <mxPoint x="1590" y="1040"/>
-            </Array>
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="r_usuario_equipamento" value="cliente possui equipamentos | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0f766e;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="equipamento_cliente">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="20" y="300"/>
-              <mxPoint x="20" y="1100"/>
-              <mxPoint x="1570" y="1100"/>
             </Array>
           </mxGeometry>
         </mxCell>

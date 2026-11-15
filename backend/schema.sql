@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS usuario (
     telefone_empresa TEXT,
     endereco TEXT,
     status TEXT NOT NULL DEFAULT 'ATIVO',
-    tipo_usuario TEXT NOT NULL DEFAULT 'CLIENTE',
+    tipo_usuario TEXT NOT NULL DEFAULT 'WORKSPACE',
     cnpj TEXT,
     plano TEXT,
     acoes TEXT,
@@ -24,29 +24,30 @@ CREATE INDEX IF NOT EXISTS idx_usuario_workspace_cliente
 
 CREATE TABLE IF NOT EXISTS cliente (
     id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_usuario INTEGER NOT NULL,
     nome TEXT NOT NULL,
-    contato TEXT,
-    email TEXT NOT NULL,
-    telefone TEXT NOT NULL,
-    id_workspace INTEGER,
-    FOREIGN KEY (id_workspace) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    cnpj TEXT,
+    telefone_empresa TEXT,
+    endereco TEXT,
+    status TEXT NOT NULL DEFAULT 'ATIVO',
+    plano TEXT,
+    acoes TEXT,
+    id_usuario INTEGER NOT NULL,
     FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_cliente_usuario ON cliente (id_usuario);
-CREATE INDEX IF NOT EXISTS idx_cliente_workspace ON cliente (id_workspace);
 
-CREATE TABLE IF NOT EXISTS equipamento_cliente (
-    id_equipamento INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS contato_cliente (
+    id_contato_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
     id_cliente INTEGER NOT NULL,
     nome TEXT NOT NULL,
-    quantidade INTEGER NOT NULL DEFAULT 1 CHECK (quantidade >= 0),
-    FOREIGN KEY (id_cliente) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+    email TEXT NOT NULL,
+    telefone TEXT NOT NULL,
+    FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_equipamento_cliente
-    ON equipamento_cliente (id_cliente);
+CREATE INDEX IF NOT EXISTS idx_contato_cliente_cliente
+    ON contato_cliente (id_cliente, id_contato_cliente);
 
 CREATE TABLE IF NOT EXISTS tipo_chamado (
     id_tipo_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,10 +106,12 @@ CREATE TABLE IF NOT EXISTS chamado (
     hora_agendada TEXT,
     classificacao TEXT,
     id_usuario INTEGER,
+    id_cliente INTEGER,
     FOREIGN KEY (id_tipo_chamado) REFERENCES tipo_chamado(id_tipo_chamado),
     FOREIGN KEY (id_grupo_solucionadores)
         REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE SET NULL,
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_chamado_status_data ON chamado (status, data_abertura);

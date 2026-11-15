@@ -123,7 +123,7 @@ Os testes usam arquivos SQLite temporários isolados e os removem ao terminar.
 
 ## 6. Modelagem do banco SQLite
 
-O SQLite do HelpTI possui nove tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). O diagrama abaixo usa os relacionamentos definidos em `backend/schema.sql`; linhas contínuas são chaves estrangeiras. O setor é armazenado como texto, sem tabela `setor`.
+O SQLite do HelpTI possui nove tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). `usuario` armazena contas/workspaces; empresas e contatos são entidades próprias. A relação 1:N usa `cliente.id_usuario` como chave estrangeira do proprietário: a tabela `cliente` não possui `id_workspace`. O setor é armazenado como texto, sem tabela `setor`.
 
 [![Diagrama ER do SQLite do HelpTI](docs/sqlite-model.svg)](docs/sqlite-model.svg)
 
@@ -133,12 +133,12 @@ O arquivo [editável no draw.io](docs/sqlite-model.drawio) pode ser aberto em [a
 
 | Tabela | Finalidade | Chaves e campos de destaque |
 | --- | --- | --- |
-| `usuario` | Workspaces e cadastros de empresas clientes | `id_usuario` (PK), `id_workspace` (FK opcional para `usuario`), `tipo_usuario`, `nome`, `email`, `status` |
-| `cliente` | Contatos vinculados a uma empresa cliente | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `id_workspace` (FK opcional para `usuario`), `nome`, `email`, `telefone` |
-| `equipamento_cliente` | Equipamentos cadastrados na página de detalhes de cada cliente | `id_equipamento` (PK), `id_cliente` (FK obrigatória para `usuario.id_usuario`), `nome`, `quantidade` |
+| `usuario` | Contas e workspaces de acesso; não armazena empresas clientes | `id_usuario` (PK), `id_workspace` (FK opcional para `usuario`), `tipo_usuario`, `nome`, `email` (único), `senha_hash`, `status` |
+| `cliente` | Empresas clientes atendidas por uma conta/workspace | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `nome`, `cnpj`, `telefone_empresa`, `endereco`, `status` |
+| `contato_cliente` | Pessoas de contato associadas a uma empresa cliente | `id_contato_cliente` (PK), `id_cliente` (FK obrigatória para `cliente`), `nome`, `email`, `telefone` |
 | `tipo_chamado` | Categorias de chamados | `id_tipo_chamado` (PK), `nome`, `classificacao` |
 | `grupo_solucionadores` | Funcionários e administradores do workspace | `id_grupo_solucionadores` (PK), `id_usuario` (FK obrigatória), `nome`, `email`, `setor` (TEXT), `status` |
-| `chamado` | Chamados e seus dados de atendimento | `id_chamado` (PK), `id_tipo_chamado` (FK obrigatória), `id_grupo_solucionadores` e `id_usuario` (FKs opcionais), `cliente` (TEXT), `setor` (TEXT), `status`, `descricao` |
+| `chamado` | Chamados e seus dados de atendimento | `id_chamado` (PK), `id_tipo_chamado` (FK obrigatória), `id_cliente` (FK para `cliente`), `id_grupo_solucionadores` e `id_usuario` (FKs opcionais), `cliente` (snapshot TEXT), `setor` (TEXT), `status`, `descricao` |
 | `historico_chamado` | Eventos e alterações de cada chamado | `id_historico` (PK), `id_chamado` (FK obrigatória), `evento`, `descricao`, `autor` |
 | `escalonamento` | Transferências de chamados | `id_escalonamento` (PK), `id_chamado` (FK obrigatória), `id_grupo_destino` (FK opcional), `motivo`, `setor_destino` (TEXT) |
 | `documentacao` | Artigos e procedimentos técnicos | `id_documentacao` (PK), `id_usuario` e `id_grupo_solucionadores` (FKs opcionais), `titulo`, `conteudo` |
@@ -150,11 +150,11 @@ O verbo no meio de cada relação descreve a ação entre as tabelas. A cardinal
 | Cardinalidade | Relação | Como é implementada |
 | --- | --- | --- |
 | 1:N | `usuario` **agrupa** `usuario` | `usuario.id_workspace` referencia o workspace pai; a FK é opcional. |
-| 1:N | `usuario` **mantém** `cliente` | `cliente.id_usuario` obrigatório aponta para a empresa cliente. |
-| 1:N | `usuario` **organiza por workspace** `cliente` | `cliente.id_workspace` é uma FK opcional para o workspace. |
-| 1:N | `usuario` (cliente) **possui** `equipamento_cliente` | Cada equipamento aponta para um registro de cliente em `usuario`; o backend valida o workspace. |
+| 1:N | `usuario` **atende** `cliente` | `cliente.id_usuario` obrigatório aponta para a conta/workspace proprietário; `cliente` não tem `id_workspace`. |
+| 1:N | `cliente` **mantém** `contato_cliente` | Cada contato pertence a uma empresa; a exclusão da empresa remove seus contatos. |
 | 1:N | `usuario` **possui** `grupo_solucionadores` | `grupo_solucionadores.id_usuario` é obrigatório. |
 | 1:N | `tipo_chamado` **classifica** `chamado` | Cada chamado tem um tipo obrigatório. |
+| 1:N | `cliente` **recebe** `chamado` | `chamado.id_cliente` vincula a empresa sem depender do nome; pode ficar nulo em chamados históricos sem associação segura. |
 | 1:N | `grupo_solucionadores` **atende** `chamado` | `chamado.id_grupo_solucionadores` é opcional: um chamado pode estar sem responsável. |
 | 1:N | `usuario` **registra** `chamado` | `chamado.id_usuario` é opcional. |
 | 1:N | `chamado` **registra** `historico_chamado` | Cada evento de histórico pertence a um chamado; excluir o chamado apaga seu histórico. |
@@ -165,7 +165,7 @@ O verbo no meio de cada relação descreve a ação entre as tabelas. A cardinal
 | 1:1 | Nenhuma relação 1:1 garantida pelo schema atual | Nenhuma FK tem restrição `UNIQUE`; portanto, não há 1:1 assegurada pelo banco. |
 | N:N | `chamado` **é escalonado para** `grupo_solucionadores` | Relação lógica mediada por `escalonamento`, que registra o chamado, o destino e os dados da transferência. |
 
-**Limites importantes:** `chamado.cliente` guarda o nome do cliente como texto; não há FK de `chamado` para `cliente` ou `usuario`. Assim, o vínculo entre chamado e cliente não é validado pelo banco. Do mesmo modo, `setor` e `setor_destino` são campos de texto, não entidades relacionadas por FK.
+**Limites importantes:** `chamado.id_cliente` identifica a empresa pela FK; `chamado.cliente` continua como snapshot textual para exibição e histórico. Novos chamados exigem um cliente do workspace atual. `setor` e `setor_destino` continuam sendo campos de texto, não entidades relacionadas por FK.
 
 
 Para executar especificamente a suíte de testes do Projeto 3 (DeskOps):

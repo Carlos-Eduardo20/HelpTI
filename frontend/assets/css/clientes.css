@@ -148,6 +148,10 @@
 	color: var(--palette-b91c1c);
 }
 
+.client-row {
+	cursor: pointer;
+}
+
 .client-row-actions {
 	display: inline-flex;
 	align-items: center;

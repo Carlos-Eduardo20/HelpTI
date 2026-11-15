@@ -48,6 +48,55 @@ class SQLiteDatabaseTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'somente SQLite'):
                 database.database_settings()
 
+    def test_initialization_drops_legacy_equipment_table(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'helpti.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    connection.execute(
+                        "INSERT INTO usuario (nome, tipo_usuario) VALUES ('Workspace', 'WORKSPACE')"
+                    )
+                    customer_id = connection.execute(
+                        'SELECT last_insert_rowid()'
+                    ).fetchone()[0]
+                    connection.execute('''
+                        CREATE TABLE equipamento_cliente (
+                            id_equipamento INTEGER PRIMARY KEY AUTOINCREMENT,
+                            id_cliente INTEGER NOT NULL,
+                            nome TEXT NOT NULL,
+                            quantidade INTEGER NOT NULL DEFAULT 1,
+                            FOREIGN KEY (id_cliente) REFERENCES usuario(id_usuario)
+                        )
+                    ''')
+                    connection.execute(
+                        'INSERT INTO equipamento_cliente (id_cliente, nome) VALUES (%s, %s)',
+                        (customer_id, 'Notebook'),
+                    )
+                    connection.commit()
+                finally:
+                    connection.close()
+
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    table = connection.execute(
+                        "SELECT name FROM sqlite_master "
+                        "WHERE type = 'table' AND name = 'equipamento_cliente'"
+                    ).fetchone()
+                    self.assertIsNone(table)
+                    self.assertEqual(
+                        connection.execute('PRAGMA user_version').fetchone()[0],
+                        database.SCHEMA_VERSION,
+                    )
+                finally:
+                    connection.close()
+
     def test_initialization_preserves_records_in_configured_database(self):
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / 'helpti.sqlite3'
@@ -158,7 +207,9 @@ class SQLiteDatabaseTests(unittest.TestCase):
                             "SELECT name FROM sqlite_master WHERE type = 'table'"
                         ).fetchall()
                     }
+                    self.assertNotIn('equipamento_cliente', tables)
                     self.assertNotIn('setor', tables)
+                    self.assertIn('contato_cliente', tables)
                     self.assertTrue({
                         'codigo_recuperacao_senha',
                         'identidade_microsoft',
@@ -172,6 +223,193 @@ class SQLiteDatabaseTests(unittest.TestCase):
                     }
                     self.assertIn('setor', group_columns)
                     self.assertNotIn('id_setor', group_columns)
+                    customer_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(cliente)'
+                        ).fetchall()
+                    }
+                    ticket_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(chamado)'
+                        ).fetchall()
+                    }
+                    self.assertIn('id_usuario', customer_columns)
+                    self.assertNotIn('id_workspace', customer_columns)
+                    self.assertIn('id_cliente', ticket_columns)
+                finally:
+                    connection.close()
+
+    def test_account_email_is_unique_without_case_or_outer_space_differences(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'helpti.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    connection.execute(
+                        'INSERT INTO usuario (nome, email, tipo_usuario) '
+                        'VALUES (%s, %s, %s)',
+                        ('Workspace', 'owner@example.test', 'WORKSPACE'),
+                    )
+                    connection.commit()
+                    with self.assertRaises(sqlite3.IntegrityError):
+                        connection.execute(
+                            'INSERT INTO usuario (nome, email, tipo_usuario) '
+                            'VALUES (%s, %s, %s)',
+                            ('Workspace duplicado', ' Owner@Example.Test ', 'WORKSPACE'),
+                        )
+                finally:
+                    connection.close()
+
+    def test_customer_migration_separates_companies_contacts_and_ticket_relation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'legacy-customers.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                legacy = sqlite3.connect(database_path)
+                legacy.executescript('''
+                    CREATE TABLE usuario (
+                        id_usuario INTEGER PRIMARY KEY,
+                        nome TEXT,
+                        contato TEXT,
+                        email TEXT,
+                        telefone TEXT,
+                        telefone_empresa TEXT,
+                        endereco TEXT,
+                        status TEXT,
+                        tipo_usuario TEXT,
+                        cnpj TEXT,
+                        plano TEXT,
+                        acoes TEXT,
+                        workspace_name TEXT,
+                        support_email TEXT,
+                        senha_hash TEXT,
+                        id_workspace INTEGER
+                    );
+                    INSERT INTO usuario (
+                        id_usuario, nome, email, status, tipo_usuario
+                    ) VALUES (1, 'Workspace', 'owner@example.test', 'ATIVO', 'WORKSPACE');
+                    INSERT INTO usuario (
+                        id_usuario, nome, contato, email, telefone, telefone_empresa,
+                        endereco, status, tipo_usuario, cnpj, plano, acoes, id_workspace
+                    ) VALUES (
+                        2, 'Empresa Alpha', 'Ana Atualizada', 'ana@example.test',
+                        '11999990000', '1133334444', 'Rua A', 'ATIVO', 'CLIENTE',
+                        '123', 'Plano A', 'Ativa', 1
+                    );
+                    INSERT INTO usuario (
+                        id_usuario, nome, contato, email, telefone, status,
+                        tipo_usuario, id_workspace
+                    ) VALUES (
+                        3, 'Empresa Alpha', 'Outro Contato', 'outro@example.test',
+                        '11666666666', 'ATIVO', 'CLIENTE', 1
+                    );
+                    CREATE TABLE cliente (
+                        id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_usuario INTEGER NOT NULL,
+                        nome TEXT NOT NULL,
+                        contato TEXT,
+                        email TEXT NOT NULL,
+                        telefone TEXT NOT NULL,
+                        id_workspace INTEGER,
+                        FOREIGN KEY (id_workspace) REFERENCES usuario(id_usuario),
+                        FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
+                    );
+                    INSERT INTO cliente (id_cliente, id_usuario, nome, email, telefone, id_workspace)
+                    VALUES
+                        (1, 2, 'Ana Antiga', 'ana-antiga@example.test', '11888888888', 1),
+                        (2, 2, 'Maria', 'maria@example.test', '11777777777', 1),
+                        (3, 3, 'Outro Contato', 'outro@example.test', '11666666666', 1);
+                    CREATE TABLE chamado (
+                        id_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_tipo_chamado INTEGER NOT NULL DEFAULT 1,
+                        setor TEXT,
+                        id_grupo_solucionadores INTEGER,
+                        status TEXT NOT NULL DEFAULT 'ABERTO',
+                        cliente TEXT NOT NULL,
+                        assunto TEXT,
+                        descricao TEXT,
+                        email_cliente TEXT,
+                        telefone_cliente TEXT,
+                        contato_cliente TEXT,
+                        telefone_contato TEXT,
+                        descricao_final TEXT,
+                        documentacao TEXT,
+                        tempo_decorrido_segundos INTEGER NOT NULL DEFAULT 0,
+                        tempo_inicio TEXT,
+                        data_abertura TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        data_fechamento TEXT,
+                        data_agendada TEXT,
+                        hora_agendada TEXT,
+                        classificacao TEXT,
+                        id_usuario INTEGER
+                    );
+                    INSERT INTO chamado (
+                        id_chamado, cliente, descricao, email_cliente, telefone_cliente,
+                        contato_cliente, telefone_contato, id_usuario
+                    ) VALUES (
+                        123456, 'Empresa Alpha', 'Falha de acesso', 'ana@example.test',
+                        '1133334444', 'Ana Atualizada', '11999990000', 1
+                    );
+                    INSERT INTO chamado (
+                        id_chamado, cliente, descricao, id_usuario
+                    ) VALUES (
+                        123457, 'Empresa Alpha', 'Registro ambiguo', 1
+                    );
+                ''')
+                legacy.close()
+
+                database.initialize_database()
+
+                connection = database.get_db_connection()
+                try:
+                    company = connection.execute(
+                        'SELECT id_cliente, id_usuario, nome, telefone_empresa '
+                        'FROM cliente WHERE id_cliente = 2'
+                    ).fetchone()
+                    self.assertEqual(
+                        tuple(company),
+                        (2, 1, 'Empresa Alpha', '1133334444'),
+                    )
+                    customer_columns = {
+                        row[1] for row in connection.execute(
+                            'PRAGMA table_info(cliente)'
+                        ).fetchall()
+                    }
+                    self.assertNotIn('id_workspace', customer_columns)
+                    self.assertEqual(
+                        connection.execute(
+                            'SELECT nome FROM contato_cliente WHERE id_cliente = 2 '
+                            'ORDER BY id_contato_cliente'
+                        ).fetchall(),
+                        [('Ana Atualizada',), ('Maria',)],
+                    )
+                    self.assertEqual(
+                        connection.execute(
+                            'SELECT id_cliente FROM chamado WHERE id_chamado = 123456'
+                        ).fetchone()['id_cliente'],
+                        2,
+                    )
+                    self.assertIsNone(connection.execute(
+                        'SELECT id_cliente FROM chamado WHERE id_chamado = 123457'
+                    ).fetchone()['id_cliente'])
+                    self.assertEqual(
+                        connection.execute(
+                            "SELECT COUNT(*) FROM usuario WHERE tipo_usuario = 'CLIENTE'"
+                        ).fetchone()[0],
+                        0,
+                    )
+                    self.assertEqual(
+                        connection.execute('PRAGMA foreign_key_check').fetchall(),
+                        [],
+                    )
                 finally:
                     connection.close()
 

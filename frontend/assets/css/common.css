@@ -392,6 +392,30 @@ body {
   border-bottom: 1px solid var(--border-color, var(--palette-e5e7eb));
 }
 
+.danger-icon-button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--palette-fecaca);
+  border-radius: 5px;
+  background: var(--card-bg);
+  color: var(--palette-b91c1c);
+  cursor: pointer;
+}
+
+.danger-icon-button:hover {
+  background: var(--palette-fef2f2);
+  border-color: var(--red-border);
+}
+
+.danger-icon-button svg {
+  width: 15px;
+  height: 15px;
+}
+
 .btn-primary,
 .button,
 .button--primary {

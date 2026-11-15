@@ -42,11 +42,23 @@ class DeskOpsProject3Tests(unittest.TestCase):
         tecnico_id = tecnico_resp.get_json()['id_grupo_solucionadores']
         return admin, 'Suporte N1', tecnico_id
 
+    def _create_customer(self, admin, name, email, phone):
+        response = admin.post('/api/clientes', json={
+            'nome': name,
+            'contatos': [{'nome': name, 'email': email, 'telefone': phone}],
+        })
+        self.assertEqual(response.status_code, 201, response.get_json())
+        return response.get_json()['id_cliente']
+
     def test_chamado_com_setor_atributo_simples(self):
         admin, setor, tecnico_id = self._setup_empresa_com_tecnico()
+        customer_id = self._create_customer(
+            admin, 'Empresa Alpha', 'contato@alpha.test', '11999999999'
+        )
         
         with patch.object(app_module.smtplib, 'SMTP'):
             resp = admin.post('/api/chamados', json={
+                'id_cliente': customer_id,
                 'cliente': 'Empresa Alpha',
                 'descricao': 'Servidor inacessivel',
                 'email_cliente': 'contato@alpha.test',
@@ -72,14 +84,18 @@ class DeskOpsProject3Tests(unittest.TestCase):
 
     def test_metricas_deskops_calculo(self):
         admin, setor, tecnico_id = self._setup_empresa_com_tecnico()
+        customer_1 = self._create_customer(admin, 'Cliente 1', 'c1@test.com', '111')
+        customer_2 = self._create_customer(admin, 'Cliente 2', 'c2@test.com', '222')
         
         with patch.object(app_module.smtplib, 'SMTP'):
             r1 = admin.post('/api/chamados', json={
+                'id_cliente': customer_1,
                 'cliente': 'Cliente 1', 'descricao': 'D1', 'email_cliente': 'c1@test.com',
                 'telefone_cliente': '111', 'contato_cliente': 'C1', 'telefone_contato': '111',
                 'setor': setor, 'id_grupo_solucionadores': tecnico_id
             })
             r2 = admin.post('/api/chamados', json={
+                'id_cliente': customer_2,
                 'cliente': 'Cliente 2', 'descricao': 'D2', 'email_cliente': 'c2@test.com',
                 'telefone_cliente': '222', 'contato_cliente': 'C2', 'telefone_contato': '222',
                 'setor': setor, 'id_grupo_solucionadores': tecnico_id

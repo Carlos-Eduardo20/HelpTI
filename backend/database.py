@@ -6,7 +6,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 11
 DEMO_EMAIL = 'test@helpiti.com'
 Error = sqlite3.Error
 
@@ -176,6 +176,239 @@ def _ensure_compatible_schema(connection):
         )
 
 
+def _prepare_customer_migration(connection):
+    tables = {
+        row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    if 'cliente' not in tables or 'cliente_contatos_legados' in tables:
+        return
+
+    columns = {
+        row[1] for row in connection.execute('PRAGMA table_info(cliente)').fetchall()
+    }
+    if not {'id_usuario', 'nome', 'email', 'telefone', 'id_workspace'}.issubset(columns):
+        return
+
+    connection.execute('PRAGMA foreign_keys = OFF')
+    try:
+        connection.execute('BEGIN IMMEDIATE')
+        connection.execute('DROP INDEX IF EXISTS idx_cliente_usuario')
+        connection.execute('DROP INDEX IF EXISTS idx_cliente_workspace')
+        connection.execute('ALTER TABLE cliente RENAME TO cliente_contatos_legados')
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.execute('PRAGMA foreign_keys = ON')
+
+
+def _migrate_customer_entities(connection):
+    tables = {
+        row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    called_columns = {
+        row[1] for row in connection.execute('PRAGMA table_info(chamado)').fetchall()
+    }
+    has_legacy_contacts = 'cliente_contatos_legados' in tables
+    has_legacy_companies = connection.execute(
+        "SELECT 1 FROM usuario WHERE UPPER(tipo_usuario) = 'CLIENTE' LIMIT 1"
+    ).fetchone() is not None
+
+    if 'id_cliente' not in called_columns:
+        connection.execute(
+            'ALTER TABLE chamado ADD COLUMN id_cliente INTEGER '
+            'REFERENCES cliente(id_cliente) ON DELETE SET NULL'
+        )
+    connection.execute(
+        'CREATE INDEX IF NOT EXISTS idx_chamado_cliente ON chamado (id_cliente)'
+    )
+
+    if has_legacy_contacts or has_legacy_companies:
+        connection.execute('BEGIN IMMEDIATE')
+        try:
+            companies = connection.execute(
+                "SELECT id_usuario, nome, contato, email, telefone, cnpj, "
+                "telefone_empresa, endereco, status, plano, acoes, id_workspace "
+                "FROM usuario WHERE UPPER(tipo_usuario) = 'CLIENTE' "
+                "ORDER BY id_usuario"
+            ).fetchall()
+            company_ids = set()
+
+            for company in companies:
+                (
+                    old_id, name, primary_name, primary_email, primary_phone,
+                    cnpj, company_phone, address, status, plan, actions, owner_id,
+                ) = company
+                owner = connection.execute(
+                    'SELECT 1 FROM usuario WHERE id_usuario = %s', (owner_id,)
+                ).fetchone()
+                if not owner:
+                    raise RuntimeError(
+                        f'A empresa cliente legada {old_id} não possui uma conta '
+                        'proprietária válida em usuario.id_workspace.'
+                    )
+
+                existing = connection.execute(
+                    'SELECT id_usuario, nome FROM cliente WHERE id_cliente = %s',
+                    (old_id,),
+                ).fetchone()
+                if existing and (
+                    existing[0] != owner_id or (existing[1] or '') != (name or '')
+                ):
+                    raise RuntimeError(
+                        f'Conflito ao migrar a empresa cliente legada {old_id}.'
+                    )
+                if not existing:
+                    connection.execute('''
+                        INSERT INTO cliente (
+                            id_cliente, nome, cnpj, telefone_empresa, endereco,
+                            status, plano, acoes, id_usuario
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', (
+                        old_id, name or 'Cliente', cnpj, company_phone, address,
+                        status or 'ATIVO', plan, actions, owner_id,
+                    ))
+                company_ids.add(old_id)
+
+                legacy_contacts = []
+                if has_legacy_contacts:
+                    legacy_contacts = connection.execute(
+                        'SELECT nome, email, telefone FROM cliente_contatos_legados '
+                        'WHERE id_usuario = %s ORDER BY id_cliente',
+                        (old_id,),
+                    ).fetchall()
+
+                primary = (
+                    (primary_name or '').strip(),
+                    (primary_email or '').strip(),
+                    (primary_phone or '').strip(),
+                )
+                if all(primary):
+                    connection.execute(
+                        'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
+                        'VALUES (%s, %s, %s, %s)',
+                        (old_id, *primary),
+                    )
+                    legacy_contacts = legacy_contacts[1:]
+                elif legacy_contacts:
+                    first = legacy_contacts.pop(0)
+                    connection.execute(
+                        'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
+                        'VALUES (%s, %s, %s, %s)',
+                        (old_id, first[0], first[1], first[2]),
+                    )
+
+                for contact in legacy_contacts:
+                    connection.execute(
+                        'INSERT INTO contato_cliente (id_cliente, nome, email, telefone) '
+                        'VALUES (%s, %s, %s, %s)',
+                        (old_id, contact[0], contact[1], contact[2]),
+                    )
+
+            if has_legacy_contacts:
+                orphan = connection.execute('''
+                    SELECT id_usuario FROM cliente_contatos_legados
+                    WHERE id_usuario NOT IN (
+                        SELECT id_usuario FROM usuario
+                        WHERE UPPER(tipo_usuario) = 'CLIENTE'
+                    )
+                    LIMIT 1
+                ''').fetchone()
+                if orphan:
+                    raise RuntimeError(
+                        f'O contato legado referencia a empresa inexistente {orphan[0]}.'
+                    )
+
+            tickets = connection.execute('''
+                SELECT id_chamado, id_usuario, cliente, email_cliente,
+                       telefone_cliente, contato_cliente, telefone_contato
+                FROM chamado WHERE id_cliente IS NULL
+            ''').fetchall()
+            for ticket in tickets:
+                (
+                    ticket_id, owner_id, company_name, email, company_phone,
+                    contact_name, contact_phone,
+                ) = ticket
+                candidates = connection.execute('''
+                    SELECT id_cliente FROM cliente
+                    WHERE id_usuario = %s AND LOWER(TRIM(nome)) = LOWER(TRIM(%s))
+                    ORDER BY id_cliente
+                ''', (owner_id, company_name)).fetchall()
+                if len(candidates) == 1:
+                    selected_id = candidates[0][0]
+                elif len(candidates) > 1:
+                    matches = []
+                    for candidate in candidates:
+                        contact_rows = connection.execute(
+                            'SELECT nome, email, telefone FROM contato_cliente '
+                            'WHERE id_cliente = %s',
+                            (candidate[0],),
+                        ).fetchall()
+                        score = 0
+                        for contact in contact_rows:
+                            if email and (contact[1] or '').strip().lower() == email.strip().lower():
+                                score += 1
+                            if contact_name and (contact[0] or '').strip().lower() == contact_name.strip().lower():
+                                score += 1
+                            if contact_phone and (contact[2] or '').strip() == contact_phone.strip():
+                                score += 1
+                            if company_phone and (contact[2] or '').strip() == company_phone.strip():
+                                score += 1
+                        matches.append((score, candidate[0]))
+                    highest = max((score for score, _ in matches), default=0)
+                    best = [client_id for score, client_id in matches if score == highest and score > 0]
+                    selected_id = best[0] if len(best) == 1 else None
+                else:
+                    selected_id = None
+
+                if selected_id is not None:
+                    connection.execute(
+                        'UPDATE chamado SET id_cliente = %s WHERE id_chamado = %s',
+                        (selected_id, ticket_id),
+                    )
+
+            if has_legacy_contacts:
+                connection.execute('DROP TABLE cliente_contatos_legados')
+            if company_ids:
+                placeholders = ', '.join(['%s'] * len(company_ids))
+                connection.execute(
+                    f'DELETE FROM usuario WHERE id_usuario IN ({placeholders})',
+                    tuple(sorted(company_ids)),
+                )
+
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+
+    user_columns = {
+        row[1] for row in connection.execute('PRAGMA table_info(usuario)').fetchall()
+    }
+    if 'email' in user_columns:
+        duplicates = connection.execute('''
+            SELECT LOWER(TRIM(email)), COUNT(*) FROM usuario
+            WHERE email IS NOT NULL AND TRIM(email) <> ''
+            GROUP BY LOWER(TRIM(email)) HAVING COUNT(*) > 1
+            LIMIT 1
+        ''').fetchone()
+        if duplicates:
+            raise RuntimeError(
+                'Há contas com e-mails duplicados no SQLite. Corrija os e-mails '
+                'duplicados em usuario antes de inicializar o HelpTI.'
+            )
+        connection.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_usuario_email_unique '
+            'ON usuario (LOWER(TRIM(email))) '
+            "WHERE email IS NOT NULL AND TRIM(email) <> ''"
+        )
+    connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
+
+
 def _migrate_profile_and_settings(connection):
     for table, column, sql_type in (
         ('usuario', 'workspace_name', 'VARCHAR(255)'),
@@ -232,12 +465,13 @@ def _migrate_sector_and_auth_tables(connection):
         'login_rate_limit',
         'verificacao_cadastro_email',
     } & tables
+    remove_equipment_table = 'equipamento_cliente' in tables
     rebuild_group = bool(group_columns & {'id_setor', 'email_verificado'})
     rebuild_ticket = 'id_setor' in ticket_columns
     rebuild_escalation = 'id_setor_destino' in escalation_columns
     remove_sector_table = 'setor' in tables
     if not (
-        remove_auth_tables or rebuild_group or rebuild_ticket
+        remove_auth_tables or remove_equipment_table or rebuild_group or rebuild_ticket
         or rebuild_escalation or remove_sector_table
     ):
         connection.execute(f'PRAGMA user_version = {SCHEMA_VERSION}')
@@ -248,6 +482,8 @@ def _migrate_sector_and_auth_tables(connection):
         connection.execute('BEGIN IMMEDIATE')
         for table in remove_auth_tables:
             connection.execute(f'DROP TABLE IF EXISTS {table}')
+        if remove_equipment_table:
+            connection.execute('DROP TABLE equipamento_cliente')
 
         if 'id_setor' in group_columns and 'setor' not in group_columns:
             connection.execute('ALTER TABLE grupo_solucionadores ADD COLUMN setor TEXT')
@@ -445,10 +681,12 @@ def initialize_database():
     try:
         _ensure_compatible_schema(connection)
         _migrate_sector_and_auth_tables(connection)
+        _prepare_customer_migration(connection)
         connection.executescript(Path(__file__).with_name('schema.sql').read_text(encoding='utf-8'))
         _migrate_profile_and_settings(connection)
         connection.commit()
         _migrate_sector_and_auth_tables(connection)
+        _migrate_customer_entities(connection)
         _seed_ticket_id_sequence(connection)
         if demo_mode_enabled():
             connection.executescript(

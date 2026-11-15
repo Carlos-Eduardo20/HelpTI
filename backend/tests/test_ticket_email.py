@@ -43,10 +43,21 @@ class TicketEmailTests(unittest.TestCase):
 
     def _prepare_ticket(self):
         self._create_account()
+        customer = self.client.post('/api/clientes', json={
+            'nome': 'Empresa Teste',
+            'contatos': [{
+                'nome': 'Ana Teste',
+                'email': 'solicitante@example.test',
+                'telefone': '11999990000',
+            }],
+        })
+        self.assertEqual(customer.status_code, 201, customer.get_json())
+        self.customer_id = customer.get_json()['id_cliente']
         return 'Suporte'
 
     def _ticket_payload(self, sector_id):
         return {
+            'id_cliente': self.customer_id,
             'cliente': 'Empresa Teste',
             'descricao': 'Não consigo acessar o sistema.',
             'email_cliente': 'solicitante@example.test',
@@ -203,9 +214,20 @@ class TicketEmailTests(unittest.TestCase):
                 'senha': 'HelpTI2026!!',
             })
         self.assertEqual(response.status_code, 200, response.get_json())
+        with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'true'}):
+            customer = self.client.post('/api/clientes', json={
+                'nome': 'Cliente de teste',
+                'contatos': [{
+                    'nome': 'Contato Teste',
+                    'email': 'cliente@example.test',
+                    'telefone': '11999990000',
+                }],
+            })
+        self.assertEqual(customer.status_code, 201, customer.get_json())
         with patch.dict(os.environ, {'HELPTI_DEMO_MODE': 'true'}), \
                 patch.object(app_module.smtplib, 'SMTP') as smtp:
             ticket_response = self.client.post('/api/chamados', json={
+                'id_cliente': customer.get_json()['id_cliente'],
                 'cliente': 'Cliente de teste',
                 'descricao': 'Chamado criado no teste automatizado.',
                 'email_cliente': 'cliente@example.test',

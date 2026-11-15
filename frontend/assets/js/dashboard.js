@@ -1,4 +1,4 @@
-import { buscarChamados, buscarMetricasDeskops, criarChamado, atualizarChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
+import { buscarChamados, buscarMetricasDeskops, criarChamado, atualizarChamado, excluirChamado, buscarClientes, buscarEquipe, buscarSetores, criarCliente, buscarConfiguracoes } from './api.js';
 import { gerarUrlAvatar } from './avatar.js';
 import { mostrarNotificacao, mostrarErro, comCarregamento } from './notifications.js';
 import { formatBrazilianPhone } from './phone.js';
@@ -145,6 +145,9 @@ function linhaChamado(chamado) {
           </select>
         </div>
       </td>
+      <td><button class="danger-icon-button" type="button" data-excluir-chamado="${id}" aria-label="Excluir chamado ${ticketFormatado}" title="Excluir chamado">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14H5V6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
+      </button></td>
     </tr>
   `;
 }
@@ -179,7 +182,7 @@ function aplicarFiltrosChamados() {
   const chamadosDaPagina = chamadosFiltrados.slice(inicio, inicio + chamadosPorPagina);
   const tabela = document.querySelector('#tabelaChamados');
   if (tabela) {
-    tabela.innerHTML = chamadosDaPagina.map(linhaChamado).join('') || '<tr><td colspan="6" class="empty-row">Nenhum chamado encontrado.</td></tr>';
+    tabela.innerHTML = chamadosDaPagina.map(linhaChamado).join('') || '<tr><td colspan="7" class="empty-row">Nenhum chamado encontrado.</td></tr>';
   }
   const contador = document.querySelector('#resultadosChamados');
   if (contador) contador.textContent = `${chamadosFiltrados.length} ${chamadosFiltrados.length === 1 ? 'chamado' : 'chamados'}`;
@@ -440,22 +443,31 @@ function renderizarOpcoesClientes(termo = '') {
   const busca = normalizarBusca(termo);
   const clientes = clientesDoChamado.filter((cliente) => normalizarBusca(`${cliente.nome} ${cliente.telefone} ${cliente.email}`).includes(busca));
   lista.innerHTML = clientes.length
-    ? clientes.map((cliente) => `<li data-cliente-id="${escaparHtml(cliente.id_usuario)}"><strong>${escaparHtml(cliente.nome)}</strong><span>${escaparHtml(cliente.telefone || 'Telefone não informado')} · ${escaparHtml(cliente.email || 'E-mail não informado')}</span></li>`).join('')
+    ? clientes.map((cliente) => `<li data-cliente-id="${escaparHtml(cliente.id_cliente)}"><strong>${escaparHtml(cliente.nome)}</strong><span>${escaparHtml(cliente.telefone || 'Telefone não informado')} · ${escaparHtml(cliente.email || 'E-mail não informado')}</span></li>`).join('')
     : '<li class="select-empty">Nenhum cliente encontrado.</li>';
 }
 
 function selecionarClienteChamado(cliente) {
   const campoBusca = document.querySelector('#clienteSearchInput');
   const campoCliente = document.querySelector('#clienteChamado');
+  const campoIdCliente = document.querySelector('#idClienteChamado');
   const campoEmail = document.querySelector('#emailClienteChamado');
   const campoTelefone = document.querySelector('#telefoneClienteChamado');
   if (!campoBusca || !campoCliente) return;
   campoBusca.value = cliente.nome || '';
   campoCliente.value = cliente.nome || '';
+  if (campoIdCliente) campoIdCliente.value = cliente.id_cliente || '';
   if (campoEmail) campoEmail.value = cliente.email || '';
   if (campoTelefone) campoTelefone.value = formatBrazilianPhone(cliente.telefone || '');
   const campoContato = document.querySelector('#funcionarioSearchInput');
-  if (campoContato) campoContato.value = cliente.contato || '';
+  const campoTelefoneContato = document.querySelector('#telefoneFuncionarioChamado');
+  const contatoPrincipal = cliente.contatos?.[0];
+  if (campoContato) campoContato.value = contatoPrincipal?.nome || cliente.contato || '';
+  if (campoTelefoneContato) {
+    campoTelefoneContato.value = formatBrazilianPhone(
+      contatoPrincipal?.telefone || cliente.telefone || '',
+    );
+  }
   document.querySelector('#clienteDropdownList')?.classList.add('hidden');
 }
 
@@ -580,6 +592,7 @@ function configurarBuscaClienteChamado() {
   campoBusca.addEventListener('input', () => {
     if (campoBusca.value !== campoCliente.value) {
       campoCliente.value = '';
+      document.querySelector('#idClienteChamado').value = '';
       document.querySelector('#emailClienteChamado').value = '';
       document.querySelector('#telefoneClienteChamado').value = '';
       document.querySelector('#funcionarioSearchInput').value = '';
@@ -593,7 +606,7 @@ function configurarBuscaClienteChamado() {
   lista.addEventListener('click', (event) => {
     const opcao = event.target.closest('[data-cliente-id]');
     if (!opcao) return;
-    const cliente = clientesDoChamado.find((item) => String(item.id_usuario) === opcao.dataset.clienteId);
+    const cliente = clientesDoChamado.find((item) => String(item.id_cliente) === opcao.dataset.clienteId);
     if (cliente) selecionarClienteChamado(cliente);
   });
   document.addEventListener('click', (event) => {
@@ -620,8 +633,12 @@ async function salvarNovoClienteDoChamado(event) {
     const cliente = await criarCliente({ nome: campos.nome.value.trim(), telefone: campos.telefone.value.trim(), contato: campos.contato.value.trim(), email: campos.email.value.trim() });
     await carregarClientesNoChamado();
     document.querySelector('#clienteChamado').value = cliente.nome;
+    document.querySelector('#idClienteChamado').value = cliente.id_cliente;
     document.querySelector('#clienteSearchInput').value = cliente.nome;
     document.querySelector('#emailClienteChamado').value = cliente.email || '';
+    document.querySelector('#telefoneClienteChamado').value = formatBrazilianPhone(cliente.telefone || '');
+    document.querySelector('#funcionarioSearchInput').value = cliente.contato || '';
+    document.querySelector('#telefoneFuncionarioChamado').value = formatBrazilianPhone(cliente.telefone || '');
     form.reset();
     cancelarNovoClienteDoChamado();
     mostrarNotificacao('Cliente cadastrado com sucesso.');
@@ -632,7 +649,7 @@ async function salvarChamado(event) {
   event.preventDefault();
   const form = event.target;
   const campos = form.elements;
-  if (!campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.contato_cliente.value.trim() || !campos.telefone_contato.value.trim() || !campos.setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
+  if (!campos.id_cliente.value || !campos.cliente.value || !campos.email_cliente.value || !campos.telefone_cliente.value || !campos.contato_cliente.value.trim() || !campos.telefone_contato.value.trim() || !campos.setor.value || !campos.id_grupo_solucionadores.value || !campos.descricao.value.trim()) {
     form.reportValidity();
     return;
   }
@@ -641,6 +658,7 @@ async function salvarChamado(event) {
 
   await comCarregamento(botao, async () => { try {
     await criarChamado({
+      id_cliente: campos.id_cliente.value,
       cliente: campos.cliente.value.trim(),
       email_cliente: campos.email_cliente.value.trim(),
       telefone_cliente: formatBrazilianPhone(campos.telefone_cliente.value),
@@ -702,6 +720,21 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('click', async (event) => {
+  const botaoExcluir = event.target.closest('[data-excluir-chamado]');
+  if (botaoExcluir) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!window.confirm('Tem certeza que deseja excluir este chamado?')) return;
+    try {
+      await excluirChamado(botaoExcluir.dataset.excluirChamado);
+      await carregarChamados();
+      mostrarNotificacao('Chamado excluído com sucesso.');
+    } catch (error) {
+      mostrarErro(`Não foi possível excluir o chamado: ${error.message}`);
+    }
+    return;
+  }
+
   const statusTrigger = event.target.closest('[data-status-picker] .status-trigger');
   if (statusTrigger) {
     const picker = statusTrigger.closest('[data-status-picker]');
@@ -835,7 +868,7 @@ function inicializarDashboard() {
   carregarChamados().catch((error) => {
     const tabela = document.querySelector('#tabelaChamados');
     const agenda = document.querySelector('#agendaDinamica');
-    if (tabela) tabela.innerHTML = `<tr><td colspan="6">Não foi possível carregar: ${escaparHtml(error.message)}</td></tr>`;
+    if (tabela) tabela.innerHTML = `<tr><td colspan="7">Não foi possível carregar: ${escaparHtml(error.message)}</td></tr>`;
     if (agenda) agenda.innerHTML = `<p>Não foi possível carregar a agenda: ${escaparHtml(error.message)}</p>`;
   });
   window.setInterval(atualizarSlasVisiveis, 1000);
