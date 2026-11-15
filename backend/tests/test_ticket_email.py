@@ -391,6 +391,19 @@ class TicketEmailTests(unittest.TestCase):
         self.assertIn('[FALHA] Cookie seguro para acesso remoto', output.getvalue())
         self.assertIn('[FALHA] Modo de depuração seguro', output.getvalue())
 
+    def test_security_check_allows_codespaces_https_cookie_configuration(self):
+        app_module.app.config['SECRET_KEY'] = 'x' * 48
+        output = StringIO()
+        with patch.dict(os.environ, {
+            'HELPTI_HOST': '0.0.0.0',
+            'HELPTI_DEBUG': 'false',
+            'HELPTI_HTTPS_ONLY': 'true',
+            'HELPTI_DEMO_MODE': 'true',
+        }), redirect_stdout(output):
+            passed = run_security_checks(app_module.app)
+        self.assertTrue(passed)
+        self.assertIn('[OK] Cookie seguro para acesso remoto', output.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()

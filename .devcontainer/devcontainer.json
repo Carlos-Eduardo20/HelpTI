@@ -6,6 +6,8 @@
     "DB_SQLITE_PATH": "instance/helpti.sqlite3",
     "HELPTI_DEMO_MODE": "true",
     "HELPTI_HOST": "0.0.0.0",
+    "HELPTI_HTTPS_ONLY": "true",
+    "HELPTI_DEBUG": "false",
     "HELPTI_OPEN_BROWSER": "false"
   },
   "forwardPorts": [5000],
