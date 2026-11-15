@@ -1,0 +1,23 @@
+{
+  "name": "HelpTI",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "containerEnv": {
+    "DB_TYPE": "sqlite",
+    "DB_SQLITE_PATH": "instance/helpti.sqlite3",
+    "HELPTI_DEMO_MODE": "true",
+    "HELPTI_HOST": "0.0.0.0",
+    "HELPTI_OPEN_BROWSER": "false"
+  },
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": {
+      "label": "HelpTI",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["alexcvzz.vscode-sqlite"]
+    }
+  }
+}
