@@ -16,9 +16,6 @@
         <mxCell id="grupo" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;GRUPO_SOLUCIONADORES&lt;/div&gt;&lt;br&gt;PK id_grupo_solucionadores&lt;br&gt;FK id_usuario (obrigatorio)&lt;br&gt;nome, email, cargo, telefone&lt;br&gt;setor TEXT, status&lt;br&gt;senha (hash)" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="60" y="530" width="390" height="280" as="geometry"/>
         </mxCell>
-        <mxCell id="credencial" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CREDENCIAL_SOLUCIONADOR&lt;/div&gt;&lt;br&gt;PK/FK id_grupo_solucionadores&lt;br&gt;permissoes, foto_perfil" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="850" width="390" height="140" as="geometry"/>
-        </mxCell>
         <mxCell id="chamado" value="&lt;div style=&quot;font-size:16px;font-weight:bold;color:#0f172a&quot;&gt;CHAMADO&lt;/div&gt;&lt;br&gt;PK id_chamado&lt;br&gt;FK id_tipo_chamado (obrigatorio)&lt;br&gt;FK id_cliente (empresa atendida)&lt;br&gt;FK id_grupo_solucionadores (opcional)&lt;br&gt;FK id_usuario (workspace)&lt;br&gt;cliente TEXT (snapshot), setor TEXT, status&lt;br&gt;descricao, descricao_final, datas" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=14;fillColor=#ffffff;strokeColor=#0f766e;strokeWidth=2;fontColor=#334155;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="500" y="420" width="430" height="390" as="geometry"/>
         </mxCell>
@@ -46,9 +43,6 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="r_usuario_grupo" value="possui membros | 1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="grupo">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="r_grupo_credencial" value="configura | 1:1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;startArrow=ERone;startFill=0;endArrow=ERone;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="grupo" target="credencial">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="r_usuario_chamado" value="registra | 1:N opcional" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748b;dashed=1;startArrow=ERzeroToOne;startFill=0;endArrow=ERzeroToMany;endFill=0;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="usuario" target="chamado">

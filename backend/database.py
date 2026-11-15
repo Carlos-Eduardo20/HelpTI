@@ -7,7 +7,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 INSTANCE_DIR = PROJECT_DIR / 'instance'
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 DEMO_EMAIL = 'test@helpiti.com'
 LEGACY_USER_COLUMNS = (
     'contato',
@@ -80,14 +80,6 @@ CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_usuario
     ON grupo_solucionadores (id_usuario);
 CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_email
     ON grupo_solucionadores (email);
-
-CREATE TABLE IF NOT EXISTS credencial_solucionador (
-    id_grupo_solucionadores INTEGER PRIMARY KEY,
-    permissoes TEXT NOT NULL DEFAULT '[]',
-    foto_perfil TEXT,
-    FOREIGN KEY (id_grupo_solucionadores)
-        REFERENCES grupo_solucionadores(id_grupo_solucionadores) ON DELETE CASCADE
-);
 
 CREATE TABLE IF NOT EXISTS chamado (
     id_chamado INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -299,11 +291,6 @@ def apply_demo_seed(connection):
         'pbkdf2:sha256:600000$sLjTP06hGqfycvJO$'
         'e6d4f2b0f4d774ede113b380829767a281fd46c91b5353560c7c66181519960a'
     )
-    permissoes = json.dumps([
-        'dashboard', 'chamados', 'clientes', 'equipe', 'relatorios',
-        'educacao', 'configuracoes', 'gerenciar_equipe',
-    ])
-
     connection.execute('BEGIN IMMEDIATE')
     try:
         workspace = connection.execute(
@@ -363,12 +350,6 @@ def apply_demo_seed(connection):
             member_id = connection.execute(
                 'SELECT last_insert_rowid()'
             ).fetchone()[0]
-        connection.execute('''
-            INSERT INTO credencial_solucionador (id_grupo_solucionadores, permissoes)
-            VALUES (%s, %s)
-            ON CONFLICT(id_grupo_solucionadores) DO UPDATE SET
-                permissoes = excluded.permissoes
-        ''', (member_id, permissoes))
         connection.commit()
     except Exception:
         connection.rollback()
@@ -748,16 +729,24 @@ def _migrate_profile_and_settings(connection):
 
 
 def _migrate_group_solucionadores(connection):
+    tables = {
+        row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+    credential_exists = 'credencial_solucionador' in tables
     columns = {
         row[1]: row for row in connection.execute(
             'PRAGMA table_info(grupo_solucionadores)'
         ).fetchall()
     }
-    credential_columns = {
-        row[1] for row in connection.execute(
-            'PRAGMA table_info(credencial_solucionador)'
-        ).fetchall()
-    }
+    credential_columns = set()
+    if credential_exists:
+        credential_columns = {
+            row[1] for row in connection.execute(
+                'PRAGMA table_info(credencial_solucionador)'
+            ).fetchall()
+        }
     columns_to_remove = {
         'descricao', 'nivel', 'valor_hora', 'permissoes', 'foto_perfil'
     }
@@ -766,11 +755,7 @@ def _migrate_group_solucionadores(connection):
     rebuild = rebuild or not columns.get('telefone') or not columns['telefone'][3]
     rebuild = rebuild or 'senha' not in columns
     if not rebuild:
-        connection.execute('''
-            INSERT OR IGNORE INTO credencial_solucionador (id_grupo_solucionadores)
-            SELECT id_grupo_solucionadores FROM grupo_solucionadores
-        ''')
-        if 'senha' in credential_columns:
+        if credential_exists and 'senha' in credential_columns:
             connection.execute('''
                 UPDATE grupo_solucionadores
                 SET senha = (
@@ -779,15 +764,16 @@ def _migrate_group_solucionadores(connection):
                     WHERE credencial_solucionador.id_grupo_solucionadores =
                         grupo_solucionadores.id_grupo_solucionadores
                 )
-                WHERE senha = ''
+                WHERE COALESCE(senha, '') = ''
                   AND EXISTS (
                       SELECT 1 FROM credencial_solucionador
                       WHERE credencial_solucionador.id_grupo_solucionadores =
                           grupo_solucionadores.id_grupo_solucionadores
-                        AND credencial_solucionador.senha <> ''
+                        AND COALESCE(credencial_solucionador.senha, '') <> ''
                   )
             ''')
-            connection.execute('ALTER TABLE credencial_solucionador DROP COLUMN senha')
+        if credential_exists:
+            connection.execute('DROP TABLE credencial_solucionador')
         return
 
     def value(column, fallback='NULL'):
@@ -809,27 +795,11 @@ def _migrate_group_solucionadores(connection):
     connection.execute('PRAGMA foreign_keys = OFF')
     try:
         connection.execute('BEGIN IMMEDIATE')
-        if {'permissoes', 'foto_perfil'} & columns.keys():
-            permissoes = value('permissoes', "'[]'")
-            foto_perfil = value('foto_perfil')
-            connection.execute(f'''
-                INSERT INTO credencial_solucionador (
-                    id_grupo_solucionadores, permissoes, foto_perfil
-                )
-                SELECT legado.id_grupo_solucionadores,
-                       COALESCE({permissoes}, '[]'),
-                       {foto_perfil}
-                FROM grupo_solucionadores AS legado
-                WHERE 1
-                ON CONFLICT(id_grupo_solucionadores) DO UPDATE SET
-                    permissoes = excluded.permissoes,
-                    foto_perfil = excluded.foto_perfil
-            ''')
-        if 'senha' in columns and 'senha' in credential_columns:
+        if 'senha' in columns and credential_exists and 'senha' in credential_columns:
             senha = "COALESCE(NULLIF(legado.senha, ''), credencial.senha, '')"
         elif 'senha' in columns:
             senha = "COALESCE(legado.senha, '')"
-        elif 'senha' in credential_columns:
+        elif credential_exists and 'senha' in credential_columns:
             senha = "COALESCE(credencial.senha, '')"
         else:
             senha = "''"
@@ -849,6 +819,10 @@ def _migrate_group_solucionadores(connection):
                 FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
             )
         ''')
+        credential_join = '''
+            LEFT JOIN credencial_solucionador AS credencial
+                ON credencial.id_grupo_solucionadores = legado.id_grupo_solucionadores
+        ''' if credential_exists else ''
         connection.execute(f'''
             INSERT INTO grupo_solucionadores_novo (
                 id_grupo_solucionadores, data_inicio, data_fim, nome, email,
@@ -860,19 +834,14 @@ def _migrate_group_solucionadores(connection):
                    {value('setor')}, COALESCE({value('status', "'ATIVO'")}, 'ATIVO'),
                    {value('id_usuario')}
             FROM grupo_solucionadores AS legado
-            LEFT JOIN credencial_solucionador AS credencial
-                ON credencial.id_grupo_solucionadores = legado.id_grupo_solucionadores
+            {credential_join}
         ''')
         connection.execute('DROP TABLE grupo_solucionadores')
         connection.execute(
             'ALTER TABLE grupo_solucionadores_novo RENAME TO grupo_solucionadores'
         )
-        connection.execute('''
-            INSERT OR IGNORE INTO credencial_solucionador (id_grupo_solucionadores)
-            SELECT id_grupo_solucionadores FROM grupo_solucionadores
-        ''')
-        if 'senha' in credential_columns:
-            connection.execute('ALTER TABLE credencial_solucionador DROP COLUMN senha')
+        if credential_exists:
+            connection.execute('DROP TABLE credencial_solucionador')
         connection.execute(
             'CREATE INDEX IF NOT EXISTS idx_grupo_solucionadores_setor '
             'ON grupo_solucionadores (setor)'
@@ -1009,8 +978,6 @@ def _migrate_sector_and_auth_tables(connection):
                     setor TEXT,
                     status TEXT NOT NULL DEFAULT 'ATIVO',
                     senha TEXT NOT NULL DEFAULT '',
-                    permissoes TEXT NOT NULL DEFAULT '[]',
-                    foto_perfil TEXT,
                     id_usuario INTEGER NOT NULL,
                     FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE
                 )
@@ -1019,11 +986,11 @@ def _migrate_sector_and_auth_tables(connection):
                 INSERT INTO grupo_solucionadores_novo (
                     id_grupo_solucionadores, descricao, nivel, data_inicio, data_fim,
                     nome, email, cargo, valor_hora, telefone, setor, status, senha,
-                    permissoes, foto_perfil, id_usuario
+                    id_usuario
                 )
                 SELECT id_grupo_solucionadores, descricao, nivel, data_inicio, data_fim,
                        nome, email, cargo, valor_hora, telefone, setor, status, senha,
-                       permissoes, foto_perfil, id_usuario
+                       id_usuario
                 FROM grupo_solucionadores
             ''')
             connection.execute('DROP TABLE grupo_solucionadores')

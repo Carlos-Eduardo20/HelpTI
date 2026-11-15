@@ -119,7 +119,7 @@ Os testes usam arquivos SQLite temporários isolados e os removem ao terminar.
 
 ## 6. Modelagem do banco SQLite
 
-O SQLite do HelpTI possui nove tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). `usuario` armazena contas/workspaces e `cliente` armazena empresas e sua lista de contatos em JSON na coluna `contatos`. A relação de propriedade usa `cliente.id_usuario` como chave estrangeira: a tabela `cliente` não possui `id_workspace`. O setor é armazenado como texto, sem tabela `setor`.
+O SQLite do HelpTI possui oito tabelas no schema atual. Os novos chamados recebem IDs sequenciais de seis dígitos pelo `AUTOINCREMENT`, começando em `100000` (ou após o maior ID já existente). `usuario` armazena contas/workspaces e `cliente` armazena empresas e sua lista de contatos em JSON na coluna `contatos`. A relação de propriedade usa `cliente.id_usuario` como chave estrangeira: a tabela `cliente` não possui `id_workspace`. O setor é armazenado como texto, sem tabela `setor`.
 
 [![Diagrama ER do SQLite do HelpTI](docs/sqlite-model.svg)](docs/sqlite-model.svg)
 
@@ -133,7 +133,6 @@ O arquivo [editável no draw.io](docs/sqlite-model.drawio) pode ser aberto em [a
 | `cliente` | Empresas clientes atendidas por uma conta/workspace e sua lista de contatos | `id_cliente` (PK), `id_usuario` (FK obrigatória para `usuario`), `nome`, `cnpj`, `telefone_empresa`, `contatos` (JSON com nome, e-mail e telefone), `endereco`, `status` |
 | `tipo_chamado` | Categorias de chamados | `id_tipo_chamado` (PK), `nome`, `classificacao` |
 | `grupo_solucionadores` | Funcionários e administradores do workspace | `id_grupo_solucionadores` (PK), `id_usuario` (FK obrigatória), `nome`, `email`, `senha` (hash), `telefone`, `setor` (TEXT), `status` |
-| `credencial_solucionador` | Permissões e foto de perfil da equipe | `id_grupo_solucionadores` (PK/FK), `permissoes` (JSON), `foto_perfil` |
 | `chamado` | Chamados e seus dados de atendimento | `id_chamado` (PK), `id_tipo_chamado` (FK obrigatória), `id_cliente` (FK para `cliente`), `id_grupo_solucionadores` e `id_usuario` (FKs opcionais), `cliente` (snapshot TEXT), `setor` (TEXT), `status`, `descricao` |
 | `historico_chamado` | Eventos e alterações de cada chamado | `id_historico` (PK), `id_chamado` (FK obrigatória), `evento`, `descricao`, `autor` |
 | `escalonamento` | Transferências de chamados | `id_escalonamento` (PK), `id_chamado` (FK obrigatória), `id_grupo_destino` (FK opcional), `motivo`, `setor_destino` (TEXT) |
@@ -148,7 +147,6 @@ O verbo no meio de cada relação descreve a ação entre as tabelas. A cardinal
 | 1:N | `usuario` **agrupa** `usuario` | `usuario.id_workspace` referencia o workspace pai; a FK é opcional. |
 | 1:N | `usuario` **atende** `cliente` | `cliente.id_usuario` obrigatório aponta para a conta/workspace proprietário; `cliente` não tem `id_workspace`. |
 | 1:N | `usuario` **possui** `grupo_solucionadores` | `grupo_solucionadores.id_usuario` é obrigatório. |
-| 1:0..1 | `grupo_solucionadores` **tem credenciais adicionais** | `credencial_solucionador.id_grupo_solucionadores` é PK e FK; guarda permissões e foto. A senha continua em `grupo_solucionadores.senha`. |
 | 1:N | `tipo_chamado` **classifica** `chamado` | Cada chamado tem um tipo obrigatório. |
 | 1:N | `cliente` **recebe** `chamado` | `chamado.id_cliente` vincula a empresa sem depender do nome; pode ficar nulo em chamados históricos sem associação segura. |
 | 1:N | `grupo_solucionadores` **atende** `chamado` | `chamado.id_grupo_solucionadores` é opcional: um chamado pode estar sem responsável. |

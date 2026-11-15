@@ -13,6 +13,15 @@ from backend import database
 
 
 class SQLiteDatabaseTests(unittest.TestCase):
+    def test_member_permissions_are_derived_from_cargo(self):
+        self.assertEqual(
+            app_module._permissoes_do_membro({'cargo': 'Técnico'}),
+            {'dashboard', 'chamados', 'educacao'},
+        )
+        self.assertEqual(
+            app_module._permissoes_do_membro({'cargo': 'Administrador'}),
+            app_module.PERMISSOES_VALIDAS,
+        )
     def test_ticket_ids_autoincrement_from_six_digits_and_continue_existing_sequence(self):
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / 'helpti.sqlite3'
@@ -191,16 +200,13 @@ class SQLiteDatabaseTests(unittest.TestCase):
                 connection = database.get_db_connection()
                 try:
                     member_record = connection.execute(
-                        'SELECT membro.cargo, membro.setor, membro.senha, '
-                        'credencial.permissoes FROM grupo_solucionadores AS membro '
-                        'JOIN credencial_solucionador AS credencial '
-                        'ON credencial.id_grupo_solucionadores = membro.id_grupo_solucionadores '
+                        'SELECT membro.cargo, membro.setor, membro.senha '
+                        'FROM grupo_solucionadores AS membro '
                         'WHERE membro.email = %s',
                         ('tecnico@helpti.test',),
                     ).fetchone()
                     self.assertEqual(member_record['cargo'], 'Técnico')
                     self.assertEqual(member_record['senha'], '')
-                    self.assertEqual(member_record['permissoes'], '[]')
                 finally:
                     connection.close()
                 app_module._LOGIN_RATE_LIMIT.clear()
@@ -242,7 +248,7 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         'login_rate_limit',
                         'verificacao_cadastro_email',
                     }.isdisjoint(tables))
-                    self.assertIn('credencial_solucionador', tables)
+                    self.assertNotIn('credencial_solucionador', tables)
                     group_columns = {
                         row[1] for row in connection.execute(
                             'PRAGMA table_info(grupo_solucionadores)'
@@ -254,14 +260,6 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         'valor_hora', 'permissoes', 'foto_perfil', 'nivel', 'descricao',
                     }.isdisjoint(group_columns))
                     self.assertIn('senha', group_columns)
-                    credential_columns = {
-                        row[1] for row in connection.execute(
-                            'PRAGMA table_info(credencial_solucionador)'
-                        ).fetchall()
-                    }
-                    self.assertIn('permissoes', credential_columns)
-                    self.assertIn('foto_perfil', credential_columns)
-                    self.assertNotIn('senha', credential_columns)
                     group_info = {
                         row[1]: row for row in connection.execute(
                             'PRAGMA table_info(grupo_solucionadores)'
@@ -293,7 +291,7 @@ class SQLiteDatabaseTests(unittest.TestCase):
                 finally:
                     connection.close()
 
-    def test_legacy_group_credentials_are_migrated_and_retired_fields_removed(self):
+    def test_legacy_group_fields_and_credential_table_are_removed(self):
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / 'legacy-group.sqlite3'
             with patch.dict(os.environ, {
@@ -365,13 +363,12 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         (member_id,),
                     ).fetchone()
                     self.assertEqual(password['senha'], 'hash-legado')
-                    credentials = connection.execute(
-                        'SELECT permissoes, foto_perfil '
-                        'FROM credencial_solucionador WHERE id_grupo_solucionadores = %s',
-                        (member_id,),
-                    ).fetchone()
-                    self.assertEqual(credentials['permissoes'], '["chamados"]')
-                    self.assertEqual(credentials['foto_perfil'], 'foto-legada.png')
+                    tables = {
+                        row[0] for row in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        ).fetchall()
+                    }
+                    self.assertNotIn('credencial_solucionador', tables)
                     customer_columns = {
                         row[1] for row in connection.execute(
                             'PRAGMA table_info(cliente)'
@@ -414,6 +411,13 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         ('Tecnica', 'tecnica@example.test', 'old-hash', '11999990000', workspace_id),
                     )
                     member_id = connection.execute('SELECT last_insert_rowid()').fetchone()[0]
+                    connection.execute('''
+                        CREATE TABLE credencial_solucionador (
+                            id_grupo_solucionadores INTEGER PRIMARY KEY,
+                            permissoes TEXT NOT NULL DEFAULT '[]',
+                            foto_perfil TEXT
+                        )
+                    ''')
                     connection.execute(
                         'INSERT INTO credencial_solucionador (id_grupo_solucionadores) '
                         'VALUES (%s)',
@@ -439,12 +443,77 @@ class SQLiteDatabaseTests(unittest.TestCase):
                         (member_id,),
                     ).fetchone()
                     self.assertEqual(row['senha'], 'saved-hash')
-                    credential_columns = {
-                        item[1] for item in connection.execute(
-                            'PRAGMA table_info(credencial_solucionador)'
+                    tables = {
+                        item[0] for item in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
                         ).fetchall()
                     }
-                    self.assertNotIn('senha', credential_columns)
+                    self.assertNotIn('credencial_solucionador', tables)
+                finally:
+                    connection.close()
+
+    def test_current_schema_migration_drops_credential_table(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / 'current-group.sqlite3'
+            with patch.dict(os.environ, {
+                'DB_TYPE': 'sqlite',
+                'DB_SQLITE_PATH': str(database_path),
+                'HELPTI_DEMO_MODE': 'false',
+            }):
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    connection.execute(
+                        'INSERT INTO usuario (nome, email, tipo_usuario) '
+                        'VALUES (%s, %s, %s)',
+                        ('Workspace', 'workspace@example.test', 'WORKSPACE'),
+                    )
+                    workspace_id = connection.execute(
+                        'SELECT last_insert_rowid()'
+                    ).fetchone()[0]
+                    connection.execute(
+                        'INSERT INTO grupo_solucionadores '
+                        '(nome, email, senha, telefone, id_usuario) '
+                        'VALUES (%s, %s, %s, %s, %s)',
+                        ('Tecnica', 'tecnica@example.test', 'saved-hash', '11999990000', workspace_id),
+                    )
+                    member_id = connection.execute(
+                        'SELECT last_insert_rowid()'
+                    ).fetchone()[0]
+                    connection.execute('''
+                        CREATE TABLE credencial_solucionador (
+                            id_grupo_solucionadores INTEGER PRIMARY KEY,
+                            permissoes TEXT NOT NULL DEFAULT '[]',
+                            foto_perfil TEXT,
+                            FOREIGN KEY (id_grupo_solucionadores)
+                                REFERENCES grupo_solucionadores(id_grupo_solucionadores)
+                        )
+                    ''')
+                    connection.execute(
+                        'INSERT INTO credencial_solucionador '
+                        '(id_grupo_solucionadores, permissoes, foto_perfil) '
+                        'VALUES (%s, %s, %s)',
+                        (member_id, '["chamados"]', 'foto-legada.png'),
+                    )
+                    connection.commit()
+                finally:
+                    connection.close()
+
+                database.initialize_database()
+                connection = database.get_db_connection()
+                try:
+                    tables = {
+                        row[0] for row in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        ).fetchall()
+                    }
+                    self.assertNotIn('credencial_solucionador', tables)
+                    member = connection.execute(
+                        'SELECT senha FROM grupo_solucionadores '
+                        'WHERE email = %s',
+                        ('tecnica@example.test',),
+                    ).fetchone()
+                    self.assertEqual(member['senha'], 'saved-hash')
                 finally:
                     connection.close()
 

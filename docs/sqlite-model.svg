@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160" role="img" aria-labelledby="title description">
   <title id="title">Modelagem SQLite do HelpTI</title>
-  <desc id="description">Diagrama ER com as nove tabelas SQLite do HelpTI; os contatos ficam em uma coluna JSON da tabela cliente.</desc>
+  <desc id="description">Diagrama ER com as oito tabelas SQLite do HelpTI; os contatos ficam em uma coluna JSON da tabela cliente.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
@@ -29,7 +29,6 @@
     <path class="edge" d="M410 145 L490 145"/>
     <path class="edge optional" d="M125 90 C125 35 355 35 355 90"/>
     <path class="edge" d="M230 330 L230 530"/>
-    <path class="edge" d="M255 800 L255 850"/>
     <path class="edge optional" d="M410 300 L500 455"/>
     <path class="edge" d="M700 300 L700 420"/>
     <path class="edge" d="M930 190 C880 220 880 380 850 420"/>
@@ -86,15 +85,6 @@
     <text class="field" x="16" y="122">nome, email, cargo, telefone</text>
     <text class="field" x="16" y="146">setor TEXT, status</text>
     <text class="field" x="16" y="170">senha (hash)</text>
-  </g>
-
-  <g transform="translate(60 850)">
-    <rect class="entity domain" width="390" height="140" rx="10"/>
-    <rect class="domain-header" width="390" height="42" rx="10"/>
-    <path d="M0 42 H390" stroke="#0f766e" stroke-width="1.5"/>
-    <text class="title" x="16" y="27">CREDENCIAL_SOLUCIONADOR</text>
-    <text class="key" x="16" y="68">PK/FK</text><text class="field" x="70" y="68">id_grupo_solucionadores</text>
-    <text class="field" x="16" y="98">permissoes, foto_perfil</text>
   </g>
 
   <g transform="translate(500 420)">

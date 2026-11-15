@@ -339,6 +339,48 @@ class TicketEmailTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_codespaces_port_forwarded_origin_can_log_in_over_https(self):
+        with patch.dict(os.environ, {
+            'CODESPACES': 'true',
+            'CODESPACE_NAME': 'help-ti-test',
+            'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN': 'app.github.dev',
+            'HELPTI_PORT': '5000',
+            'HELPTI_HTTPS_ONLY': 'true',
+        }):
+            response = self.client.post(
+                '/api/login',
+                json={'email': 'unknown@example.test', 'senha': 'invalid-password'},
+                headers={
+                    'Origin': 'https://help-ti-test-5000.app.github.dev',
+                    'Sec-Fetch-Site': 'same-origin',
+                },
+            )
+
+        self.assertEqual(response.status_code, 401, response.get_json())
+        self.assertEqual(response.get_json()['erro'], 'E-mail ou senha inválidos')
+
+    def test_codespaces_origin_must_match_current_codespace_and_port(self):
+        with patch.dict(os.environ, {
+            'CODESPACES': 'true',
+            'CODESPACE_NAME': 'help-ti-test',
+            'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN': 'app.github.dev',
+            'HELPTI_PORT': '5000',
+            'HELPTI_HTTPS_ONLY': 'true',
+        }):
+            response = self.client.post(
+                '/api/logout',
+                headers={
+                    'Origin': 'https://another-codespace-5000.app.github.dev',
+                    'Sec-Fetch-Site': 'same-site',
+                },
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.get_json()['erro'],
+            'Origem da requisição não permitida.',
+        )
+
     def test_login_attempts_are_rate_limited_per_client(self):
         for _ in range(10):
             response = self.client.post('/api/login', json={

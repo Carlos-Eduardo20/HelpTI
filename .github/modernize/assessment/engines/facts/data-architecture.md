@@ -1,6 +1,6 @@
 # Data Architecture & Persistence Layer
 
-O HelpTI usa um banco SQLite com nove tabelas e SQL executado diretamente pela aplicação, sem ORM. `backend/database.py` define o schema e executa inicialização, versionamento e migrações compatíveis.
+O HelpTI usa um banco SQLite com oito tabelas e SQL executado diretamente pela aplicação, sem ORM. `backend/database.py` define o schema e executa inicialização, versionamento e migrações compatíveis.
 
 ## Database Configuration
 
@@ -14,7 +14,7 @@ O banco não usa servidor separado nem pool externo. A aplicação executa o sch
 
 | Service | Tables Owned | ORM Framework | Caching | Notes |
 | --- | --- | --- | --- | --- |
-| Flask application and SQLite database | `usuario`, `cliente`, `tipo_chamado`, `grupo_solucionadores`, `credencial_solucionador`, `chamado`, `historico_chamado`, `escalonamento`, `documentacao` | None; direct SQL through a small `sqlite3` connection wrapper | None identified | One SQLite database; accounts/workspaces own customer companies through `cliente.id_usuario`; contact lists are JSON in `cliente.contatos`; employee passwords remain in `grupo_solucionadores.senha` |
+| Flask application and SQLite database | `usuario`, `cliente`, `tipo_chamado`, `grupo_solucionadores`, `chamado`, `historico_chamado`, `escalonamento`, `documentacao` | None; direct SQL through a small `sqlite3` connection wrapper | None identified | One SQLite database; accounts/workspaces own customer companies through `cliente.id_usuario`; contact lists are JSON in `cliente.contatos`; employee passwords remain in `grupo_solucionadores.senha` |
 
 ## Entity Model
 
@@ -30,7 +30,6 @@ erDiagram
     USUARIO o|--o{ DOCUMENTACAO : "owns documentation"
     TIPO_CHAMADO ||--o{ CHAMADO : "classifies"
     CLIENTE o|--o{ CHAMADO : "receives tickets"
-    GRUPO_SOLUCIONADORES ||--|| CREDENCIAL_SOLUCIONADOR : "stores permissions and profile"
     GRUPO_SOLUCIONADORES o|--o{ CHAMADO : "handles assigned tickets"
     CHAMADO ||--o{ HISTORICO_CHAMADO : "records history"
     CHAMADO ||--o{ ESCALONAMENTO : "records escalations"
@@ -78,12 +77,6 @@ erDiagram
         string status
     }
 
-    CREDENCIAL_SOLUCIONADOR {
-        int id_grupo_solucionadores PK
-        json permissoes
-        string foto_perfil
-    }
-
     CHAMADO {
         int id_chamado PK
         int id_tipo_chamado FK
@@ -126,7 +119,7 @@ There is no 1:1 relationship enforced by the current schema. `CHAMADO` and `GRUP
 
 `setor` is stored as text in `grupo_solucionadores` and `chamado`; the transfer destination is text in `escalonamento.setor_destino`. No `setor` table exists. `chamado.id_cliente` references the selected company; the snapshot name and requester/contact details are retained for display and historical continuity.
 
-Passwords are stored as hashes in `grupo_solucionadores.senha`. `credencial_solucionador` contains permissions and profile images; documentation displays the linked employee's name through `id_grupo_solucionadores`, rather than storing a supplier field.
+Passwords are stored as hashes in `grupo_solucionadores.senha`. Access permissions are derived from the employee's role; profile photos are not persisted. Documentation displays the linked employee's name through `id_grupo_solucionadores`, rather than storing a supplier field.
 
 ## Key Repository Methods
 

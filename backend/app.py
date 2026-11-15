@@ -3,7 +3,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 import os
 import json
-import base64
 import re
 import secrets
 import smtplib
@@ -82,14 +81,47 @@ def _same_origin(value):
         expected_port = expected.port or (443 if expected.scheme.lower() == 'https' else 80)
     except ValueError:
         return False
-    return (
+    valid_url = (
         provided.scheme.lower() in {'http', 'https'}
         and provided.hostname is not None
         and provided.username is None
         and provided.password is None
-        and provided.scheme.lower() == expected.scheme.lower()
+    )
+    if not valid_url:
+        return False
+    if (
+        provided.scheme.lower() == expected.scheme.lower()
         and provided.hostname.lower() == (expected.hostname or '').lower()
         and provided_port == expected_port
+    ):
+        return True
+
+    codespaces_enabled = os.getenv('CODESPACES', '').strip().lower() in {
+        '1', 'true', 'yes', 'on'
+    }
+    https_only = os.getenv('HELPTI_HTTPS_ONLY', 'false').strip().lower() in {
+        '1', 'true', 'yes', 'on'
+    }
+    codespace_name = os.getenv('CODESPACE_NAME', '').strip().lower()
+    forwarding_domain = os.getenv(
+        'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'app.github.dev'
+    ).strip().lower()
+    if '://' in forwarding_domain:
+        forwarding_domain = urlsplit(forwarding_domain).hostname or ''
+    forwarding_domain = forwarding_domain.lstrip('.').rstrip('.')
+    try:
+        forwarded_port = int(os.getenv('HELPTI_PORT', '5000'))
+    except ValueError:
+        return False
+    expected_codespaces_host = f'{codespace_name}-{forwarded_port}.{forwarding_domain}'
+    return (
+        codespaces_enabled
+        and https_only
+        and bool(codespace_name)
+        and bool(forwarding_domain)
+        and provided.scheme.lower() == 'https'
+        and provided.hostname.lower() == expected_codespaces_host
+        and provided_port == 443
     )
 
 
@@ -194,26 +226,9 @@ def _permissoes_do_membro(membro):
         return PERMISSOES_VALIDAS.copy()
     if cargo == 'cliente':
         return {'chamados'}
-    try:
-        permissoes = json.loads(membro.get('permissoes') or '[]')
-    except (TypeError, json.JSONDecodeError):
-        permissoes = []
-    return {permissao for permissao in permissoes if permissao in PERMISSOES_VALIDAS}
-
-
-def _normalizar_permissoes(permissoes, cargo):
-    if permissoes is None:
-        permissoes = PERMISSOES_PADRAO_CARGO.get(
-            (cargo or '').strip().lower(), {'dashboard', 'chamados'}
-        )
-    if not isinstance(permissoes, (list, set, tuple)):
-        raise ValueError('As permissões devem ser uma lista.')
-    selecionadas = {permissao for permissao in permissoes if permissao in PERMISSOES_VALIDAS}
-    if not selecionadas.intersection(PERMISSOES_VALIDAS - {'gerenciar_equipe'}):
-        raise ValueError('Selecione pelo menos uma aba para o funcionário.')
-    if 'gerenciar_equipe' in selecionadas:
-        selecionadas.add('equipe')
-    return selecionadas
+    return PERMISSOES_PADRAO_CARGO.get(
+        cargo, {'dashboard', 'chamados'}
+    ).copy()
 
 
 def _carregar_membro_da_sessao():
@@ -226,12 +241,8 @@ def _carregar_membro_da_sessao():
         cursor.execute('''
             SELECT membro.id_grupo_solucionadores, membro.id_usuario, membro.nome,
                    membro.email, membro.cargo, membro.status,
-                   credencial.permissoes AS permissoes,
-                   credencial.foto_perfil AS foto_perfil,
                    usuario.nome AS empresa_nome
             FROM grupo_solucionadores AS membro
-            LEFT JOIN credencial_solucionador AS credencial
-                ON credencial.id_grupo_solucionadores = membro.id_grupo_solucionadores
             LEFT JOIN usuario ON usuario.id_usuario = membro.id_usuario
             WHERE membro.id_grupo_solucionadores = %s
         ''', (membro_id,))
@@ -1372,13 +1383,8 @@ def get_equipe():
         
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT grupo_solucionadores.*,
-                   credencial.permissoes AS permissoes,
-                   credencial.foto_perfil AS foto_perfil
+            SELECT grupo_solucionadores.*
             FROM grupo_solucionadores
-            LEFT JOIN credencial_solucionador AS credencial
-                ON credencial.id_grupo_solucionadores =
-                    grupo_solucionadores.id_grupo_solucionadores
             WHERE grupo_solucionadores.id_usuario = %s
             ORDER BY grupo_solucionadores.id_grupo_solucionadores DESC;
         ''', (g.membro['id_usuario'],))
@@ -1388,10 +1394,6 @@ def get_equipe():
             equipe = [{campo: membro.get(campo) for campo in campos_de_apoio} for membro in equipe]
         for membro in equipe:
             membro.pop('senha', None)
-            try:
-                membro['permissoes'] = json.loads(membro.get('permissoes') or '[]')
-            except (TypeError, json.JSONDecodeError):
-                membro['permissoes'] = []
         
         cursor.close()
         conn.close()
@@ -1427,10 +1429,6 @@ def create_equipe():
             VALUES (%s, %s, %s, %s, %s, 'ATIVO', %s, %s)
         ''', (nome, email, cargo, setor_nome, data_inicio, telefone, g.membro['id_usuario']))
         novo_id = cursor.lastrowid
-        cursor.execute('''
-            INSERT INTO credencial_solucionador (id_grupo_solucionadores)
-            VALUES (%s)
-        ''', (novo_id,))
         conn.commit()
         cursor.execute('SELECT * FROM grupo_solucionadores WHERE id_grupo_solucionadores = %s', (novo_id,))
         novo_membro = dict_fetchone(cursor)
@@ -1467,13 +1465,8 @@ def update_equipe(id):
         cursor.execute(f"UPDATE grupo_solucionadores SET {', '.join(f'{campo} = %s' for campo in campos)} WHERE id_grupo_solucionadores = %s AND id_usuario = %s", valores + [g.membro['id_usuario']])
         conn.commit()
         cursor.execute('''
-            SELECT grupo_solucionadores.*,
-                   credencial.permissoes AS permissoes,
-                   credencial.foto_perfil AS foto_perfil
+            SELECT grupo_solucionadores.*
             FROM grupo_solucionadores
-            LEFT JOIN credencial_solucionador AS credencial
-                ON credencial.id_grupo_solucionadores =
-                    grupo_solucionadores.id_grupo_solucionadores
             WHERE grupo_solucionadores.id_grupo_solucionadores = %s
               AND grupo_solucionadores.id_usuario = %s
         ''', (id, g.membro['id_usuario']))
@@ -1483,10 +1476,6 @@ def update_equipe(id):
         if not membro:
             return jsonify({'erro': 'Membro não encontrado'}), 404
         membro.pop('senha', None)
-        try:
-            membro['permissoes'] = json.loads(membro.get('permissoes') or '[]')
-        except (TypeError, json.JSONDecodeError):
-            membro['permissoes'] = []
         return jsonify(membro), 200
     except Error as e:
         return jsonify({'erro': str(e)}), 500
@@ -1557,7 +1546,6 @@ def criar_conta():
             (empresa, email, empresa, email),
         )
         workspace_id = cursor.lastrowid
-        permissoes = sorted(PERMISSOES_VALIDAS)
         cursor.execute('''
             INSERT INTO grupo_solucionadores
                 (nome, email, cargo, setor, status, senha, telefone, id_usuario)
@@ -1567,10 +1555,6 @@ def criar_conta():
             telefone, workspace_id,
         ))
         membro_id = cursor.lastrowid
-        cursor.execute('''
-            INSERT INTO credencial_solucionador (id_grupo_solucionadores, permissoes)
-            VALUES (%s, %s)
-        ''', (membro_id, json.dumps(permissoes)))
         conn.commit()
     except Error as error:
         conn.rollback()
@@ -1588,7 +1572,7 @@ def criar_conta():
         'email': email,
         'empresaNome': empresa,
         'cargo': 'Administrador',
-        'permissoes': permissoes,
+        'permissoes': sorted(PERMISSOES_VALIDAS),
     }), 201
 
 
@@ -1615,12 +1599,9 @@ def login():
         cursor.execute('''
                         SELECT membro.id_grupo_solucionadores AS id, membro.id_usuario,
                                      membro.nome, membro.email, membro.cargo, membro.status,
-                                                 membro.senha, credencial.permissoes,
+                                                 membro.senha,
                                                  usuario.nome AS empresa_nome
                         FROM grupo_solucionadores AS membro
-                                    JOIN credencial_solucionador AS credencial
-                                        ON credencial.id_grupo_solucionadores =
-                                            membro.id_grupo_solucionadores
                         LEFT JOIN usuario ON usuario.id_usuario = membro.id_usuario
                         WHERE LOWER(membro.email) = LOWER(%s)
                             AND membro.senha IS NOT NULL
@@ -1663,46 +1644,8 @@ def obter_sessao():
         'email': membro['email'],
         'cargo': membro['cargo'],
         'empresaNome': membro['empresa_nome'],
-        'fotoPerfil': membro.get('foto_perfil'),
         'permissoes': sorted(_permissoes_do_membro(membro))
     }), 200
-
-
-@app.route('/api/perfil/foto', methods=['PUT'])
-def salvar_foto_perfil():
-    foto = (request.get_json(silent=True) or {}).get('foto')
-    match = re.fullmatch(
-        r'data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})',
-        foto if isinstance(foto, str) else '',
-    )
-    if not match or len(foto) > 1_500_000:
-        return jsonify({'erro': 'Envie uma imagem JPEG, PNG ou WebP de até 1 MB.'}), 400
-    try:
-        conteudo = base64.b64decode(match.group(2), validate=True)
-    except ValueError:
-        return jsonify({'erro': 'A imagem enviada é inválida.'}), 400
-    mime = match.group(1)
-    valido = (
-        (mime == 'jpeg' and conteudo.startswith(b'\xff\xd8\xff'))
-        or (mime == 'png' and conteudo.startswith(b'\x89PNG\r\n\x1a\n'))
-        or (mime == 'webp' and conteudo.startswith(b'RIFF') and conteudo[8:12] == b'WEBP')
-    )
-    if not conteudo or len(conteudo) > 1_000_000 or not valido:
-        return jsonify({'erro': 'A imagem deve ser JPEG, PNG ou WebP e ter até 1 MB.'}), 400
-    conn = get_db_connection()
-    try:
-        conn.execute(
-            'UPDATE credencial_solucionador SET foto_perfil = %s '
-            'WHERE id_grupo_solucionadores = %s',
-            (foto, g.membro['id_grupo_solucionadores']),
-        )
-        conn.commit()
-        return jsonify({'fotoPerfil': foto}), 200
-    except Error as error:
-        app.logger.exception('Falha ao salvar foto de perfil.', exc_info=error)
-        return jsonify({'erro': 'Não foi possível salvar a foto de perfil.'}), 500
-    finally:
-        conn.close()
 
 
 @app.route('/api/logout', methods=['POST'])
@@ -1852,7 +1795,6 @@ def update_configuracoes():
 _WS_TABELAS_BACKUP = (
     ('usuario', 'id_usuario = %s OR id_workspace = %s', 2),
     ('grupo_solucionadores', 'id_usuario = %s', 1),
-    ('credencial_solucionador', 'id_grupo_solucionadores IN (SELECT id_grupo_solucionadores FROM grupo_solucionadores WHERE id_usuario = %s)', 1),
     ('cliente', 'id_usuario = %s', 1),
     ('chamado', 'id_usuario = %s', 1),
     ('historico_chamado', 'id_chamado IN (SELECT id_chamado FROM chamado WHERE id_usuario = %s)', 1),
